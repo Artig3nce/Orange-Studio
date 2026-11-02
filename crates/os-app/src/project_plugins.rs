@@ -113,6 +113,14 @@ pub fn store_hosted(proj: &mut Project, plugins: &Plugins) {
             continue;
         }
         if !is_wrapped(&d) || plays_fl_slot(proj, key, &d) {
+            // A built-in instrument on the channel that names it stores its state there, as a native plugin does.
+            if is_builtin(&d)
+                && fx_of(key).is_none()
+                && proj.channels.get(key).is_some_and(|c| c.kind == ChannelKind::Plugin && c.plugin.as_deref().is_some_and(|n| crate::plugins::current_name(n) == d.name))
+                && let Some(state) = plugins.state(key)
+            {
+                store_native(proj, key, state);
+            }
             continue;
         }
         if untouched_stand_in(proj, plugins, key, &d) {
@@ -764,6 +772,44 @@ mod tests {
         assert!(reopened.state.hosted_rows.contains(&row), "{:?}", reopened.state.message);
         assert_eq!(reopened.plugins.state(row), Some(state));
         assert_eq!(before, sound(&reopened.plugins));
+    }
+
+    /// A built-in instrument keeps what's in it across a save: Slicex its loop.
+    #[test]
+    fn slicex_keeps_its_loop_when_reopened() {
+        let dir = std::env::temp_dir();
+        let path = dir.join(format!("os-app-slicex-{}.flp", std::process::id()));
+        let wav = dir.join(format!("os-app-slicex-{}.wav", std::process::id()));
+        os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &[0.5; 96000]).unwrap();
+        let mut app = App::new(None);
+        app.state.project = crate::app::test_project();
+        (app.state.file, app.state.path) = (None, None);
+        app.plugins.available = crate::plugins::builtin();
+        let row = crate::app::add_plugin_channel(&mut app.state.project, "Orange Slicex");
+        app.plugins.create(row, app.plugins.index_of("Orange Slicex").expect("built in")).unwrap();
+        app.state.hosted_rows.push(row);
+        // The state after a loop is loaded: its file named in the plugin's saved fields.
+        let blob = app.plugins.state(row).unwrap();
+        let start = blob.iter().position(|&b| b == b'{').unwrap();
+        let mut v: serde_json::Value = serde_json::from_slice(&blob[start..]).unwrap();
+        v["fields"]["sample-path"] = serde_json::Value::String(serde_json::to_string(&*wav.to_string_lossy()).unwrap());
+        let json = serde_json::to_vec(&v).unwrap();
+        // The plugin's state stream is the text's length, then the text.
+        let mut loaded = if start == 8 { (json.len() as u64).to_le_bytes().to_vec() } else { Vec::new() };
+        loaded.extend(json);
+        assert!(app.plugins.set_state(row, &loaded));
+        let state = app.plugins.state(row).unwrap();
+        app.save_to(path.clone());
+        assert!(app.state.message.as_deref().is_some_and(|m| m.starts_with("Saved")), "{:?}", app.state.message);
+        let mut reopened = App::new(None);
+        reopened.plugins.available = crate::plugins::builtin();
+        reopened.open(path.clone());
+        reopened.sync_generators();
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(&wav);
+        assert!(reopened.state.hosted_rows.contains(&row), "{:?}", reopened.state.message);
+        assert_eq!(reopened.plugins.state(row), Some(state), "the loop came back");
+        assert_eq!(reopened.state.project.channels[row].plugin.as_deref(), Some("Orange Slicex"));
     }
 
     #[test]

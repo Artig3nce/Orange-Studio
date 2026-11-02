@@ -126,12 +126,12 @@ pub enum FxReq {
 pub const LAYOUTS: [&str; 8] = ["Compact", "Compact 2", "Compact alt", "Wide", "Wide 2", "Wide 3", "Wide alt", "Extra large"];
 /// Index of "Wide" (the default).
 pub const WIDE: u8 = 3;
-/// Where the chosen layout is kept (its name).
-const LAYOUT_KEY: &str = "mixer_layout";
+/// The only layout the mixer uses (its name is not shown).
+pub const EXTRA_LARGE: u8 = 7;
 
-/// The layout chosen last time, else Wide.
+/// The mixer always uses Extra large.
 fn saved_layout() -> u8 {
-    crate::prefs::text(LAYOUT_KEY).and_then(|t| LAYOUTS.iter().position(|&l| l == t)).map_or(WIDE, |i| i as u8)
+    EXTRA_LARGE
 }
 
 /// Mixer state that is not project data.
@@ -1484,8 +1484,7 @@ pub fn run(app: &mut App, c: MCmd) -> Option<String> {
         }
         MCmd::Route { dst, only, side } => route(s, dst, only, side),
         MCmd::Layout(l) => {
-            s.mixer.layout = l.min(LAYOUTS.len() as u8 - 1);
-            crate::prefs::set_text(LAYOUT_KEY, LAYOUTS[usize::from(s.mixer.layout)]);
+            s.mixer.layout = EXTRA_LARGE.min(l);
             s.mixer_scroll = 0.0;
             None
         }

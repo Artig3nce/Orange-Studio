@@ -3082,8 +3082,7 @@ pub enum PlDrag {
     RightPending { x0: f32, y0: f32 },
     ZoomBox { x0: f32, y0: f32 },
     Playback,
-    /// A ruler press: the song moves there, and a drag from `x0` turns it into a time selection from `t0`.
-    SongPos { x0: f32, t0: u32 },
+    SongPos,
     TimeSel { t0: u32 },
     Marker { i: usize, dt: i64, t0: u32 },
     Point { ch: u16, clip: usize, i: usize, x0: f32, y0: f32, beat0: f64, v0: f64, lock: Option<bool> },
@@ -3759,16 +3758,9 @@ pub fn drag_move(app: &mut App, d: PlDrag, grid: Rect) {
             s.playlist.overlay = Some(Overlay::ZoomBox(Rect::span(x0.min(x), x0.max(x), y0.min(y), y0.max(y))));
         }
         PlDrag::Playback => {}
-        PlDrag::SongPos { x0, t0 } => {
-            if (x - x0).abs() > 4.0 {
-                // Dragged along the ruler: a time selection from where the press came, as FL's.
-                app.drag = Some(Drag::Pl(PlDrag::TimeSel { t0 }));
-                let t = snap_round(s, &g, g.tick_at(x), alt);
-                s.playlist.range = (t != t0).then(|| (t0.min(t), t0.max(t)));
-            } else {
-                s.playlist.pos = snap_down(s, &g, g.tick_at(x), alt);
-                crate::init::apply(s);
-            }
+        PlDrag::SongPos => {
+            s.playlist.pos = snap_down(s, &g, g.tick_at(x), alt);
+            crate::init::apply(s);
         }
         PlDrag::TimeSel { t0 } => {
             let t = snap_round(s, &g, g.tick_at(x), alt);
@@ -3921,7 +3913,7 @@ pub fn drag_end(app: &mut App, d: PlDrag, grid: Rect) {
         }
         PlDrag::ZoomBox { x0, y0 } => zoom_to(app, grid, x0, y0),
         PlDrag::Playback => app.transport.stop(),
-        PlDrag::SongPos { .. } => {
+        PlDrag::SongPos => {
             // The song jumps to the new position; a running pattern goes on as the song from there, a paused one
             // stops, as with the PAT / SONG switch (§7, audio/transport.md).
             if app.transport.playing() {
@@ -4116,7 +4108,8 @@ pub fn press_ruler(app: &mut App, grid: Rect, right: bool) {
         // (spec: ui/settings-choices.md "Advanced: Initialize controls automatically").
         s.song_mode = true;
         crate::init::apply(s);
-        app.drag = Some(Drag::Pl(PlDrag::SongPos { x0: x, t0: t }));
+        // A double click starts a time selection: a drag after it selects the range, a plain click only moves the song.
+        app.drag = Some(Drag::Pl(if double { PlDrag::TimeSel { t0: t } } else { PlDrag::SongPos }));
     }
     app.invalidate();
 }

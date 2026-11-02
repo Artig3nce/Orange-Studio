@@ -7770,9 +7770,7 @@ impl App {
             // Ctrl+wheel anywhere in the playlist, the plain wheel over the ruler: time zoom around the mouse (§3).
             _ if pl_area && (ctrl || (!shift && matches!(area, Some(Action::PlRuler | Action::PlMarkers)))) => {
                 let gx = self.pl_grid.map_or(481.0, |g| g.x);
-                let bar = (s.playlist_scroll.0 + x - gx) / s.playlist_bar_w;
-                s.playlist_bar_w = (s.playlist_bar_w * 1.25f32.powf(dy + dx)).clamp(4.0, 600.0);
-                s.playlist_scroll.0 = (bar * s.playlist_bar_w - (x - gx)).max(0.0);
+                self.zoom_playlist(1.25f32.powf(dy + dx), x - gx);
                 Some(Win::Playlist)
             }
             // Shift+wheel over the track headers moves the selected track (spec: ui/playlist.md §6).
@@ -12887,8 +12885,7 @@ mod tests {
         app.wheel(-3.0, 0.0, false, false);
         eases(&mut app, &mut a, &mut b, "wheel sideways");
         app.wheel(0.0, 1.0, false, true);
-        assert!(!app.smooth.running(), "a zoom doesn't ease");
-        check(&mut app, &mut a, &mut b, "ctrl+wheel zoom");
+        eases(&mut app, &mut a, &mut b, "ctrl+wheel zoom");
         // Drag the horizontal scroll bar.
         let bar = app.bar(Scroll::PlaylistX).unwrap();
         app.mouse_move(bar.track.x + 3.0, bar.track.cy());
@@ -12910,7 +12907,7 @@ mod tests {
         app.mouse_down();
         frame(&mut app, &mut a, None);
         let _ = app.take_damage();
-        for (dx, dy) in [(40.0, 0.0), (90.0, 48.0), (150.0, 96.0)] {
+        for (dx, dy) in [(40.0, 0.0), (90.0, crate::playlist::ROW_H), (150.0, 2.0 * crate::playlist::ROW_H)] {
             app.mouse_move(c0.x + 10.0 + dx, c0.y + 25.0 + dy);
             if let Damage::Rects(rs) = &app.damage {
                 let area: f32 = rs.iter().map(|r| r.w * r.h).sum();
@@ -20379,6 +20376,7 @@ mod tests {
         let header = hit_rect(&app, &Action::PlHeader(2));
         app.mouse_move(header.cx(), header.cy());
         app.wheel(0.0, 1.0, false, true);
+        app.ease_to_end();
         assert!(app.state.playlist_bar_w > w0 && app.state.playlist.row_h == pl::ROW_H, "Ctrl+wheel over the headers zooms time");
         app.state.playlist_bar_w = w0;
         app.state.playlist_scroll = (0.0, 0.0);
@@ -20386,6 +20384,7 @@ mod tests {
         let ruler = hit_rect(&app, &Action::PlRuler);
         app.mouse_move(ruler.cx(), ruler.cy());
         app.wheel(0.0, 1.0, false, false);
+        app.ease_to_end();
         assert!(app.state.playlist_bar_w > w0, "the plain wheel over the ruler zooms in");
         app.alt = true;
         let w1 = app.state.playlist_bar_w;

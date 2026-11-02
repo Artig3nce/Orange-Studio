@@ -357,10 +357,6 @@ fn title_tools(ui: &mut Ui, s: &State, r: Rect) {
     let pb = Rect::new(r.x + 109.0 + px, y - 8.0, 16.0, 16.0);
     let hov = ui.hit(pb, Action::Mix(MHit::AddAfter), "Add a new track after the selected track");
     icons::draw(ui.c, Icon::Plus, Rect::new(r.x + 110.0 + px, y - 7.0, 14.0, 14.0), if hov { ui.t.tx(0xffffff) } else { ui.t.tx(0xc4ccd0) });
-    let lb = Rect::new(r.x + 130.0 + px, r.y + 2.0, 50.0, 20.0);
-    let hov = ui.hit(lb, Action::Mix(MHit::Layout), "Mixer layout");
-    let name = mx::LAYOUTS[usize::from(s.mixer.layout).min(mx::LAYOUTS.len() - 1)];
-    ui.c.text(Font::new(17), r.x + 134.0 + px, r.y + 2.0, if hov { ui.t.tx(0xffffff) } else { ui.t.tx(0xb8c4cb) }, name);
 
     if let Some(pat) = s.pattern_mixer_filter {
         let pat_name = crate::patterns::name_of(s, pat);

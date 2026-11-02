@@ -1512,7 +1512,7 @@ fn screenshot(args: &[String]) {
         app.act(app::Action::BrowserMenu);
     }
     if let Some(l) = mixer_layout {
-        app.state.mixer.layout = l as u8;
+        app.state.mixer.layout = crate::mixer::EXTRA_LARGE.min(l as u8);
     }
     app.state.z = match view.as_str() {
         "mixer" => vec![app::Win::Mixer],

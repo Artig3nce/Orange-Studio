@@ -8837,7 +8837,13 @@ impl App {
                     // Play toggles pause (the position is held in place); Stop rewinds.
                     TransportState::Playing => self.transport.pause(),
                     TransportState::Paused => self.transport.resume(),
-                    TransportState::Stopped => self.play_from_stop(),
+                    TransportState::Stopped => {
+                        // Working in the docked piano roll, Play plays its pattern; the Song button takes it back.
+                        if self.state.docked_ui && self.state.z.last() == Some(&Win::PianoRoll) {
+                            self.state.song_mode = false;
+                        }
+                        self.play_from_stop();
+                    }
                 }
             }
             Action::Stop => {
@@ -8863,6 +8869,9 @@ impl App {
             Action::PatSong(song) => {
                 let changed = s.song_mode != song;
                 s.song_mode = song;
+                if song && s.docked_ui && s.z.last() == Some(&Win::PianoRoll) {
+                    s.raise(Win::Playlist);
+                }
                 // The running playback follows the switch: it restarts in the new mode (a paused one is stopped),
                 // so the playheads always show what is heard.
                 if changed && self.transport.playing() {
@@ -19196,6 +19205,26 @@ mod tests {
         assert_eq!(app.state.playlist.hover_handle, Some(pl::Handle::Gain));
         frame(&mut app, &mut c, None);
         let _ = std::fs::remove_file(&wav);
+    }
+
+    /// In the docked layout Play from the piano roll plays its pattern, until the Song button or the playlist is used.
+    #[test]
+    fn docked_piano_roll_plays_its_pattern() {
+        let mut app = App::new(None);
+        app.state.docked_ui = true;
+        app.state.song_mode = true;
+        app.act(Action::PanelTab(Win::PianoRoll));
+        app.act(Action::Play);
+        assert!(!app.state.song_mode, "the pattern plays");
+        app.act(Action::Stop);
+        app.act(Action::PatSong(true));
+        app.act(Action::Play);
+        assert!(app.state.song_mode, "Song was asked for");
+        app.act(Action::Stop);
+        // The tab stays on the piano roll; the playlist was the last thing worked in.
+        app.act(Action::Play);
+        assert!(app.state.song_mode);
+        app.act(Action::Stop);
     }
 
     /// Clicking a clip trimmed at both ends and placing the next one repeats the trim: the same part, the same length.

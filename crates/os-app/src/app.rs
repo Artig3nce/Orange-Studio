@@ -19283,6 +19283,49 @@ mod tests {
         assert_eq!(app.state.playlist.range_drag, None);
     }
 
+    /// Ctrl+B on a highlighted time range repeats only what's in it, right after it; again, the part after that.
+    #[test]
+    fn ctrl_b_duplicates_the_highlight_only() {
+        use crate::playlist as pl;
+        let mut app = App::new(None);
+        let bar = app.state.project.bar_ticks();
+        let src = os_model::ClipSource::Pattern(1);
+        pl::arr_mut(&mut app.state).clips = vec![os_model::Clip::new(0, bar, 0, src), os_model::Clip::new(bar, bar, 1, src), os_model::Clip::new(bar * 2, bar * 2, 2, src)];
+        app.state.playlist.sel.clear();
+        app.state.playlist.range = Some((bar, bar * 3));
+        pl::duplicate(&mut app.state);
+        let mut got: Vec<_> = pl::clips(&app.state).iter().map(|c| (c.track, c.position / bar, c.length / bar)).collect();
+        got.sort_unstable();
+        assert_eq!(got, [(0, 0, 1), (1, 1, 1), (1, 3, 1), (2, 2, 1), (2, 3, 1), (2, 4, 1)], "the first clip stays single, the part of the last in the range repeats");
+        assert_eq!(app.state.playlist.range, Some((bar * 3, bar * 5)));
+        pl::duplicate(&mut app.state);
+        assert_eq!(pl::clips(&app.state).len(), 8, "again: the two copies once more");
+        // No highlight and nothing selected: everything, as before.
+        app.state.playlist.range = None;
+        app.state.playlist.sel.clear();
+        pl::duplicate(&mut app.state);
+        assert_eq!(pl::clips(&app.state).len(), 16);
+    }
+
+    /// While stopped the clock reads where the playlist's line is, not only while playing.
+    #[test]
+    fn the_clock_follows_the_line_while_stopped() {
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.state.song_mode = true;
+        app.state.playlist.pos = 0;
+        frame(&mut app, &mut c, None);
+        let r = app.live.iter().find(|(k, _)| *k == Live::Clock).expect("the clock").1;
+        let area = |c: &Canvas| -> Vec<u8> {
+            let w = c.pixmap.width() as usize;
+            (r.y as usize..r.bottom() as usize).flat_map(|y| c.pixmap.data()[(y * w + r.x as usize) * 4..(y * w + r.right() as usize) * 4].to_vec()).collect()
+        };
+        let before = area(&c);
+        app.state.playlist.pos = app.state.project.bar_ticks() * 8;
+        frame(&mut app, &mut c, None);
+        assert_ne!(area(&c), before, "the digits changed");
+    }
+
     /// Clicking a clip trimmed at both ends and placing the next one repeats the trim: the same part, the same length.
     #[test]
     fn a_trimmed_clip_is_placed_as_trimmed() {

@@ -554,6 +554,20 @@ fn recording(ui: &mut Ui, c: &Ctx) -> bool {
     true
 }
 
+/// The tick the clock shows: the playhead's, and while stopped where playback would start: the playlist's line in song
+/// mode, the piano roll's play-start marker in pattern mode.
+fn clock_tick(s: &State, f: &FrameInfo) -> f64 {
+    if f.playing {
+        f.tick
+    } else if s.song_mode {
+        f64::from(s.playlist.pos)
+    } else if s.shown(Win::PianoRoll) {
+        f64::from(s.piano.marker)
+    } else {
+        f.tick
+    }
+}
+
 /// Song position (B:S:T, or M:S:CS: a click toggles, right-click opens the mode menu).
 fn time(ui: &mut Ui, c: &Ctx) {
     let (t, a, s, f) = (ui.t, c.a, c.s, c.f);
@@ -566,8 +580,9 @@ fn time(ui: &mut Ui, c: &Ctx) {
         ui.live(Live::Clock, tp);
         let ppq = f64::from(s.project.ppq.max(1));
         let sig = s.project.signature().unwrap_or((s.project.bar().0, 4));
-        let secs = f.tick / ppq * 60.0 / s.project.tick_tempo(s.tempo.max(1.0));
-        let (bar, step, tick) = s.clock.reading(secs, f.tick * 96.0 / ppq, sig);
+        let at = clock_tick(s, f);
+        let secs = at / ppq * 60.0 / s.project.tick_tempo(s.tempo.max(1.0));
+        let (bar, step, tick) = s.clock.reading(secs, at * 96.0 / ppq, sig);
         let text = match s.rec.count.filter(|c| c.left() > 0) {
             Some(c) => format!("REC IN {}", c.left()),
             None => format!("{bar}:{step:02}:{tick:02}"),
@@ -588,8 +603,9 @@ fn time(ui: &mut Ui, c: &Ctx) {
     let ppq = f64::from(s.project.ppq.max(1));
     // A bar that makes no signature (3 steps per beat) counts its beats as quarters.
     let sig = s.project.signature().unwrap_or((s.project.bar().0, 4));
-    let secs = f.tick / ppq * 60.0 / s.project.tick_tempo(s.tempo.max(1.0));
-    let (bar, step, tick) = s.clock.reading(secs, f.tick * 96.0 / ppq, sig);
+    let at = clock_tick(s, f);
+    let secs = at / ppq * 60.0 / s.project.tick_tempo(s.tempo.max(1.0));
+    let (bar, step, tick) = s.clock.reading(secs, at * 96.0 / ppq, sig);
     // Light digits drawn piece by piece (measured: big 36 px condensed to 14, small 24 to 9),
     // right-aligned so long bar numbers grow to the left and never leave the panel.
     let (big, small) = (Font::light(32, 13), Font::light(22, 8));

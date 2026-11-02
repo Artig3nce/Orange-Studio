@@ -1572,7 +1572,13 @@ pub fn delete(s: &mut State, mut idx: Vec<usize>) {
 
 /// Clips an edit applies to: the selection, else all.
 pub fn targets(s: &State) -> Vec<usize> {
-    if s.playlist.sel.is_empty() { (0..clips(s).len()).collect() } else { s.playlist.sel.clone() }
+    if !s.playlist.sel.is_empty() {
+        return s.playlist.sel.clone();
+    }
+    match s.playlist.range.filter(|r| r.1 > r.0) {
+        Some((r0, r1)) => clips(s).iter().enumerate().filter(|(_, c)| c.position >= r0 && c.end() <= r1).map(|(i, _)| i).collect(),
+        None => (0..clips(s).len()).collect(),
+    }
 }
 
 /// `idx` plus every clip that shares a group with one of them (grouped clips select and move as one, §3a); just `idx`
@@ -1855,8 +1861,22 @@ pub fn resize_left(s: &mut State, i: usize, orig: &Clip, dt: i64) {
     s.piano.dirty = true;
 }
 
-/// Ctrl+B: duplicate the selection (or all clips) right after itself, or by the time selection's length.
+/// Cut the clips across the edges of the time selection there, so what it covers is whole clips.
+fn split_at_range(s: &mut State, (r0, r1): (u32, u32)) {
+    for t in [r0, r1] {
+        let ids: Vec<usize> = clips(s).iter().enumerate().filter(|(_, c)| c.position < t && c.end() > t).map(|(i, _)| i).collect();
+        for i in ids {
+            split(s, i, t);
+        }
+    }
+}
+
+/// Ctrl+B: duplicate the selection (or the time selection's clips, or all clips) right after itself, or by the time
+/// selection's length.
 pub fn duplicate(s: &mut State) {
+    if let Some(r) = s.playlist.range.filter(|r| r.1 > r.0 && s.playlist.sel.is_empty()) {
+        split_at_range(s, r);
+    }
     let idx = targets(s);
     let cs: Vec<Clip> = idx.iter().filter_map(|&i| clips(s).get(i).copied()).collect();
     let (Some(a), Some(b)) = (cs.iter().map(|c| c.position).min(), cs.iter().map(Clip::end).max()) else { return };
@@ -1914,12 +1934,7 @@ pub fn copy(s: &mut State) {
 /// stay where they are. Nothing without a time selection.
 fn take_range(s: &mut State) -> Vec<Clip> {
     let Some((r0, r1)) = s.playlist.range.filter(|r| r.1 > r.0) else { return Vec::new() };
-    for t in [r0, r1] {
-        let ids: Vec<usize> = clips(s).iter().enumerate().filter(|(_, c)| c.position < t && c.end() > t).map(|(i, _)| i).collect();
-        for i in ids {
-            split(s, i, t);
-        }
-    }
+    split_at_range(s, (r0, r1));
     let inside: Vec<usize> = clips(s).iter().enumerate().filter(|(_, c)| c.position >= r0 && c.end() <= r1).map(|(i, _)| i).collect();
     let taken = inside.iter().map(|&i| clips(s)[i]).collect();
     delete(s, inside);

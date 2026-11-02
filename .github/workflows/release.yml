@@ -1,6 +1,6 @@
-# Builds Orange Studio for Windows, Linux and Android and attaches the builds to a GitHub release: a `v*` tag pushed
+# Builds Orange Studio for Windows, Linux, macOS and Android and attaches the builds to a GitHub release: a `v*` tag pushed
 # to the repository (or a manual dispatch) becomes a release with `Orange-Studio-windows-x64.zip`,
-# `Orange-Studio-linux-x64.zip` and `Orange-Studio-android-arm64.apk`. The builds are the ones CI checks (see ci.yml): Windows 10+, x64 — the build Winlator
+# `Orange-Studio-linux-x64.zip`, `Orange-Studio-macos-arm64.zip` and `Orange-Studio-android-arm64.apk`. The builds are the ones CI checks (see ci.yml): Windows 10+, x64 — the build Winlator
 # (Wine on Android) runs, since nothing needs the GPU — and Linux on X11 or Wayland, x64.
 name: Release
 
@@ -54,8 +54,8 @@ jobs:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           name: Orange Studio ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           body: |
-            Orange Studio for Windows (x64), Linux (x64) and Android (arm64): the portable builds run on Windows 10 and
-            11, Linux on X11 or Wayland, and natively on Android, no Wine needed.
+            Orange Studio for Windows (x64), Linux (x64), macOS (Apple Silicon) and Android (arm64): the portable builds run on
+            Windows 10 and 11, Linux on X11 or Wayland, macOS 11 or newer, and natively on Android, no Wine needed.
 
             Orange Studio is based on Lemon Studio by ItsAlphaNeon (https://github.com/ItsAlphaNeon/Lemon-Studio), free software
             under the GPL 3.0 or later. The Android port's scaffolding follows daijro's honeydew
@@ -63,6 +63,7 @@ jobs:
 
             - Unzip and run `orangestudio` (`orangestudio.exe` on Windows): no installer, and nothing else to install.
               On Android, install the APK and open Orange Studio from the launcher.
+            - On macOS, unzip and move the app to Applications. It is not signed: the first time, right click it and pick Open.
               roll draws slide and portamento notes (the Note properties menu).
             - Desktop audio is unchanged; on Android the device plays through AAudio at the device's own settings.
             - If it will not start, `%APPDATA%\Orange Studio\panic-log.txt` (Windows), `~/.config/Orange Studio/panic-log.txt`
@@ -103,8 +104,8 @@ jobs:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           name: Orange Studio ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           body: |
-            Orange Studio for Windows (x64), Linux (x64) and Android (arm64): the portable builds run on Windows 10 and
-            11, Linux on X11 or Wayland, and natively on Android, no Wine needed.
+            Orange Studio for Windows (x64), Linux (x64), macOS (Apple Silicon) and Android (arm64): the portable builds run on
+            Windows 10 and 11, Linux on X11 or Wayland, macOS 11 or newer, and natively on Android, no Wine needed.
 
             Orange Studio is based on Lemon Studio by ItsAlphaNeon (https://github.com/ItsAlphaNeon/Lemon-Studio), free software
             under the GPL 3.0 or later. The Android port's scaffolding follows daijro's honeydew
@@ -112,12 +113,56 @@ jobs:
 
             - Unzip and run `orangestudio` (`orangestudio.exe` on Windows): no installer, and nothing else to install.
               On Android, install the APK and open Orange Studio from the launcher.
+            - On macOS, unzip and move the app to Applications. It is not signed: the first time, right click it and pick Open.
               roll draws slide and portamento notes (the Note properties menu).
             - Desktop audio is unchanged; on Android the device plays through AAudio at the device's own settings.
             - If it will not start, `%APPDATA%\Orange Studio\panic-log.txt` (Windows), `~/.config/Orange Studio/panic-log.txt`
               (Linux) or the app folder's panic-log.txt (Android) says why.
           files: Orange-Studio-linux-x64.zip
           fail_on_unmatched_files: true
+
+  macos:
+    name: macOS arm64
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release --locked -p os-app
+
+      # Not signed: the first start needs right click > Open.
+      - name: Package
+        run: |
+          cargo run -p bundle-app --locked
+          ditto -c -k --keepParent target/bundled/*.app Orange-Studio-macos-arm64.zip
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          name: Orange Studio ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          body: |
+            Orange Studio for Windows (x64), Linux (x64), macOS (Apple Silicon) and Android (arm64): the portable builds run on
+            Windows 10 and 11, Linux on X11 or Wayland, macOS 11 or newer, and natively on Android, no Wine needed.
+
+            Orange Studio is based on Lemon Studio by ItsAlphaNeon (https://github.com/ItsAlphaNeon/Lemon-Studio), free software
+            under the GPL 3.0 or later. The Android port's scaffolding follows daijro's honeydew
+            (https://github.com/daijro/honeydew), credited in THIRD-PARTY-NOTICES.txt.
+
+            - Unzip and run `orangestudio` (`orangestudio.exe` on Windows): no installer, and nothing else to install.
+              On Android, install the APK and open Orange Studio from the launcher.
+            - On macOS, unzip and move the app to Applications. It is not signed: the first time, right click it and pick Open.
+              roll draws slide and portamento notes (the Note properties menu).
+            - Desktop audio is unchanged; on Android the device plays through AAudio at the device's own settings.
+            - If it will not start, `%APPDATA%\Orange Studio\panic-log.txt` (Windows), `~/.config/Orange Studio/panic-log.txt`
+              (Linux) or the app folder's panic-log.txt (Android) says why.
+          files: Orange-Studio-macos-arm64.zip
+          fail_on_unmatched_files: true
+
 
   android:
     name: Android arm64
@@ -153,8 +198,8 @@ jobs:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           name: Orange Studio ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           body: |
-            Orange Studio for Windows (x64), Linux (x64) and Android (arm64): the portable builds run on Windows 10 and
-            11, Linux on X11 or Wayland, and natively on Android, no Wine needed.
+            Orange Studio for Windows (x64), Linux (x64), macOS (Apple Silicon) and Android (arm64): the portable builds run on
+            Windows 10 and 11, Linux on X11 or Wayland, macOS 11 or newer, and natively on Android, no Wine needed.
 
             Orange Studio is based on Lemon Studio by ItsAlphaNeon (https://github.com/ItsAlphaNeon/Lemon-Studio), free software
             under the GPL 3.0 or later. The Android port's scaffolding follows daijro's honeydew
@@ -162,6 +207,7 @@ jobs:
 
             - Unzip and run `orangestudio` (`orangestudio.exe` on Windows): no installer, and nothing else to install.
               On Android, install the APK and open Orange Studio from the launcher.
+            - On macOS, unzip and move the app to Applications. It is not signed: the first time, right click it and pick Open.
               roll draws slide and portamento notes (the Note properties menu).
             - Desktop audio is unchanged; on Android the device plays through AAudio at the device's own settings.
             - If it will not start, `%APPDATA%\Orange Studio\panic-log.txt` (Windows), `~/.config/Orange Studio/panic-log.txt`

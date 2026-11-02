@@ -194,6 +194,8 @@ pub struct PianoState {
     pub bar_span: Option<f32>,
     /// Length of the last note added, moved or resized; 0 = not yet (§8: first note is PPQ/2).
     pub last_len: u32,
+    /// Last left click in the ruler: a press soon after starts a time selection, as in the playlist.
+    pub last_ruler: Option<std::time::Instant>,
     /// The last note clicked or edited in the event panel: new notes take its controls (velocity, pan, release, cutoff,
     /// resonance, fine pitch, repeat, colour), as FL does; `None` = the defaults.
     pub last_controls: Option<Note>,
@@ -256,6 +258,7 @@ impl Default for PianoState {
             px_per_beat: 96.0,
             bar_span: None,
             last_len: 0,
+            last_ruler: None,
             last_controls: None,
             note_type: NoteType::Plain,
             dirty: false,
@@ -660,6 +663,20 @@ pub fn notes(s: &State) -> &[Note] {
 /// The channel index (`Note::channel`) the piano roll edits.
 pub fn channel(s: &State) -> Option<u16> {
     s.project.channels.get(s.selected_channel).map(|c| c.index)
+}
+
+/// Make pattern `n` current; when the selected channel has no notes in it and another does, that one is selected, so
+/// the piano roll shows the notes.
+pub fn go_to_pattern(s: &mut State, n: u16) {
+    s.pattern = n;
+    let Some(p) = s.project.patterns.iter().find(|p| p.number == n) else { return };
+    if channel(s).is_some_and(|ch| p.notes.iter().any(|note| note.channel == ch)) {
+        return;
+    }
+    if let Some(row) = s.project.channels.iter().position(|c| p.notes.iter().any(|note| note.channel == c.index)) {
+        s.selected_channel = row;
+        s.rack.select_only(row);
+    }
 }
 
 /// The current pattern's channel control points.

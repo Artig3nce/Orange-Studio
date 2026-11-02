@@ -92,7 +92,7 @@ impl App {
                 }
                 match row.item {
                     Item::Pattern(n) => {
-                        s.pattern = n;
+                        crate::piano::go_to_pattern(s, n);
                     }
                     Item::Channel(c) => {
                         s.selected_channel = c;
@@ -450,7 +450,7 @@ impl App {
                     let i = pl::place(s, track, tick);
                     s.playlist.sel = vec![i];
                 } else if matches!(win, Some(Win::PianoRoll | Win::ChannelRack)) {
-                    s.pattern = n;
+                    crate::piano::go_to_pattern(s, n);
                 }
             }
             Item::Channel(c) => {
@@ -576,7 +576,7 @@ impl App {
             }
             // What a click on the row does, without the click's open / close.
             RowCmd::Activate => match row.item {
-                Item::Pattern(n) => s.pattern = n,
+                Item::Pattern(n) => crate::piano::go_to_pattern(s, n),
                 Item::Channel(c) => {
                     s.selected_channel = c;
                     s.rack.select_only(c);

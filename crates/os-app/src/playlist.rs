@@ -3573,7 +3573,7 @@ pub fn press_grid(app: &mut App, grid: Rect, right: bool) {
                 // Clicking a clip makes its source current (§3).
                 s.playlist.source = Some(c.source);
                 if let ClipSource::Pattern(n) = c.source {
-                    s.pattern = n;
+                    crate::piano::go_to_pattern(s, n);
                 }
                 s.playlist.picker = source_kind(s, c.source);
                 // A trimmed clip is what gets placed next; an untrimmed one clears it.
@@ -4992,7 +4992,7 @@ pub fn run(app: &mut App, cmd: Cmd) -> Option<String> {
         }
         Cmd::ClipEditSource(i) => {
             if let Some(ClipSource::Pattern(n)) = clips(s).get(i).map(|c| c.source) {
-                s.pattern = n;
+                crate::piano::go_to_pattern(s, n);
                 s.raise(crate::app::Win::PianoRoll);
             }
             None

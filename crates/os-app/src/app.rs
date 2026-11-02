@@ -8647,7 +8647,7 @@ impl App {
             Action::PlPick(src) => {
                 self.state.playlist.source = Some(src);
                 if let os_model::ClipSource::Pattern(n) = src {
-                    self.state.pattern = n;
+                    piano::go_to_pattern(&mut self.state, n);
                 }
                 // Dragged onto the playlist (or a track header), the item drops a clip of itself there, as FL's picker
                 // does: the browser's drag, with the pattern or the clip's channel.
@@ -8770,7 +8770,15 @@ impl App {
         if a == Action::PianoRuler {
             if let Some(g) = self.piano_geom() {
                 let t = crate::piano_snap::place(&self.state, &g, g.tick_at(self.mouse.0), self.alt);
-                if self.state.song_mode && self.piano_song_seek(t, true) {
+                // A double click starts a time selection: a drag after it selects the range, as in the playlist.
+                let now = std::time::Instant::now();
+                let double = self.state.piano.last_ruler.is_some_and(|c| now.duration_since(c).as_millis() < 450);
+                self.state.piano.last_ruler = (!double).then_some(now);
+                if double {
+                    self.state.piano.clear_selection();
+                    self.drag = Some(Drag::TimeSel { t0: t });
+                    self.damage_piano();
+                } else if self.state.song_mode && self.piano_song_seek(t, true) {
                     self.drag = Some(Drag::SongRuler);
                 } else {
                     self.state.piano.marker = t;
@@ -19324,6 +19332,62 @@ mod tests {
         app.state.playlist.pos = app.state.project.bar_ticks() * 8;
         frame(&mut app, &mut c, None);
         assert_ne!(area(&c), before, "the digits changed");
+    }
+
+    /// Pressing a pattern moves to an instrument with notes in it, unless the selected one has some.
+    #[test]
+    fn a_pattern_goes_to_the_instrument_with_notes() {
+        let mut app = App::new(None);
+        let s = &mut app.state;
+        let (a, b) = (s.project.channels[1].index, s.project.channels[3].index);
+        s.pattern = 1;
+        s.selected_channel = 0;
+        s.project.patterns.retain(|p| p.number != 1 && p.number != 2);
+        for (n, ch) in [(1u16, a), (2, b)] {
+            let mut p = s.project.patterns.first().cloned().unwrap_or_default();
+            p.number = n;
+            p.notes = vec![os_model::Note::step(ch, 0)];
+            s.project.patterns.push(p);
+        }
+        piano::go_to_pattern(s, 2);
+        assert_eq!((s.pattern, s.selected_channel), (2, 3), "to the instrument with notes");
+        piano::go_to_pattern(s, 1);
+        assert_eq!(s.selected_channel, 1);
+        s.project.patterns.iter_mut().find(|p| p.number == 2).unwrap().notes.push(os_model::Note::step(a, 96));
+        piano::go_to_pattern(s, 2);
+        assert_eq!(s.selected_channel, 1, "the selected one has notes here too: it stays");
+        // A pattern with no notes changes nothing.
+        s.project.patterns.iter_mut().find(|p| p.number == 2).unwrap().notes.clear();
+        piano::go_to_pattern(s, 2);
+        assert_eq!((s.pattern, s.selected_channel), (2, 1));
+    }
+
+    /// As in the playlist: a double click on the piano roll's ruler, held and dragged, highlights a time range.
+    #[test]
+    fn piano_ruler_double_click_drag_highlights() {
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.state.docked_ui = true;
+        app.state.song_mode = false;
+        app.act(Action::PanelTab(Win::PianoRoll));
+        frame(&mut app, &mut c, None);
+        let ruler = hit_rect(&app, &Action::PianoRuler);
+        let g = app.piano_geom().unwrap();
+        let y = ruler.cy();
+        let (x0, x1) = (g.x_of(0.0) + 1.0, g.x_of(g.beat as f32 * 2.0));
+        app.mouse_move(x0, y);
+        app.mouse_down();
+        app.mouse_up();
+        assert_eq!(app.state.piano.range, None, "one click only moves the play start");
+        app.mouse_down();
+        app.mouse_move(x1, y);
+        app.mouse_up();
+        assert_eq!(app.state.piano.range, Some((0, g.beat * 2)));
+        // A later plain click keeps it.
+        app.state.piano.last_ruler = None;
+        app.mouse_down();
+        app.mouse_up();
+        assert!(app.state.piano.range.is_some());
     }
 
     /// Clicking a clip trimmed at both ends and placing the next one repeats the trim: the same part, the same length.

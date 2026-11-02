@@ -467,7 +467,7 @@ fn overview(ui: &mut Ui, s: &State, l: &Layout, g: &Geom, notes: &[Note], ch: Op
 
 fn ruler(ui: &mut Ui, l: &Layout, g: &Geom, range: Option<(f32, f32)>, marker: u32, markers: &[(u32, String)]) {
     let t = ui.t;
-    ui.hit(Rect::new(l.grid.x, l.ruler.y, l.grid.w, l.ruler.h), Action::PianoRuler, "Drag: move the play start - right-drag: select a time range");
+    ui.hit(Rect::new(l.grid.x, l.ruler.y, l.grid.w, l.ruler.h), Action::PianoRuler, "Drag: move the play start - double-click and drag, or right-drag: select a time range");
     // The content keeps to the bottom 19 px; small scroll bars make the ruler taller, the extra band plain.
     ui.c.fill_rect(Rect::new(l.ruler.x, l.ruler.y, l.ruler.w, l.ruler.h - 19.0), t.ruler);
     let rr = Rect::new(l.ruler.x, l.ruler.bottom() - 19.0, l.ruler.w, 19.0);

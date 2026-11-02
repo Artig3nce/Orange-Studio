@@ -75,7 +75,7 @@ impl PlTool {
 
     pub fn hint(self) -> &'static str {
         match self {
-            PlTool::Draw => "Draw (P) - click places the current clip, drag moves, edges resize, right-click deletes",
+            PlTool::Draw => "Draw (P) - click places the current clip, drag moves, edges resize, right-click removes",
             PlTool::Paint => "Paint (B) - drag paints clips along the track",
             PlTool::Delete => "Delete (D) - click or drag deletes clips",
             PlTool::Mute => "Mute (T) - click or drag mutes / unmutes clips",
@@ -3120,6 +3120,9 @@ pub fn knob_menu(s: &State, auto: Option<(u32, String, f64)>, typein: Option<cra
 // ---------------------------------------------------------------------------------------------------------
 // Mouse
 
+/// The narrowest clip whose gain handle takes the right button.
+const GAIN_MENU_MIN_W: f32 = 60.0;
+
 /// Drags inside the playlist.
 #[derive(Debug, Clone)]
 pub enum PlDrag {
@@ -3443,8 +3446,8 @@ pub fn press_grid(app: &mut App, grid: Rect, right: bool) {
                     return;
                 }
             }
-            if edge(g.clip_rect(&c), x) == 0 && curve_dist(s, &g, ci, x, y).is_some_and(|d| d <= 6.0) {
-                // Left-click on the curve adds a point (owner); FL's right-click adds one too.
+            if !right && edge(g.clip_rect(&c), x) == 0 && curve_dist(s, &g, ci, x, y).is_some_and(|d| d <= 6.0) {
+                // Left-click on the curve adds a point (owner); the right button removes the clip, as on any clip.
                 snapshot(s);
                 let beat = beat_at(s, &g, &c, x);
                 let v = value_at_y(g.body(&c), y);
@@ -3486,9 +3489,9 @@ pub fn press_grid(app: &mut App, grid: Rect, right: bool) {
     }
 
     // The right button on an audio clip's gain handle opens its menu (Copy value, Paste value, Reset), in any tool: it would
-    // otherwise be the Delete tool's.
+    // otherwise be the Delete tool's. Not on a short clip, which the handle would nearly cover: that one is removed.
     if let (true, Some(ci)) = (right, hit) {
-        if handle_at(s, &g, ci, x, y) == Some(Handle::Gain) {
+        if handle_at(s, &g, ci, x, y) == Some(Handle::Gain) && g.body(&clips(s)[ci]).w >= GAIN_MENU_MIN_W {
             s.playlist.popup = Some(gain_menu(s, ci, x, y));
             app.invalidate();
             return;
@@ -3497,7 +3500,6 @@ pub fn press_grid(app: &mut App, grid: Rect, right: bool) {
 
     if right {
         match tool {
-            PlTool::Select => {}
             PlTool::Zoom => {
                 zoom_toggle(app);
                 return;

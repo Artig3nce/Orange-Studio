@@ -19491,6 +19491,39 @@ mod tests {
         assert!(app.state.playlist.sel.is_empty());
     }
 
+    /// The left button places a clip, the right one removes what's under it: in the Select tool too, and on any clip.
+    #[test]
+    fn left_places_and_right_removes() {
+        use crate::playlist as pl;
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let (mut app, _, g, bar) = ruler_app(&mut c);
+        pl::arr_mut(&mut app.state).clips.clear();
+        frame(&mut app, &mut c, None);
+        let (x, y) = (g.x_of((bar * 2) as f32) + 5.0, g.y_of(1) + 20.0);
+        app.mouse_move(x, y);
+        app.mouse_down();
+        app.mouse_up();
+        assert_eq!(pl::clips(&app.state).len(), 1, "placed");
+        frame(&mut app, &mut c, None);
+        app.state.playlist.last_clip = None;
+        app.state.playlist.tool = pl::PlTool::Select;
+        app.mouse_move(x + 1.0, y);
+        app.mouse_down_right();
+        app.mouse_up();
+        assert!(pl::clips(&app.state).is_empty(), "removed, in the Select tool too");
+        app.state.playlist.tool = pl::PlTool::Draw;
+        // An automation clip: on its curve too.
+        pl::create_automation(&mut app.state, 0, "Auto", 0.5);
+        app.state.playlist.sel.clear();
+        frame(&mut app, &mut c, None);
+        let g = pl::PGeom::new(&app.state, app.pl_grid().unwrap());
+        let b = g.body(&pl::clips(&app.state)[0]);
+        app.mouse_move(b.cx(), pl::value_y(b, 0.5));
+        app.mouse_down_right();
+        app.mouse_up();
+        assert!(pl::clips(&app.state).is_empty(), "removed from its curve");
+    }
+
     /// Clicking a clip trimmed at both ends and placing the next one repeats the trim: the same part, the same length.
     #[test]
     fn a_trimmed_clip_is_placed_as_trimmed() {

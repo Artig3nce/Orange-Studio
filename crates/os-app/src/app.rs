@@ -106,6 +106,8 @@ impl CloseAll {
 /// the strip) and where its height is kept.
 pub const PANEL_TABS_H: f32 = 30.0;
 const PANEL_H: f32 = 670.0;
+/// The most of the workspace a panel nobody has sized takes, so a smaller screen keeps room for the Playlist.
+const PANEL_SHARE: f32 = 0.65;
 const PANEL_MIN_H: f32 = 400.0 + PANEL_TABS_H;
 const PANEL_KEY: &str = "panel_height";
 
@@ -1093,6 +1095,8 @@ pub struct State {
     pub panel: Win,
     /// The bottom panel's height, its tab strip included.
     pub panel_h: f32,
+    /// Nobody has sized the panel: it keeps to `PANEL_SHARE`.
+    pub panel_auto: bool,
     /// No window places were kept (a first start): the paints lay the windows out as FL does (`layout::fl_default`) on
     /// the screen they get, again whenever its size changes (the main window maximized after its first paint), until
     /// a window is moved, resized, minimized or maximized.
@@ -1259,7 +1263,8 @@ impl State {
     pub fn panel_area(&self) -> Rect {
         let work = self.work_rect();
         let room = work.h - Win::Playlist.min_size().1;
-        let h = self.panel_h.min(room).max(PANEL_MIN_H);
+        let want = if self.panel_auto { self.panel_h.min((work.h * PANEL_SHARE).round()) } else { self.panel_h };
+        let h = want.min(room).max(PANEL_MIN_H);
         Rect::new(0.0, work.bottom() - h, self.screen.0, h)
     }
 
@@ -1576,6 +1581,7 @@ impl App {
                 docked_ui: !cfg!(test),
                 panel: Win::Mixer,
                 panel_h: crate::settings_file::get(PANEL_KEY).and_then(|v| v.parse().ok()).unwrap_or(PANEL_H),
+                panel_auto: crate::settings_file::get(PANEL_KEY).is_none(),
                 fl_layout: false,
                 fl_screen: (0.0, 0.0),
                 palette: Default::default(),
@@ -6109,6 +6115,7 @@ impl App {
                 Drag::PanelSplit { dy } => {
                     let bottom = self.state.work_rect().bottom();
                     self.state.panel_h = (bottom - (self.mouse.1 - dy)).round().max(PANEL_MIN_H);
+                    self.state.panel_auto = false;
                     self.invalidate();
                 }
                 Drag::SongPosHold { .. } => {}
@@ -19388,6 +19395,24 @@ mod tests {
         app.mouse_down();
         app.mouse_up();
         assert!(app.state.piano.range.is_some());
+    }
+
+    /// A panel nobody has sized leaves a smaller screen room for the Playlist; a dragged one stays as dragged.
+    #[test]
+    fn the_panel_fits_a_smaller_screen() {
+        let mut app = App::new(None);
+        let s = &mut app.state;
+        s.docked_ui = true;
+        s.panel_h = PANEL_H;
+        s.panel_auto = true;
+        s.screen = (1920.0, 1400.0);
+        assert_eq!(s.panel_area().h, PANEL_H, "a large screen: the usual height");
+        s.screen = (1400.0, 1000.0);
+        let work = s.work_rect();
+        assert_eq!(s.panel_area().h, (work.h * PANEL_SHARE).round());
+        assert!(work.h - s.panel_area().h > 300.0, "several tracks show");
+        s.panel_auto = false;
+        assert_eq!(s.panel_area().h, PANEL_H);
     }
 
     /// Clicking a clip trimmed at both ends and placing the next one repeats the trim: the same part, the same length.

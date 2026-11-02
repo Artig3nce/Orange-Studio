@@ -260,11 +260,15 @@ fn note_monitor(monitor: Option<&winit::monitor::MonitorHandle>) -> bool {
     SCREEN_H.swap(h, std::sync::atomic::Ordering::Relaxed) != h
 }
 
-/// Auto's share of the monitor's scale on a monitor `h` logical px tall: all of it up to 1080, 85 % from 1440 up and in
-/// proportion between, so a larger screen shows FL's density; all of it while the height is unknown (0).
+/// Auto's share of the monitor's scale on a monitor `h` logical px tall: all of it from 1000 to 1080, 85 % from 1440 up
+/// and in proportion between, so a larger screen shows FL's density. Under 1000 it shrinks with the screen, down to
+/// 75 %, so a small screen still shows the same layout. All of it while the height is unknown (0).
 fn auto_density(h: f64) -> f64 {
     if h <= 0.0 {
         return 1.0;
+    }
+    if h < 1000.0 {
+        return (h / 1000.0).max(0.75);
     }
     1.0 - 0.15 * ((h - 1080.0) / (1440.0 - 1080.0)).clamp(0.0, 1.0)
 }
@@ -1951,8 +1955,8 @@ mod tests {
     /// Auto scaling (spec: ui/ui-scaling.md §1): FL's density on larger monitors, the monitor's scale up to 1080 px.
     #[test]
     fn auto_scaling_follows_the_monitor_height() {
-        let got: Vec<f64> = [0.0, 768.0, 1080.0, 1260.0, 1440.0, 2160.0].map(auto_density).to_vec();
-        assert_eq!(got, [1.0, 1.0, 1.0, 0.925, 0.85, 0.85]);
+        let got: Vec<f64> = [0.0, 600.0, 768.0, 900.0, 1000.0, 1080.0, 1260.0, 1440.0, 2160.0].map(auto_density).to_vec();
+        assert_eq!(got, [1.0, 0.75, 0.768, 0.9, 1.0, 1.0, 0.925, 0.85, 0.85]);
     }
 }
 

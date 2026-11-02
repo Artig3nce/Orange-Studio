@@ -110,7 +110,7 @@ fn read_json<T: for<'de> Deserialize<'de>>(name: &str) -> Option<T> {
         return None;
     }
     let bytes = std::fs::read(os_paths::user_file(name)?).ok()?;
-    serde_json::from_slice(&bytes).map_err(|e| eprintln!("mangostudio: {name}: {e}")).ok()
+    serde_json::from_slice(&bytes).map_err(|e| eprintln!("orangestudio: {name}: {e}")).ok()
 }
 
 /// Writes a JSON file into the user folder through a temporary file, so a failed write keeps the old one.
@@ -126,10 +126,10 @@ fn write_json<T: Serialize>(name: &str, v: &T) {
     match serde_json::to_vec_pretty(v) {
         Ok(text) if std::fs::write(&tmp, &text).is_ok() => {
             if let Err(e) = std::fs::rename(&tmp, &p) {
-                eprintln!("mangostudio: {name}: {e}");
+                eprintln!("orangestudio: {name}: {e}");
             }
         }
-        _ => eprintln!("mangostudio: could not write {name}"),
+        _ => eprintln!("orangestudio: could not write {name}"),
     }
 }
 

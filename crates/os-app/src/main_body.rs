@@ -1115,7 +1115,7 @@ impl ApplicationHandler for Shell {
                     match Canvas::new(cw, ch, scale) {
                         Ok(c) => self.canvas = Some(c),
                         Err(e) => {
-                            eprintln!("mangostudio: {e}");
+                            eprintln!("orangestudio: {e}");
                             el.exit();
                             return;
                         }
@@ -1126,7 +1126,7 @@ impl ApplicationHandler for Shell {
                 // that next one (or one after) makes it.
                 if self.surface.is_none() {
                     if let Err(e) = self.remake_surface(&window) {
-                        eprintln!("mangostudio: {e}");
+                        eprintln!("orangestudio: {e}");
                         window.request_redraw();
                         return;
                     }
@@ -1272,13 +1272,13 @@ impl ApplicationHandler for Shell {
 
 /// The application id on Linux: Wayland's app id and X11's WM_CLASS, matching `assets/lemonstudio.desktop`.
 #[cfg(all(unix, not(target_os = "macos")))]
-const APP_ID: &str = "mangostudio";
+const APP_ID: &str = "orangestudio";
 
 /// The app icon as RGBA bytes, width and height: `assets/lemonstudio.png`, 256 px (X11 windows show it; Wayland takes the
 /// desktop entry's).
 #[cfg(all(unix, not(target_os = "macos")))]
 pub(crate) fn icon_rgba() -> Option<(Vec<u8>, u32, u32)> {
-    let png = tiny_skia::Pixmap::decode_png(include_bytes!("../assets/mangostudio.png")).ok()?;
+    let png = tiny_skia::Pixmap::decode_png(include_bytes!("../assets/orangestudio.png")).ok()?;
     let rgba = png.pixels().iter().flat_map(|p| {
         let c = p.demultiply();
         [c.red(), c.green(), c.blue(), c.alpha()]

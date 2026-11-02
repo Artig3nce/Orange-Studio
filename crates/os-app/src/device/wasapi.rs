@@ -392,7 +392,7 @@ pub(crate) fn open(name: Option<&str>, mode: Mode, rate: Option<u32>, buffer: Op
     let (tx, rx) = mpsc::channel();
     let name = name.map(str::to_string);
     let thread = std::thread::Builder::new()
-        .name("mangostudio wasapi".into())
+        .name("orangestudio wasapi".into())
         .spawn({
             let stop = stop.clone();
             move || render(name.as_deref(), mode, rate, buffer, mix, errors, &stop, tx)

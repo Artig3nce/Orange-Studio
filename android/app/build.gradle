@@ -9,13 +9,13 @@ assert minor < 1000 && patch < 1000
 layout.buildDirectory = file('../../target/android')
 
 android {
-    namespace = 'dev.apikun.mangostudio'
+    namespace = 'dev.apikun.orangestudio'
     compileSdk = 36
     buildToolsVersion = '36.0.0'
     ndkVersion = '28.1.13356709'
 
     defaultConfig {
-        applicationId = 'dev.apikun.mangostudio'
+        applicationId = 'dev.apikun.orangestudio'
         minSdk = 26
         targetSdk = 36
         versionCode = major * 1000000 + minor * 1000 + patch

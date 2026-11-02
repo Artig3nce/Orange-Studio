@@ -43,7 +43,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item target/release/mangostudio.exe dist/
+          Copy-Item target/release/orangestudio.exe dist/
           Copy-Item README.md dist/
           Copy-Item THIRD-PARTY-NOTICES.txt dist/
           Compress-Archive -Path dist/* -DestinationPath Orange-Studio-windows-x64.zip -Force
@@ -61,7 +61,7 @@ jobs:
             under the GPL 3.0 or later. The Android port's scaffolding follows daijro's honeydew
             (https://github.com/daijro/honeydew), credited in THIRD-PARTY-NOTICES.txt.
 
-            - Unzip and run `mangostudio` (`mangostudio.exe` on Windows): no installer, and nothing else to install.
+            - Unzip and run `orangestudio` (`orangestudio.exe` on Windows): no installer, and nothing else to install.
               On Android, install the APK and open Orange Studio from the launcher.
             - v0.4: Orange Studio Mobile — the whole app (devices, plugins, Orange Beat included) runs on Android; one
               finger is the mouse and a held finger is a right click. The new Orange Beat (a Gross Beat-style time
@@ -95,7 +95,7 @@ jobs:
       - name: Package
         run: |
           mkdir -p dist
-          cp target/release/mangostudio dist/
+          cp target/release/orangestudio dist/
           cp README.md dist/
           cp THIRD-PARTY-NOTICES.txt dist/
           zip -r Orange-Studio-linux-x64.zip dist
@@ -113,7 +113,7 @@ jobs:
             under the GPL 3.0 or later. The Android port's scaffolding follows daijro's honeydew
             (https://github.com/daijro/honeydew), credited in THIRD-PARTY-NOTICES.txt.
 
-            - Unzip and run `mangostudio` (`mangostudio.exe` on Windows): no installer, and nothing else to install.
+            - Unzip and run `orangestudio` (`orangestudio.exe` on Windows): no installer, and nothing else to install.
               On Android, install the APK and open Orange Studio from the launcher.
             - v0.4: Orange Studio Mobile — the whole app (devices, plugins, Orange Beat included) runs on Android; one
               finger is the mouse and a held finger is a right click. The new Orange Beat (a Gross Beat-style time
@@ -166,7 +166,7 @@ jobs:
             under the GPL 3.0 or later. The Android port's scaffolding follows daijro's honeydew
             (https://github.com/daijro/honeydew), credited in THIRD-PARTY-NOTICES.txt.
 
-            - Unzip and run `mangostudio` (`mangostudio.exe` on Windows): no installer, and nothing else to install.
+            - Unzip and run `orangestudio` (`orangestudio.exe` on Windows): no installer, and nothing else to install.
               On Android, install the APK and open Orange Studio from the launcher.
             - v0.4: Orange Studio Mobile — the whole app (devices, plugins, Orange Beat included) runs on Android; one
               finger is the mouse and a held finger is a right click. The new Orange Beat (a Gross Beat-style time

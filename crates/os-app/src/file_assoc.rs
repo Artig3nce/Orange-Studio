@@ -346,7 +346,7 @@ mod tests {
     use os_ui::{Canvas, Rect};
 
     /// The made-up program path `program` gives in tests.
-    pub const PROGRAM: &str = r"C:\Programs\Orange Studio\mangostudio.exe";
+    pub const PROGRAM: &str = r"C:\Programs\Orange Studio\orangestudio.exe";
     const OTHER: &str = r"C:\Program Files\Other DAW\other.exe";
     const FL_TYPE: &str = "Other.flp.1";
 
@@ -424,7 +424,7 @@ mod tests {
         reg::apply(&ops);
         assert!(ticked(PROGRAM, &seen()) && !ticked(OTHER, &seen()));
         // A second tick (say from another copy of Lemon Studio) keeps `Previous`.
-        let again = tick(r"D:\Lemon\mangostudio.exe", &seen());
+        let again = tick(r"D:\Lemon\orangestudio.exe", &seen());
         assert!(!again.iter().any(|op| matches!(op, Op::Set { name: "Previous", .. } | Op::DeleteValue { name: "Previous", .. })));
         reg::apply(&again);
         assert!(!ticked(PROGRAM, &seen()), "now the other copy's");
@@ -451,10 +451,10 @@ mod tests {
         reg::put("HKLM", &format!(r"Software\Classes\{FL_TYPE}\shell\open\command"), "", &format!("\"{OTHER}\" \"%1\""));
         assert_eq!(seen().user_choice, Some((FL_TYPE.into(), Some(format!("\"{OTHER}\" \"%1\"")))));
         assert!(blocked(PROGRAM, &seen()) && !ticked(PROGRAM, &seen()));
-        reg::put("HKCU", choice, "ProgId", "mangostudio.project");
+        reg::put("HKCU", choice, "ProgId", "orangestudio.project");
         assert!(ticked(PROGRAM, &seen()), "Orange Studio's own type, any case");
-        reg::put("HKCU", choice, "ProgId", r"Applications\mangostudio.exe");
-        reg::put("HKCU", r"Software\Classes\Applications\mangostudio.exe\shell\open\command", "", &format!("\"{PROGRAM}\" \"%1\""));
+        reg::put("HKCU", choice, "ProgId", r"Applications\orangestudio.exe");
+        reg::put("HKCU", r"Software\Classes\Applications\orangestudio.exe\shell\open\command", "", &format!("\"{PROGRAM}\" \"%1\""));
         assert!(ticked(PROGRAM, &seen()), "a type that runs this program");
         reg::put("HKCU", choice, "ProgId", "Unknown.Type");
         assert!(blocked(PROGRAM, &seen()), "a type without a command is another program's");

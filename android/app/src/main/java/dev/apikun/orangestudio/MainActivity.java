@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-package dev.apikun.mangostudio;
+package dev.apikun.orangestudio;
 
 import android.app.NativeActivity;
 import android.content.Intent;

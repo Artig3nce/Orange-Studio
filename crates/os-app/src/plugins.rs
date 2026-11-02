@@ -1171,7 +1171,7 @@ impl Plugins {
         *link = match p.open_editor(w.area(), scale) {
             Ok(size) => fit_editor(w, size, scale),
             Err(e) => {
-                eprintln!("mangostudio: plugin editor at the new scale: {e}");
+                eprintln!("orangestudio: plugin editor at the new scale: {e}");
                 None
             }
         };

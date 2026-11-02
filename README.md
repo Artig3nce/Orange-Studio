@@ -167,7 +167,7 @@ install only the plugins with `cargo run -p bundle-plugins -- --install`.
 ### Windows
 
 Windows 10 or 11, x64. A ready-to-run build is attached to this repository's GitHub releases: `Orange-Studio-windows-x64.zip`,
-a portable `mangostudio.exe` with no installer and no runtime to install. To build the newest state of the source
+a portable `orangestudio.exe` with no installer and no runtime to install. To build the newest state of the source
 instead, follow the steps below.
 
 **Prerequisites**
@@ -266,7 +266,7 @@ tools/android-dist.sh --debug  # the debug-name build for a side-by-side install
 ### Linux
 
 x64, on X11 or a Wayland desktop. A ready-to-run build is attached to this repository's GitHub releases:
-`Orange-Studio-linux-x64.zip`, a portable `mangostudio` binary (in its `dist` folder, next to this README and the
+`Orange-Studio-linux-x64.zip`, a portable `orangestudio` binary (in its `dist` folder, next to this README and the
 third-party notices), with no installer and no runtime to install. To build the newest state of the source instead,
 follow the steps below.
 
@@ -319,7 +319,7 @@ Windows (or detach, from their window menu). A few things differ from Windows fo
   X server's scale rather than the Wayland window's.
 - **Hyprland with docked plugins:** keep XWayland available and leave `OPENSTUDIO_WAYLAND` unset. No compositor rules
   are required by this scaling fix. For an optional app-only size override, launch with
-  `WINIT_X11_SCALE_FACTOR=1.25 mangostudio`. This does not change Hyprland's monitor scaling or guarantee that compositor
+  `WINIT_X11_SCALE_FACTOR=1.25 orangestudio`. This does not change Hyprland's monitor scaling or guarantee that compositor
   upscaling will be sharp; the app's X11 scale and the compositor's output scale are separate settings.
 - **Keys** pressed while a plugin's editor has the keyboard focus do not play the typing keyboard yet, and a sample
   dragged from Orange Studio's browser onto a plugin window does not reach the plugin yet.

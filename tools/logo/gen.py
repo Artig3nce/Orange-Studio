@@ -10,9 +10,9 @@
 Writes:
   crates/os-app/src/logo.rs        the full-colour logo's parts (the startup splash) and the greyscale mark (drawn in
                                    one tint), as absolute M/L/Q/C/Z path data
-  crates/os-app/assets/mangostudio.ico  app icon, 16..256 px (exe, window, taskbar), from the owner's
+  crates/os-app/assets/orangestudio.ico  app icon, 16..256 px (exe, window, taskbar), from the owner's
                                         bitmap assets/logo/icon-mango.png (edited in icon-lemon.pdn, Paint.NET)
-  crates/os-app/assets/mangostudio.png  the same icon at 256 px (Linux: window icon and desktop entry)
+  crates/os-app/assets/orangestudio.png  the same icon at 256 px (Linux: window icon and desktop entry)
 """
 import importlib.util
 import os
@@ -102,9 +102,9 @@ def write_icons():
     sq.paste(src, ((side - src.width) // 2, (side - src.height) // 2))
     sizes = (256, 128, 64, 48, 40, 32, 24, 20, 16)
     imgs = [sq.resize((s, s), Image.LANCZOS) for s in sizes]
-    imgs[0].save(os.path.join(ASSETS, "mangostudio.ico"), sizes=[(s, s) for s in sizes], append_images=imgs[1:])
+    imgs[0].save(os.path.join(ASSETS, "orangestudio.ico"), sizes=[(s, s) for s in sizes], append_images=imgs[1:])
     # Linux: the freedesktop icon named after the app id (Wayland compositors show it through lemonstudio.desktop).
-    imgs[0].save(os.path.join(ASSETS, "mangostudio.png"))
+    imgs[0].save(os.path.join(ASSETS, "orangestudio.png"))
 
 
 def main():

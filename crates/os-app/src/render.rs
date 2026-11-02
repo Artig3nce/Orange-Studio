@@ -62,15 +62,15 @@ pub fn cli(args: &[String]) -> i32 {
     let o = match parse(args) {
         Ok(o) => o,
         Err(e) => {
-            eprintln!("mangostudio --render: {e}");
-            eprintln!("usage: mangostudio --render <project.flp> <out.wav> [--rate HZ] [--seconds S] [--from TICK] [--builtin-only]");
+            eprintln!("orangestudio --render: {e}");
+            eprintln!("usage: orangestudio --render <project.flp> <out.wav> [--rate HZ] [--seconds S] [--from TICK] [--builtin-only]");
             return 2;
         }
     };
     match render(&o) {
         Ok(()) => 0,
         Err(e) => {
-            eprintln!("mangostudio --render: {e}");
+            eprintln!("orangestudio --render: {e}");
             1
         }
     }

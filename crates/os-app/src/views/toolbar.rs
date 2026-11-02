@@ -253,7 +253,7 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo, width: f32) {
     } else {
         ui.hit(r, Action::MenuItem(menus::HELP_MENU, menus::HELP_ABOUT), "About Orange Studio");
     }
-    icons::logo(ui.c, lx, mid, 26.0 * h / 81.0, if lemon { t.toolbar_edge } else { t.toolbar_line });
+    icons::wordmark(ui.c, lx, mid, 72.0, t.toolbar, t.glyph);
 }
 
 /// A group separator at band x `x` of row `row`.

@@ -60,9 +60,7 @@ const R: f32 = 476.5;
 // the mango's skin, the equalizer's three bars and the leaf, the badge's edge and its gradient (lower right to upper
 // left).
 const LABEL: u32 = 0xffb02e;
-const STEM: u32 = 0x6b3e1f;
-const SKIN: u32 = 0xf2711c;
-const SLICE_FILLS: [u32; 4] = [0xffb02e, 0xffc35c, 0xffd27a, 0x5cb85c];
+const SLICE_FILLS: [u32; 3] = [0xffb02e, 0xffc35c, 0xffd27a];
 const RECORD_EDGE: u32 = 0x2d2d2d;
 const RECORD_FROM: (f32, f32) = (857.748, 789.317);
 const RECORD_TO: (f32, f32) = (147.545, 158.696);
@@ -319,10 +317,7 @@ struct Parts {
     shimmer: Path,
     record: Path,
     record_edge: Path,
-    center: Path,
-    rind: Path,
-    rind_edge: Path,
-    slices: [Path; 4],
+    slices: [Path; 3],
 }
 
 impl Parts {
@@ -330,17 +325,14 @@ impl Parts {
         let p = |d: &str| os_ui::path_data(d, 0.0, 0.0, 1.0);
         // Outlines `w` logo units wide, flattened finely enough for the largest splash.
         let outline = |path: &Path, w: f32| path.stroke(&Stroke { width: w, ..Stroke::default() }, 2.0);
-        let [s1, s2, s3, s4] = logo::SLICES;
-        let (record, rind) = (p(logo::RECORD)?, p(logo::RIND)?);
+        let [s1, s2, s3] = logo::SLICES;
+        let record = p(logo::RECORD)?;
         Some(Parts {
             label: p(logo::LABEL)?,
             shimmer: p(logo::SHIMMER)?,
             record_edge: outline(&record, 1.0)?,
             record,
-            center: p(logo::CENTER)?,
-            rind_edge: outline(&rind, 1.0)?,
-            rind,
-            slices: [p(s1)?, p(s2)?, p(s3)?, p(s4)?],
+            slices: [p(s1)?, p(s2)?, p(s3)?],
         })
     }
 }
@@ -449,7 +441,6 @@ impl Painter {
         fill(px, &p.shimmer, 0xffffff, None);
         px.fill_path(&p.record, &record_paint(), FillRule::Winding, t, None);
         fill(px, &p.record_edge, RECORD_EDGE, None);
-        fill(px, &p.center, STEM, None);
         // The groove light: its two wedges and the grooves inside them, on the record only, brightest along the
         // wedges' middle.
         if look.light > 0.001 {
@@ -465,7 +456,7 @@ impl Painter {
             }
         }
         // The lemon half: empty, then filled round as far as the gauge.
-        let lemon = std::iter::once((&p.rind, SKIN)).chain(p.slices.iter().zip(SLICE_FILLS));
+        let lemon = p.slices.iter().zip(SLICE_FILLS);
         if look.progress < 1.0 {
             for (path, c) in lemon.clone() {
                 fill(px, path, mix(c, EMPTY.0, EMPTY.1), None);
@@ -485,8 +476,6 @@ impl Painter {
             for (path, c) in lemon {
                 fill(px, path, c, mask);
             }
-            // The rind's outline, as in the logo.
-            fill(px, &p.rind_edge, SKIN, mask);
         }
         let at = (((DISC.0 - DISC.2 / 2.0) * s).round() as i32, ((DISC.1 + DISC.2 / 2.0 + CAPTION_GAP) * s).round() as i32);
         px.draw_pixmap(at.0, at.1, self.caption.pixmap.as_ref(), &PixmapPaint::default(), Transform::identity(), None);
@@ -1258,13 +1247,9 @@ mod tests {
             let (below, above) = (rgba(cx, cy + r + gap).3, rgba(cx, cy - r - gap).3);
             assert!(below > above && above > 0, "a soft shadow falling down, scale {scale}: {below} vs {above}");
             assert_eq!(rgba(w - 1, cy).3, 0, "it fades out before the window's edge, scale {scale}");
-            // The gauge at a quarter (clockwise from the top): the mango's skin at the upper right filled, the left bar of
-            // the equalizer still empty.
-            let (x1, y1) = at(scale, 613.4, 365.1);
+            // The gauge at a quarter (clockwise from the top): the left bar of the equalizer still empty.
             let (x4, y4) = at(scale, 375.4, 538.1);
             let rgb = |c: u32| ((c >> 16) as u8, (c >> 8) as u8, c as u8);
-            let f1 = rgb(SKIN);
-            assert_eq!(rgba(x1, y1), (f1.0, f1.1, f1.2, 0xff), "the skin filled, scale {scale}");
             let empty = mix(SLICE_FILLS[0], EMPTY.0, EMPTY.1);
             let e = rgba(x4, y4);
             assert_eq!((u32::from(e.0) << 16) | (u32::from(e.1) << 8) | u32::from(e.2), empty, "the left bar empty, scale {scale}");

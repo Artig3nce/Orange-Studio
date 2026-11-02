@@ -175,15 +175,43 @@ pub fn logo(cv: &mut Canvas, cx: f32, cy: f32, r: f32, c: Color) {
     cv.glyph(c, &g);
 }
 
+/// The Orange Studio wordmark's coverage (`assets/logo/wordmark-mask.png`), decoded once: width, height and a byte per
+/// pixel.
+fn wordmark_mask() -> &'static (usize, usize, Vec<u8>) {
+    static MASK: std::sync::OnceLock<(usize, usize, Vec<u8>)> = std::sync::OnceLock::new();
+    MASK.get_or_init(|| {
+        let (w, h, px) = Canvas::decode_png(include_bytes!("../assets/logo/wordmark-mask.png")).unwrap_or((0, 0, Vec::new()));
+        (w, h, px.iter().map(|p| (p >> 16) as u8).collect())
+    })
+}
+
+/// The Orange Studio wordmark, `w` px wide and centred on (`cx`, `cy`): its shape in `ink`, blended into `ground` by its
+/// coverage, so it reads as part of the workspace.
+pub fn wordmark(cv: &mut Canvas, cx: f32, cy: f32, w: f32, ground: Color, ink: Color) {
+    let (mw, mh, cov) = wordmark_mask();
+    if *mw == 0 {
+        return;
+    }
+    let px: Vec<u32> = cov
+        .iter()
+        .map(|&a| {
+            let c = ground.mix(ink, f32::from(a) / 255.0);
+            u32::from(c.r) << 16 | u32::from(c.g) << 8 | u32::from(c.b)
+        })
+        .collect();
+    let h = w * *mh as f32 / *mw as f32;
+    cv.image(Rect::new(cx - w / 2.0, cy - h / 2.0, w, h), *mw, *mh, &px);
+}
+
 /// The full-colour Orange Studio logo, as the app icon draws it, fitted into a circle of radius `r`: the badge with its
-/// grey rim, the stem, the mango's skin, the three bars and the leaf.
+/// grey rim and the three bars.
 pub fn logo_colour(cv: &mut Canvas, cx: f32, cy: f32, r: f32) {
-    use crate::logo::{CENTER, RECORD, RIND, SLICES, VIEW_H, VIEW_W};
+    use crate::logo::{RECORD, SLICES, VIEW_H, VIEW_W};
     cv.fill_circle(cx, cy, r, Color::rgb(0x4f555b));
     // The badge a little inside the rim.
     let k = 2.0 * r * 0.94 / VIEW_W.max(VIEW_H);
     let (ox, oy) = (cx - VIEW_W * k / 2.0, cy - VIEW_H * k / 2.0);
-    let parts = [(RECORD, 0x141414), (CENTER, 0x6b3e1f), (RIND, 0xf2711c), (SLICES[0], 0xffb02e), (SLICES[1], 0xffc35c), (SLICES[2], 0xffd27a), (SLICES[3], 0x5cb85c)];
+    let parts = [(RECORD, 0x141414), (SLICES[0], 0xffb02e), (SLICES[1], 0xffc35c), (SLICES[2], 0xffd27a)];
     for (d, c) in parts {
         let mut g = Glyph::new();
         g.commands(d, ox, oy, k, None);

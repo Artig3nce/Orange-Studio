@@ -220,7 +220,7 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) -> usize {
     // spec: ui/flstheme.md §3 (BackMode, BackPicFilename); no watermark over a picture (`wallpaper`).
     if docked.is_none() && !crate::wallpaper::paint(ui, work) {
         let wm = ui.t.watermark;
-        icons::logo(ui.c, work.cx(), work.cy() + 40.0, 170.0, wm);
+        icons::wordmark(ui.c, work.cx(), work.cy() + 40.0, 560.0, ui.t.workspace, wm);
         let version = concat!("Orange Studio v", env!("CARGO_PKG_VERSION"), " - pre-alpha");
         let vc = ui.t.version_text;
         let vw = ui.c.text_width(crate::views::fnt(16.0), version);

@@ -535,12 +535,12 @@ fn layer_panel(ui: &mut Ui, look: &Look) {
     ui.hit(hr, ot);
 }
 
-/// The Orange Studio logo (the mango, its stem and the three bars and leaf) fitted into a circle of radius `r`.
+/// The Orange Studio logo (the three bars) fitted into a circle of radius `r`.
 fn mango_mark(ui: &mut Ui, cx: f32, cy: f32, r: f32) {
-    use crate::logo::{CENTER, RIND, SLICES, VIEW_H, VIEW_W};
+    use crate::logo::{SLICES, VIEW_H, VIEW_W};
     let k = 2.0 * r / VIEW_W.max(VIEW_H);
     let (ox, oy) = (cx - VIEW_W * k / 2.0, cy - VIEW_H * k / 2.0);
-    let parts = [(CENTER, 0x6b3e1f), (RIND, 0xf2711c), (SLICES[0], 0xffb02e), (SLICES[1], 0xffc35c), (SLICES[2], 0xffd27a), (SLICES[3], 0x5cb85c)];
+    let parts = [(SLICES[0], 0xffb02e), (SLICES[1], 0xffc35c), (SLICES[2], 0xffd27a)];
     for (d, c) in parts {
         let mut g = os_ui::Glyph::new();
         g.commands(d, ox, oy, k, None);
@@ -548,7 +548,7 @@ fn mango_mark(ui: &mut Ui, cx: f32, cy: f32, r: f32) {
     }
 }
 
-/// The emblem: the mango and "SLICEX".
+/// The emblem: the bars and "SLICEX".
 fn emblem(ui: &mut Ui) {
     let f = Font::condensed(30, 0).bold();
     let lh = ui.c.line_height(f);

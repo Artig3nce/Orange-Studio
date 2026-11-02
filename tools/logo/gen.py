@@ -27,8 +27,8 @@ tg = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tg)
 
 # The full-colour logo's parts, back to front: constant name and the id of the path (or of its group) in the SVG.
-PARTS = [("LABEL", "Label"), ("SHIMMER", "Shimmer"), ("RECORD", "Record"), ("CENTER", "Record_Center"), ("RIND", "Rind")]
-SLICES = ["Slice_1", "Slice_2", "Slice_3", "Slice_4"]
+PARTS = [("LABEL", "Label"), ("SHIMMER", "Shimmer"), ("RECORD", "Record")]
+SLICES = ["Slice_1", "Slice_2", "Slice_3"]
 
 
 def layers(svg):
@@ -66,7 +66,7 @@ def write_rs():
     d = {name: d_string(tg.convert(colour[sid])) for name, sid in PARTS}
     slices = [d_string(tg.convert(colour[sid])) for sid in SLICES]
     # The greyscale mark is the coloured one's shapes without the badge, the label and the shimmer.
-    shared = [d["CENTER"], d["RIND"]] + slices
+    shared = slices
     assert [d_string(cmds) for _, cmds in grey] == shared, "the greyscale and full-colour logos differ in shape"
     lines = tg.HEADER + [
         "//! Orange Studio logo, generated from `assets/logo/logo-colored-mango.svg` and `logo-greyscale-mango.svg` by",
@@ -76,17 +76,17 @@ def write_rs():
         "pub const VIEW_H: f32 = %s;" % tg.fmt(vb[3]),
         "",
         "// The full-colour logo's parts, back to front (the startup splash): the label and the shimmer (hidden), the round",
-        "// badge (RECORD), the stem (CENTER), the mango's skin (RIND), the equalizer's three bars and the leaf (SLICES). The",
-        "// greyscale mark is the same shapes without the badge, the label and the shimmer.",
+        "// badge (RECORD) and the equalizer's three bars (SLICES, low, medium, high). The greyscale mark is the same bars",
+        "// without the badge, the label and the shimmer.",
     ]
     lines += ['pub const %s: &str = "%s";' % (name, d[name]) for name, _ in PARTS]
-    lines.append("pub const SLICES: [&str; 4] = [")
+    lines.append("pub const SLICES: [&str; 3] = [")
     lines += ['    "%s",' % s for s in slices]
     lines += [
         "];",
         "",
         "/// The greyscale mark, drawn in one tint (`icons::logo`).",
-        "pub const PATHS: &[&str] = &[CENTER, RIND, SLICES[0], SLICES[1], SLICES[2], SLICES[3]];",
+        "pub const PATHS: &[&str] = &[SLICES[0], SLICES[1], SLICES[2]];",
     ]
     with open(os.path.join(ROOT, "crates", "os-app", "src", "logo.rs"), "w", newline="\n") as f:
         f.write("\n".join(lines) + "\n")

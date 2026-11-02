@@ -21,7 +21,7 @@ use crate::app::{App, Drag, State};
 use crate::snap::EditorSnap;
 
 /// Track row pitch at the default size (spec: ui/main-window.md §6); a clip fills its row less the 3 px gap.
-pub const ROW_H: f32 = 48.0;
+pub const ROW_H: f32 = 64.0;
 /// Picker item pitch: FL's measured 30 px rows (§1), the smallest; a right-drag on the picker's scroll bar makes the
 /// items up to [`PICK_ROW_MAX`] tall, previews of their contents (spec: ui/scroll-bars.md §3).
 pub const PICK_ROW: f32 = 31.0;

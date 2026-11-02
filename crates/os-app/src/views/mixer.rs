@@ -333,6 +333,27 @@ fn title_tools(ui: &mut Ui, s: &State, r: Rect) {
     let ob = Rect::new(r.x + 3.0, y - 9.0, 16.0, 18.0);
     let hov = ui.hit(ob, Action::Mix(MHit::Options), "Mixer options");
     chevron(ui, r.x + 11.0, y, true, if hov { ui.t.tx(0xffffff) } else { ui.t.tx(0xc4ccd0) });
+    // The docked layout keeps only the options arrow; the strips' own "+" still adds tracks.
+    if !s.docked_ui {
+        floating_tools(ui, r, y);
+    }
+    let px = if super::lemon(ui) { 16.0 } else { 0.0 };
+
+    if let Some(pat) = s.pattern_mixer_filter {
+        let pat_name = crate::patterns::name_of(s, pat);
+        let badge_text = format!("Focus: {pat_name}  ✕");
+        let badge_w = (badge_text.len() as f32 * 7.5 + 16.0).max(80.0);
+        let badge = Rect::new(r.x + 190.0 + px, r.y + 2.0, badge_w, 20.0);
+        let hov = ui.hit(badge, Action::Mix(MHit::ClearPatternFilter), "Click to clear pattern focus and show all mixer tracks");
+        let bg_col = if hov { ui.t.s(0x3a4248) } else { ui.t.s(0x283036) };
+        ui.c.fill_rrect(badge, 3.0, bg_col);
+        ui.c.stroke_rrect(badge, 3.0, 1.0, ui.t.h(0xf09a28));
+        ui.c.text_center(Font::new(13), badge, if hov { ui.t.tx(0xffffff) } else { ui.t.h(0xf3b234) }, &badge_text);
+    }
+}
+
+/// The floating mixer's title buttons.
+fn floating_tools(ui: &mut Ui, r: Rect, y: f32) {
     // View buttons (multi-touch, waveforms, extra properties, track inspector): not available yet, greyed out (drawn
     // in their colours faded into the title bar, like `Ui::veil`; a veil would show over the bar's gradient). Lemon
     // centres them and the "+" 24 px apart: its inspector sits 10 px further right, the "+" and the combo 16 px.
@@ -359,18 +380,6 @@ fn title_tools(ui: &mut Ui, s: &State, r: Rect) {
     let pb = Rect::new(r.x + 109.0 + px, y - 8.0, 16.0, 16.0);
     let hov = ui.hit(pb, Action::Mix(MHit::AddAfter), "Add a new track after the selected track");
     icons::draw(ui.c, Icon::Plus, Rect::new(r.x + 110.0 + px, y - 7.0, 14.0, 14.0), if hov { ui.t.tx(0xffffff) } else { ui.t.tx(0xc4ccd0) });
-
-    if let Some(pat) = s.pattern_mixer_filter {
-        let pat_name = crate::patterns::name_of(s, pat);
-        let badge_text = format!("Focus: {pat_name}  ✕");
-        let badge_w = (badge_text.len() as f32 * 7.5 + 16.0).max(80.0);
-        let badge = Rect::new(r.x + 190.0 + px, r.y + 2.0, badge_w, 20.0);
-        let hov = ui.hit(badge, Action::Mix(MHit::ClearPatternFilter), "Click to clear pattern focus and show all mixer tracks");
-        let bg_col = if hov { ui.t.s(0x3a4248) } else { ui.t.s(0x283036) };
-        ui.c.fill_rrect(badge, 3.0, bg_col);
-        ui.c.stroke_rrect(badge, 3.0, 1.0, ui.t.h(0xf09a28));
-        ui.c.text_center(Font::new(13), badge, if hov { ui.t.tx(0xffffff) } else { ui.t.h(0xf3b234) }, &badge_text);
-    }
 }
 
 fn mix(a: Color, b: Color, t: f32) -> Color {

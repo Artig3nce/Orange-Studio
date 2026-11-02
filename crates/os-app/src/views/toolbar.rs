@@ -253,7 +253,7 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo, width: f32) {
     } else {
         ui.hit(r, Action::MenuItem(menus::HELP_MENU, menus::HELP_ABOUT), "About Orange Studio");
     }
-    icons::wordmark(ui.c, lx, mid, 72.0, t.toolbar, t.glyph);
+    icons::wordmark(ui.c, lx, mid, 56.0, t.toolbar, t.glyph);
 }
 
 /// A group separator at band x `x` of row `row`.
@@ -289,6 +289,7 @@ fn panel(ui: &mut Ui, c: &Ctx, p: Panel) -> bool {
         Panel::Pattern => pattern(ui, c),
         Panel::Windows => return window_buttons(ui, c, 0..5),
         Panel::Tools => return window_buttons(ui, c, 5..9),
+        Panel::PlTools => super::playlist::tools_row(ui, c.s, c.a.x(1500.0), c.a.y(11.0)),
         Panel::Space | Panel::Flex => {}
     }
     true
@@ -313,6 +314,16 @@ fn caption(ui: &mut Ui, c: &Ctx) {
 fn hint_panel(ui: &mut Ui, c: &Ctx) {
     let (t, a, s, f) = (ui.t, c.a, c.s, c.f);
     let hp = a.span(72.0, 376.0, 4.0, 36.0);
+    if s.docked_ui {
+        // A pill like the time display beside it, with the same words.
+        ui.c.fill_rrect(hp, hp.h / 2.0, t.sunken);
+        ui.hit(hp, Action::DragWindow, "Hint bar");
+        ui.c.text_clip(Font::new(13), a.x(88.0), a.y(6.0), 262.0, t.text_dim.shade(-0.05), &f.title);
+        let hint: &str = if !f.hint.is_empty() { &f.hint } else { s.message.as_deref().unwrap_or("") };
+        ui.c.text_clip(Font::new(14), a.x(88.0), a.y(19.0), 262.0, t.text, hint);
+        icons::draw(ui.c, Icon::MidiControl, a.span(352.0, 366.0, 13.0, 28.0), ui.t.s(0x515457));
+        return;
+    }
     sunken(ui, hp, t.sunken);
     ui.hit(hp, Action::DragWindow, "Hint bar");
     ui.c.text_clip(Font::new(13), a.x(76.0), a.y(6.0), 280.0, t.text_dim.shade(-0.05), &f.title);
@@ -324,7 +335,78 @@ fn hint_panel(ui: &mut Ui, c: &Ctx) {
 }
 
 /// Transport group: PAT / SONG, play, stop, record and the tempo (to the tempo box's right edge, x 570).
+/// The docked layout's transport: Pattern and Song side by side, round buttons from the logo's shapes and the tempo as
+/// plain digits (the same controls as `transport`).
+fn docked_transport(ui: &mut Ui, c: &Ctx) {
+    let (t, a, s, f) = (ui.t, c.a, c.s, c.f);
+    let seg = a.span(383.0, 445.0, 7.0, 33.0);
+    // A two-part switch with square-ish corners, so it doesn't read as another round button.
+    ui.c.fill_rrect(seg, 6.0, t.sunken);
+    let mid = seg.x + 28.0;
+    for (r, label, song, hint) in [
+        (Rect::span(seg.x, mid, seg.y, seg.bottom()), "Pat", false, "Pattern mode: play the current pattern"),
+        (Rect::span(mid, seg.right(), seg.y, seg.bottom()), "Song", true, "Song mode: play the playlist"),
+    ] {
+        let hov = ui.hit(r, Action::PatSong(song), hint);
+        let active = s.song_mode == song;
+        if active {
+            ui.c.fill_rrect(r.inset(2.0), 4.0, Color::rgb(0x2e2e2e));
+        }
+        let ink = if active { t.accent } else if hov { t.text } else { t.text_dim };
+        ui.c.text_center(super::fnt(13.0), r, ink, label);
+    }
+    // Play: the one bright control, a pause glyph while playing.
+    let play_on = f.playing && !f.paused;
+    let play = a.span(449.0, 477.0, 6.0, 34.0);
+    let hov = ui.hit(play, Action::Play, "Play / pause (Space plays / stops)");
+    let down = ui.down(play, &Action::Play);
+    // Green, from the old logo's leaf: Play stands apart from the orange of everything selected.
+    let green = Color::rgb(0x5cb85c);
+    ui.c.fill_circle(play.cx(), play.cy(), 14.0, if down { green.shade(-0.15) } else if hov { green.shade(0.12) } else { green });
+    let g = play.inset(8.0);
+    let on_green = Color::rgb(0x0f2a10);
+    if s.rec.waiting {
+        // Waiting for input (spec: ui/recording.md §3): three dots.
+        for k in [-1.0, 0.0, 1.0] {
+            ui.c.fill_circle(g.cx() + k * 4.0, g.cy(), 1.5, on_green);
+        }
+    } else if play_on {
+        ui.c.fill_rrect(Rect::new(g.cx() - 4.5, g.y + 1.0, 3.0, g.h - 2.0), 1.0, on_green);
+        ui.c.fill_rrect(Rect::new(g.cx() + 1.5, g.y + 1.0, 3.0, g.h - 2.0), 1.0, on_green);
+    } else {
+        icons::draw(ui.c, Icon::Play, g, on_green);
+    }
+    let stop = a.span(479.0, 503.0, 8.0, 32.0);
+    let hov = ui.hit(stop, Action::Stop, "Stop (Space)");
+    ui.c.fill_circle(stop.cx(), stop.cy(), 12.0, if hov || ui.down(stop, &Action::Stop) { t.button_hi } else { t.sunken });
+    ui.c.fill_rrect(Rect::new(stop.cx() - 4.0, stop.cy() - 4.0, 8.0, 8.0), 2.0, t.glyph);
+    // Record (spec: ui/recording.md §2): armed, the whole face in the record colour (white under High visibility).
+    let rec = a.span(505.0, 529.0, 8.0, 32.0);
+    let hov = ui.hit(rec, Action::Record, crate::record::hint());
+    let lit = hov || ui.down(rec, &Action::Record);
+    let dot = crate::high_visibility::record_dot(t, crate::high_visibility::on());
+    if s.rec.armed {
+        ui.c.fill_circle(rec.cx(), rec.cy(), 12.0, if lit { dot.shade(0.12) } else { dot });
+        ui.c.fill_circle(rec.cx(), rec.cy(), 4.0, dot.shade(-0.6));
+    } else {
+        ui.c.fill_circle(rec.cx(), rec.cy(), 12.0, if lit { t.button_hi } else { t.sunken });
+        ui.c.fill_circle(rec.cx(), rec.cy(), 4.5, dot);
+    }
+    // Tempo: dragged by the whole number, the digits alone.
+    let tb = a.span(531.0, 572.0, 6.0, 34.0);
+    ui.hit(tb, Action::Tempo, "Tempo (drag up/down)");
+    if !c.preview {
+        s.tempo_digits.set([f32::MAX; 3]);
+    }
+    let thousandths = (f.tempo * 1000.0).round() as i64;
+    let text = if thousandths % 1000 == 0 { (thousandths / 1000).to_string() } else { format!("{:.1}", f.tempo) };
+    ui.c.text_center(super::fnt(20.0), tb, t.text, &text);
+}
+
 fn transport(ui: &mut Ui, c: &Ctx) {
+    if c.s.docked_ui {
+        return docked_transport(ui, c);
+    }
     let (t, a, s, f) = (ui.t, c.a, c.s, c.f);
     let lemon = super::lemon(ui);
     let capsule = a.span(383.0, 483.0, 4.0, 36.0);
@@ -477,6 +559,22 @@ fn time(ui: &mut Ui, c: &Ctx) {
     let (t, a, s, f) = (ui.t, c.a, c.s, c.f);
     let lemon = super::lemon(ui);
     let tp = a.span(745.0, 873.0, 4.0, 36.0);
+    if s.docked_ui {
+        // The docked layout: one line of plain digits on a soft pill; the clock's mode is in its hint.
+        ui.c.fill_rrect(tp, tp.h / 2.0, t.sunken);
+        ui.hit(tp, Action::Clock, s.clock.hint());
+        ui.live(Live::Clock, tp);
+        let ppq = f64::from(s.project.ppq.max(1));
+        let sig = s.project.signature().unwrap_or((s.project.bar().0, 4));
+        let secs = f.tick / ppq * 60.0 / s.project.tick_tempo(s.tempo.max(1.0));
+        let (bar, step, tick) = s.clock.reading(secs, f.tick * 96.0 / ppq, sig);
+        let text = match s.rec.count.filter(|c| c.left() > 0) {
+            Some(c) => format!("REC IN {}", c.left()),
+            None => format!("{bar}:{step:02}:{tick:02}"),
+        };
+        ui.c.text_center(super::fnt(24.0), tp, t.text, &text);
+        return;
+    }
     if lemon {
         os_ui::kit::lemon::well(ui.c, t, tp, t.time_panel);
     } else {
@@ -707,7 +805,7 @@ fn menu_bar(ui: &mut Ui, c: &Ctx) {
         ui.c.fill_rect_gradient(mb, t.menu_panel.shade(-0.04), t.menu_panel.shade(0.02), 2.5);
         ui.c.stroke_rrect(mb, 2.5, 1.0, t.toolbar_line.shade(-0.1));
     }
-    let layout = menus::bar_layout(ui.c);
+    let layout = menus::bar_layout(ui.c, s.docked_ui);
     for (i, (m, (x0, x1, width))) in menus::MENUS.iter().zip(layout).enumerate() {
         let title = m.title;
         let r = a.r(Rect::new(x0 - 3.0, 47.0, x1 - x0 + 6.0, 29.0));
@@ -717,6 +815,12 @@ fn menu_bar(ui: &mut Ui, c: &Ctx) {
             os_ui::kit::lemon::lit_in(ui.c, ui.t, r.inset(1.0), 4.0, false);
         } else if hov || open {
             ui.c.fill_rrect(if lemon { r.inset(1.0) } else { r }, if lemon { 4.0 } else { 2.0 }, t.menu_drop_hi);
+        }
+        if s.docked_ui {
+            // Plain words in the app's own type, not capitals.
+            let name = menus::docked_bar_name(title);
+            ui.c.text(menus::DOCKED_BAR_FONT, a.x(x0), a.y(52.0), if lemon && open { Color::rgb(0x2e1e00) } else if hov || open { t.text } else { t.text.shade(-0.12) }, &name);
+            continue;
         }
         ui.c.text(Font::condensed(menus::BAR_FONT.size, width as u16), a.x(x0), a.y(51.0), if lemon && open { t.pill_text } else { t.menu_text }, title);
     }

@@ -1801,12 +1801,12 @@ const MX_EQ_WIDTH: u8 = 0xE0;
 
 /// Per mixer track, the plugin-state event (213) of each slot 0-9 that holds a plugin (spec: flp/events/mixer.md
 /// "Slot sub-block": a slot's plugin events come before its 98 marker). Track ranges as in `load_mixer`.
-fn slot_state_events(events: &[Event], l: &Layout) -> Vec<[Option<usize>; 10]> {
+fn slot_state_events(events: &[Event], l: &Layout) -> Vec<[Option<usize>; os_model::SLOTS]> {
     let starts: Vec<usize> = l.mixer.iter().map(|m| m.color.or(m.color_flag).or(m.name).or(m.flags).unwrap_or(0)).collect();
     (0..l.mixer.len())
         .map(|n| {
             let to = starts.get(n + 1).copied().or(l.mixer_params).unwrap_or(events.len());
-            let mut out = [None; 10];
+            let mut out = [None; os_model::SLOTS];
             let mut pending: Option<Option<usize>> = None;
             for (i, e) in events.iter().enumerate().take(to).skip(starts[n]) {
                 match e.id {
@@ -1974,7 +1974,7 @@ fn with_flags(b: u8, m: &MixerTrack) -> u8 {
 struct SlotArea {
     from: usize,
     to: usize,
-    runs: [Option<(usize, usize)>; 10],
+    runs: [Option<(usize, usize)>; os_model::SLOTS],
 }
 
 fn slot_areas(events: &[Event], l: &Layout) -> Vec<Option<SlotArea>> {
@@ -1985,7 +1985,7 @@ fn slot_areas(events: &[Event], l: &Layout) -> Vec<Option<SlotArea>> {
             if t <= f {
                 return None;
             }
-            let mut runs = [None; 10];
+            let mut runs = [None; os_model::SLOTS];
             let mut start = None;
             for (i, e) in events.iter().enumerate().take(t).skip(f + 1) {
                 match e.id {
@@ -2145,7 +2145,7 @@ fn load_mixer(events: &[Event], l: &Layout, enc: TextEnc) -> Vec<MixerTrack> {
         let index = n as u16;
         let from = starts[n];
         let to = starts.get(n + 1).copied().or(l.mixer_params).unwrap_or(events.len());
-        let mut slots: [Option<SlotPlugin>; 10] = Default::default();
+        let mut slots: [Option<SlotPlugin>; os_model::SLOTS] = Default::default();
         let mut pending_plugin: Option<SlotPlugin> = None;
         let mut routes = Vec::new();
         for e in &events[from..to] {
@@ -2179,14 +2179,14 @@ fn load_mixer(events: &[Event], l: &Layout, enc: TextEnc) -> Vec<MixerTrack> {
         }
         let custom = m.color_flag.is_some_and(|i| int(&events[i]) != 0);
         // Slot LED and mix (spec: flp/events/plugins.md §5).
-        let mut slot_on = [true; 10];
-        let mut slot_mix = [1.0; 10];
+        let mut slot_on = [true; os_model::SLOTS];
+        let mut slot_mix = [1.0; os_model::SLOTS];
         let rt = record_track(index, l.mixer.len());
         let base = mixer_location(rt, 0);
         // The stored switch and mix level; the initial values' records for them are set by the app on opening in song
         // mode (spec: flp/engine-events.md "Event 216").
         for (_, pid, kind, loc, v) in mixer_param_records(params) {
-            if kind == MX_KIND_PARAM && (base..base + 10).contains(&loc) {
+            if kind == MX_KIND_PARAM && (base..base + os_model::SLOTS as u16).contains(&loc) {
                 let s = usize::from(loc - base);
                 match pid {
                     MX_SLOT_ON => slot_on[s] = v != 0,
@@ -3224,7 +3224,7 @@ pub fn apply(project: &Project, file: &mut FlpFile) -> Result<(), ProjectError> 
         .iter()
         .zip(&current.mixer)
         .zip(&l.mixer)
-        .zip(slot_states.iter().chain(std::iter::repeat(&[None; 10])))
+        .zip(slot_states.iter().chain(std::iter::repeat(&[None; os_model::SLOTS])))
         .zip(rewrite.iter())
     {
         // spec: flp/events/mixer.md "Slot sub-block": a plugin kept in its slot gets its new state (213).
@@ -3237,7 +3237,7 @@ pub fn apply(project: &Project, file: &mut FlpFile) -> Result<(), ProjectError> 
         }
         // Slot LED and mix level (spec: flp/events/plugins.md §5): kind 0x1F records ID 0 / 1 at the slot's location.
         if let Some(data) = params.as_mut() {
-            for k in 0..10u16 {
+            for k in 0..os_model::SLOTS as u16 {
                 let loc = mixer_location(record_track(m.index, project.mixer.len()), k);
                 let s = usize::from(k);
                 if m.slot_on[s] != old.slot_on[s] {
@@ -4028,8 +4028,12 @@ fn track_records(t: u16, m: Option<&MixerTrack>) -> Vec<u8> {
     let d = MixerTrack::new(t);
     let m = m.unwrap_or(&d);
     let mut out = Vec::new();
-    for k in 0..10u16 {
+    for k in 0..os_model::SLOTS as u16 {
         let s = usize::from(k);
+        // Past FL's ten slots, only what differs: a project not using them is written as FL writes it.
+        if s >= 10 && m.slot_on[s] && m.slot_mix[s] == 1.0 {
+            continue;
+        }
         out.extend(param_rec(MX_SLOT_ON, MX_KIND_PARAM, mixer_location(t, k), i32::from(m.slot_on[s])));
         out.extend(param_rec(MX_SLOT_MIX, MX_KIND_PARAM, mixer_location(t, k), (m.slot_mix[s].clamp(0.0, 1.0) * SLOT_MIX_FULL).round() as i32));
     }
@@ -5558,6 +5562,14 @@ mod tests {
             mixer_param_records(params).filter(|r| r.3 >= 0x7000).map(|r| (r.3 - 0x7000) / 64).collect();
         assert_eq!(tracks, (0..17).chain([501]).collect());
         assert_eq!(load(&file).unwrap().mixer, p.mixer);
+        // Past FL's ten slots: kept through a save and a load.
+        let mut extra = p.clone();
+        let last = os_model::SLOTS - 1;
+        extra.mixer[3].slots[last] = Some(SlotPlugin { name: "Fruity Limiter".into(), state: vec![9; 4] });
+        extra.mixer[3].slot_mix[last] = 0.5;
+        extra.mixer[3].slot_on[12] = false;
+        let again = FlpFile::parse(&create(&extra).unwrap().to_bytes().unwrap()).unwrap();
+        assert_eq!(load(&again).unwrap().mixer, extra.mixer);
         // Three tracks added at the end: the current track moves to 20 with everything it had.
         let mut grown = p.clone();
         let mut current = grown.mixer.pop().unwrap();

@@ -93,6 +93,36 @@ mod tests {
         }
     }
 
+    /// Over a note in the piano roll, the tools that drag notes show the move cursor; the others keep their icon, and
+    /// the note's right end keeps the resize cursor.
+    #[test]
+    fn a_note_shows_the_move_cursor() {
+        use crate::app::{Action, App, Cursor, Win};
+        use crate::piano::Tool;
+        let Ok(mut c) = os_ui::Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.state.z = vec![Win::PianoRoll];
+        app.paint(&mut c, None);
+        let g = app.piano_geom().expect("the piano roll");
+        let (lo, hi) = g.visible_keys();
+        let ch = crate::piano::channel(&app.state).expect("a channel");
+        let ppq = u32::from(app.state.project.ppq);
+        app.state.piano.last_len = ppq * 2;
+        crate::piano::add_note(&mut app.state, ch, ppq, (lo + hi) / 2);
+        app.paint(&mut c, None);
+        let r = app.hits.iter().find(|h| matches!(h.action, Action::PianoNote(_))).expect("the note").rect;
+        for (tool, want) in [(Tool::Draw, Cursor::Move), (Tool::Paint, Cursor::Move), (Tool::Select, Cursor::Move), (Tool::Delete, Cursor::Tool(Icon::Delete))] {
+            app.state.piano.tool = tool;
+            app.mouse_move(r.x + 4.0, r.cy());
+            assert_eq!(app.cursor(), want, "{tool:?} over a note");
+        }
+        app.state.piano.tool = Tool::Draw;
+        app.mouse_move(r.right() - 1.0, r.cy());
+        assert_eq!(app.cursor(), Cursor::EwResize, "the note's end");
+        app.mouse_move(r.x - 40.0, r.cy());
+        assert_eq!(app.cursor(), Cursor::Tool(Icon::Pencil), "off the note");
+    }
+
     /// Every tool's cursor has a white body on a dark rim, a clear background and its hot spot inside the image.
     #[test]
     fn tool_cursors_are_drawn() {

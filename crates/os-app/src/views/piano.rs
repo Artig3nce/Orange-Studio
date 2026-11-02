@@ -14,6 +14,7 @@ use super::{resize_zones, window_body, FrameInfo};
 use crate::app::{Action, Live, Scroll, State, Ui, Win};
 use crate::icons::{self, Icon};
 use crate::piano::{self, Geom, Lane, Overlay, Tool};
+use crate::playlist::Snap;
 
 /// Default grid row pitch: 17 px of fill plus a 1 px separator (§3); the vertical zoom changes it (§3a).
 pub const ROW: f32 = 18.0;
@@ -95,10 +96,12 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
     let title = "Piano roll - ";
     window_body(ui, r);
     let outer = r;
-    let floating = !s.wins[Win::PianoRoll.slot().unwrap_or(0)].maxed && r.h >= 2.0 * crate::app::TITLE_H;
+    let floating = !s.is_fixed(Win::PianoRoll) && !s.wins[Win::PianoRoll.slot().unwrap_or(0)].maxed && r.h >= 2.0 * crate::app::TITLE_H;
     let (r, _) = super::framed(ui, s, Win::PianoRoll, r, title, 365.0, true);
     // The window's own rim, like the toolbar readouts and the Playlist (theme token `display_edge`).
-    super::display_edge(ui.c, t, outer, if super::lemon(ui) { os_ui::kit::lemon::r_panel(t) } else { 0.0 });
+    if !s.is_fixed(Win::PianoRoll) {
+        super::display_edge(ui.c, t, outer, if super::lemon(ui) { os_ui::kit::lemon::r_panel(t) } else { 0.0 });
+    }
     // The target channel: name and arrow, orange with a ▾ while hovered (spec: ui/piano-target-channel.md §1).
     let font = Font::new(17);
     let nx = r.x + 365.0 + ui.c.text_width(font, title);
@@ -195,7 +198,10 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
             (t.note_top, t.note_bottom, t.note_rim, t.note_text)
         };
         let body = Rect::new(nr.x + 1.0, nr.y + 1.0, (nr.w - 2.0).max(1.0), nr.h - 2.0);
-        if lemon {
+        if s.docked_ui {
+            // One flat colour, no rim or light.
+            ui.c.fill_rrect(nr, 3.5f32.min(nr.w / 2.0).min(nr.h / 2.0), top.mix(bottom, 0.5));
+        } else if lemon {
             // Rounded-square notes: rim, then the body as a soft top-light gradient.
             let rad = 3.5f32.min(nr.w / 2.0).min(nr.h / 2.0);
             ui.c.fill_rrect(nr, rad, rim);
@@ -204,7 +210,7 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
             ui.c.fill_rrect(nr, 2.0, rim);
             ui.c.fill_rect_gradient(body, top, bottom, 1.0);
         }
-        if nr.w > 6.0 && !lemon {
+        if nr.w > 6.0 && !lemon && !s.docked_ui {
             let hi = top.mix(bottom, 0.45);
             ui.c.fill_rect(Rect::new(body.x, body.y + 1.0, 1.0, body.h - 2.0), hi);
             ui.c.fill_rect(Rect::new(body.right() - 1.0, body.y + 1.0, 1.0, body.h - 2.0), hi);
@@ -629,6 +635,64 @@ fn keyboard(ui: &mut Ui, s: &State, l: &Layout, g: &Geom, lit: &[i32]) {
 }
 
 /// Vertical step / beat / bar lines over `area`, in `line(fill)` colors per horizontal band.
+/// Every other bar a little lighter, to count them by (the docked layout's grid).
+fn bar_bands(ui: &mut Ui, g: &Geom, area: Rect) {
+    let last = ((g.scroll_x + area.w / g.ppt) / g.step as f32).ceil() as i64;
+    let (mut bar, mut from) = (-1, 0.0_f32);
+    for i in 0..=last + 1 {
+        let tick = (i * i64::from(g.step)) as u32;
+        if !g.line_at(tick).0 {
+            continue;
+        }
+        let x = g.x_of(tick as f32).floor();
+        if bar % 2 == 1 {
+            let band = Rect::span(from.max(area.x), x.min(area.right()), area.y, area.bottom());
+            if band.w > 0.0 {
+                ui.c.fill_rect(band, Color::rgb(0xffffff).with_alpha(7));
+            }
+        }
+        (bar, from) = (bar + 1, x);
+    }
+    if bar % 2 == 1 && from < area.right() {
+        ui.c.fill_rect(Rect::span(from.max(area.x), area.right(), area.y, area.bottom()), Color::rgb(0xffffff).with_alpha(7));
+    }
+}
+
+/// The docked layout's vertical lines, as the Playlist's: they lighten what they cross, bars most, then beats and what
+/// the snap setting divides those into.
+fn docked_columns(ui: &mut Ui, s: &State, g: &Geom, area: Rect) {
+    let beat_px = g.beat as f32 * g.ppt;
+    // A fixed snap unit shows on the grid when its lines fit, else the steps as with Line.
+    let unit = match s.piano.snap.grid(s.global_snap.now) {
+        Some(Snap::None | Snap::Line | Snap::Cell) | None => g.step,
+        Some(sn) => sn.ticks(u32::from(s.project.ppq.max(4)), 0.0),
+    };
+    let unit = if unit as f32 * g.ppt >= 4.0 { unit } else { g.step };
+    // Walk the steps unless the unit falls between them.
+    let walk = if unit % g.step == 0 { g.step } else { unit };
+    let show = unit as f32 * g.ppt >= 4.0;
+    let first = (g.scroll_x / walk as f32).floor() as i64;
+    let last = ((g.scroll_x + area.w / g.ppt) / walk as f32).ceil() as i64;
+    for i in first.max(0)..=last {
+        let tick = (i * i64::from(walk)) as u32;
+        let x = g.x_of(tick as f32).floor();
+        if x < area.x || x >= area.right() {
+            continue;
+        }
+        let (on_bar, on_beat) = g.line_at(tick);
+        let alpha = if on_bar {
+            24
+        } else if on_beat && beat_px >= 4.0 && unit <= g.beat {
+            13
+        } else if show && tick % unit == 0 {
+            6
+        } else {
+            continue;
+        };
+        ui.c.fill_rect(Rect::new(x, area.y, 1.0, area.h), Color::rgb(0xffffff).with_alpha(alpha));
+    }
+}
+
 fn columns(ui: &mut Ui, g: &Geom, area: Rect, bands: &[(f32, f32, Color)], bar: Color) {
     let step = g.step as f32 * g.ppt;
     let show_steps = step >= 5.0;
@@ -693,14 +757,21 @@ fn grid_rows(ui: &mut Ui, s: &State, l: &Layout, g: &Geom, clip: Rect, selecting
         ui.c.fill_rect(Rect::new(gr.x, y, gr.w, g.row - 1.0), fill);
         let sep_color = if is_root {
             t.pill.with_alpha(150)
+        } else if s.docked_ui {
+            Color::rgb(0xffffff).with_alpha(8)
         } else {
             sub(t, white, 0x0a)
         };
         ui.c.fill_rect(Rect::new(gr.x, y + g.row - 1.0, gr.w, 1.0), sep_color);
         bands.push((y, g.row - 1.0, fill));
     }
-    let bar = if selecting { ui.t.s(0x0e080c) } else { bar_line(t) };
-    columns(ui, g, gr, &bands, bar);
+    if s.docked_ui {
+        bar_bands(ui, g, gr);
+        docked_columns(ui, s, g, gr);
+    } else {
+        let bar = if selecting { ui.t.s(0x0e080c) } else { bar_line(t) };
+        columns(ui, g, gr, &bands, bar);
+    }
     ui.c.pop_clip();
 }
 
@@ -745,12 +816,17 @@ fn velocity_panel(ui: &mut Ui, s: &State, l: &Layout, g: &Geom, notes: &[Note], 
         let h = 21.0f32.min(p.bottom() - y);
         bands.push((y, h, t.pr_row));
         if y + 21.0 < p.bottom() {
-            ui.c.fill_rect(Rect::new(p.x, y + 21.0, p.w, 1.0), sub(t, t.pr_row, if i % 2 == 1 { 0x12 } else { 0x0a }));
+            ui.c.fill_rect(Rect::new(p.x, y + 21.0, p.w, 1.0), if s.docked_ui { Color::rgb(0xffffff).with_alpha(8) } else { sub(t, t.pr_row, if i % 2 == 1 { 0x12 } else { 0x0a }) });
         }
         y += 22.0;
         i += 1;
     }
-    columns(ui, g, p, &bands, bar_line(t));
+    if s.docked_ui {
+        bar_bands(ui, g, p);
+        docked_columns(ui, s, g, p);
+    } else {
+        columns(ui, g, p, &bands, bar_line(t));
+    }
     ui.c.text(Font::new(16), p.x + 7.0, p.y + 2.0, t.text_faint.shade(-0.35), lane.name());
 
     if lane.is_channel() {

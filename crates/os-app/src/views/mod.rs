@@ -44,6 +44,7 @@ pub mod typein;
 
 use std::borrow::Cow;
 
+use os_theme::Palette;
 use os_ui::{kit, Color, Rect};
 
 use crate::app::{Action, Bar, Scroll, Seg, State, Ui, Win};
@@ -202,6 +203,71 @@ pub fn browser_w(s: &State) -> f32 {
     s.browser_w.min(s.screen.0 / 2.0).max(BROWSER_W)
 }
 
+/// The theme's colours for the docked layout: the bars, panels and the Playlist's grid all on one background (the
+/// theme's window colour), so they read as one surface.
+pub fn docked_palette(p: &Palette) -> Palette {
+    let c = p.window_title;
+    let mut d = p.clone();
+    for f in [
+        &mut d.toolbar,
+        &mut d.toolbar_line,
+        &mut d.menu_panel,
+        &mut d.workspace,
+        &mut d.display_edge,
+        &mut d.browser_title,
+        &mut d.browser_tabs,
+        &mut d.browser_list,
+        &mut d.browser_footer,
+        &mut d.splitter,
+        &mut d.splitter_dark,
+        &mut d.window_title_float,
+        &mut d.window_title_hi,
+        &mut d.window_body,
+        &mut d.picker,
+        &mut d.track_header,
+        &mut d.scrollbar,
+        &mut d.ruler,
+        &mut d.grid,
+        &mut d.grid_gap,
+        &mut d.mixer_bg,
+        &mut d.mixer_panel,
+        &mut d.rack_inset,
+    ] {
+        *f = c;
+    }
+    // Every other group of bars a little lighter, to count them by.
+    d.grid_alt = c.shade(0.035);
+    // The piano roll on the same ground, its black keys' rows a little darker.
+    d.pr_row = c;
+    d.pr_row_black = c.mix(Color::rgb(0x000000), 0.2);
+    // The piano's key letters, closer to black.
+    d.key_label = p.key_label.mix(Color::rgb(0x000000), 0.45);
+    d
+}
+
+/// The docked layout's bottom panel: a tab for each of its windows, and past them the strip that resizes the panel.
+fn panel_tabs(ui: &mut Ui, s: &State) {
+    let a = s.panel_area();
+    let strip = Rect::new(a.x, a.y, a.w, crate::app::PANEL_TABS_H);
+    let t = ui.t;
+    ui.c.fill_rect(strip, t.window_title);
+    ui.c.fill_rect(Rect::new(strip.x, strip.y, strip.w, 1.0), t.splitter_dark);
+    ui.hit(strip, Action::PanelSplitter, "Drag to resize the panel");
+    let font = fnt(16.0);
+    let mut x = strip.x + 8.0;
+    for (win, name) in [(Win::Mixer, "Mixer"), (Win::PianoRoll, "Piano roll"), (Win::ChannelRack, "Channel rack")] {
+        let w = ui.c.text_width(font, name) + 28.0;
+        let r = Rect::new(x, strip.y, w, strip.h);
+        let hov = ui.hit(r, Action::PanelTab(win), name);
+        let open = s.panel == win;
+        ui.c.text(font, x + 14.0, strip.y + 6.0, if open || hov { t.text } else { t.text_dim }, name);
+        if open {
+            ui.c.fill_rect(Rect::new(x + 6.0, strip.bottom() - 2.0, w - 12.0, 2.0), t.accent);
+        }
+        x += w;
+    }
+}
+
 /// Paints the frame; returns the number of hits registered before the overlays (menus, popups, picker...), which cover
 /// docked plugin windows.
 pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) -> usize {
@@ -221,7 +287,7 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) -> usize {
     if docked.is_none() && !crate::wallpaper::paint(ui, work) {
         let wm = ui.t.watermark;
         icons::wordmark(ui.c, work.cx(), work.cy() + 40.0, 560.0, ui.t.workspace, wm);
-        let version = concat!("Orange Studio v", env!("CARGO_PKG_VERSION"), " - pre-alpha");
+        let version = concat!("Orange Studio v", env!("CARGO_PKG_VERSION"));
         let vc = ui.t.version_text;
         let vw = ui.c.text_width(crate::views::fnt(16.0), version);
         ui.c.text(crate::views::fnt(16.0), work.cx() - vw / 2.0, h - 22.0, vc, version);
@@ -229,14 +295,18 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) -> usize {
 
     // One stacking order for all child windows (spec: ui/channel-rack.md §5). A maximized window
     // fills the workspace, so windows below it are covered and not painted.
-    let docked_at = s.z.iter().rposition(|&w| s.is_max(w));
+    let order = s.paint_order();
+    let docked_at = order.iter().rposition(|&w| s.is_max(w));
     // Each part is skipped by a repaint that misses it (`Ui::part`).
     if s.show_browser {
-        let r = Rect::new(0.0, top, browser_w(s), h - top);
+        let r = Rect::new(0.0, top, browser_w(s), browser::bottom(s) - top);
         ui.part(Seg::Browser, r, |ui| browser::paint(ui, s, r));
     }
     let _ = work;
-    for (i, &win) in s.z.iter().enumerate() {
+    if s.docked_ui {
+        panel_tabs(ui, s);
+    }
+    for (i, &win) in order.iter().enumerate() {
         if docked_at.is_some_and(|d| i < d) {
             continue;
         }
@@ -245,6 +315,7 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) -> usize {
         // A window paints inside its paint area (also what it marks as drawn, e.g. text's generous overhang).
         let a = paint_area(s, win);
         ui.c.push_clip(a);
+        let first_hit = ui.hits_len();
         match win {
             Win::Playlist => ui.part(Seg::Win(win), a, |ui| playlist::paint(ui, s, r, f)),
             Win::Mixer => ui.part(Seg::Win(win), a, |ui| {
@@ -268,6 +339,10 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) -> usize {
             Win::PianoDlg => ui.part(Seg::Win(win), a, |ui| piano_dlg::paint(ui, s, f)),
             Win::Events => ui.part(Seg::Win(win), a, |ui| events::paint(ui, s, f)),
             _ => {}
+        }
+        // The docked windows touch: a Playlist row running on past the window's edge must not take the panel's clicks.
+        if s.is_fixed(win) {
+            ui.keep_hits_in(first_hit, a);
         }
         ui.c.pop_clip();
         ui.win = None;
@@ -353,6 +428,7 @@ pub fn paint_area(s: &State, w: Win) -> Rect {
         Win::Arp => arpeggiate::bounds(s),
         Win::PianoDlg => piano_dlg::bounds(s),
         Win::Events => events::bounds(s),
+        w if s.is_fixed(w) => s.win_area(w),
         w => s.win_rect(w),
     }
 }
@@ -366,8 +442,8 @@ pub fn window_body(ui: &mut Ui, r: Rect) {
 /// Resize edges of a floating window: thin strips along the sides and small corner squares,
 /// reaching 3 px outside the window. Not for maximized or collapsed windows.
 pub fn resize_zones(ui: &mut Ui, s: &State, win: Win, r: Rect) {
-    let Some(i) = win.slot() else { return };
-    if s.wins[i].maxed || s.wins[i].mini {
+    let Some(_) = win.slot() else { return };
+    if !s.floats(win) {
         return;
     }
     use crate::app::{EDGE_B, EDGE_L, EDGE_R, EDGE_T};
@@ -439,8 +515,7 @@ pub fn window_frame_ex(ui: &mut Ui, win: Win, r: Rect, title: &str, title_x: f32
 /// 1 px dark border, 5 px frame, 1 px inner line around the client, flat 28 px title bar.
 /// Returns the inner rect (laid out like the docked window) when `win` floats, else `None`.
 pub fn float_frame(ui: &mut Ui, s: &State, win: Win, r: Rect) -> Option<Rect> {
-    let ws = &s.wins[win.slot()?];
-    if ws.maxed || ws.mini || r.h < 2.0 * crate::app::TITLE_H {
+    if !s.floats(win) || r.h < 2.0 * crate::app::TITLE_H {
         return None;
     }
     let t = ui.t;
@@ -459,7 +534,7 @@ pub fn float_frame(ui: &mut Ui, s: &State, win: Win, r: Rect) -> Option<Rect> {
 
 /// The (layout rect, client rect) that `framed` returns for `win` at `r`, without painting.
 pub fn frame_rects(s: &State, win: Win, r: Rect) -> (Rect, Rect) {
-    let floats = win.slot().is_some_and(|i| !s.wins[i].maxed && !s.wins[i].mini) && r.h >= 2.0 * crate::app::TITLE_H;
+    let floats = s.floats(win) && r.h >= 2.0 * crate::app::TITLE_H;
     let r = if floats { Rect::new(r.x + 7.0, r.y + 5.0, r.w - 14.0, r.h - 12.0) } else { r };
     (r, Rect::new(r.x, r.y + 23.0, r.w, r.h - 23.0))
 }
@@ -467,6 +542,7 @@ pub fn frame_rects(s: &State, win: Win, r: Rect) -> (Rect, Rect) {
 /// Window frame for `win`: the floating frame when it floats, else the docked title bar.
 /// Returns (layout rect, client rect).
 pub fn framed(ui: &mut Ui, s: &State, win: Win, r: Rect, title: &str, title_x: f32, buttons: bool) -> (Rect, Rect) {
+    let buttons = buttons && !s.is_fixed(win);
     match float_frame(ui, s, win, r) {
         Some(inner) => (inner, window_frame_ex(ui, win, inner, title, title_x, buttons, true)),
         None => (r, window_frame(ui, win, r, title, title_x, buttons)),

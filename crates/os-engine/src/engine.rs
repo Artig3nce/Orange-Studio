@@ -691,8 +691,8 @@ struct MixTrack {
     /// Insert effects in slot order (applied before the fader).
     effects: Vec<FxSlot>,
     /// Slot switches and stored mix levels (0..12800) by slot, for hosted effects attached later.
-    slot_on: [bool; 10],
-    slot_mix: [i32; 10],
+    slot_on: [bool; os_model::SLOTS],
+    slot_mix: [i32; os_model::SLOTS],
     /// Largest |sample| per side after the fader since the meters last read them.
     peak: [f32; 2],
     /// The fader matrix's target gains `[[L←L, L←R], [R←L, R←R]]`, and the gains as they glide towards them.
@@ -750,8 +750,8 @@ struct Stored {
     pan: i32,
     sep: i32,
     eq: [[i32; 3]; 3],
-    slot_on: [bool; 10],
-    slot_mix: [i32; 10],
+    slot_on: [bool; os_model::SLOTS],
+    slot_mix: [i32; os_model::SLOTS],
     /// Send gains, one per route.
     sends: Vec<f32>,
 }
@@ -847,8 +847,8 @@ impl MixTrack {
             slots_enabled: true,
             eq: os_dsp::mixer::TrackEq::default(),
             effects: Vec::new(),
-            slot_on: [true; 10],
-            slot_mix: [12800; 10],
+            slot_on: [true; os_model::SLOTS],
+            slot_mix: [12800; os_model::SLOTS],
             peak: [0.0; 2],
             matrix: unity,
             gains: unity.map(|r| r.map(Glide::new)),
@@ -858,8 +858,8 @@ impl MixTrack {
                 pan: 0,
                 sep: 0,
                 eq: os_dsp::mixer::EQ_DEFAULT,
-                slot_on: [true; 10],
-                slot_mix: [12800; 10],
+                slot_on: [true; os_model::SLOTS],
+                slot_mix: [12800; os_model::SLOTS],
                 sends: vec![],
             },
             latency: (0.0, 0.0),
@@ -1738,7 +1738,7 @@ impl Engine {
     /// Runs mixer slot `slot` of track `track` through a hosted effect plugin (replacing whatever the slot had).
     pub fn set_effect(&mut self, track: usize, slot: usize, fx: crate::instrument::SharedEffect) {
         let Some(t) = self.tracks.get_mut(track) else { return };
-        if slot >= 10 {
+        if slot >= os_model::SLOTS {
             return;
         }
         t.effects.retain(|e| e.slot != slot);

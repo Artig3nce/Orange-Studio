@@ -908,7 +908,9 @@ impl Canvas {
     pub fn text_clip(&mut self, f: Font, x: f32, y: f32, max_w: f32, c: Color, s: &str) {
         let h = self.line_height(f);
         self.push_clip(Rect::new(x - 2.0, y - 4.0, max_w + 2.0, h + 8.0));
-        self.text(f, x, y, c, s);
+        // Too long and right-to-left: the end is what's cut, and that end is on the left.
+        let over = if s.is_ascii() || unicode_bidi::get_base_direction(s) != unicode_bidi::Direction::Rtl { 0.0 } else { (self.text_width(f, s) - max_w).max(0.0) };
+        self.text(f, x - over, y, c, s);
         self.pop_clip();
     }
 

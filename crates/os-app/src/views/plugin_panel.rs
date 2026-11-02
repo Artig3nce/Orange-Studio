@@ -243,7 +243,7 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect) {
             ui.c.text_clip(fsmall, p.x + 5.0, vy, p.w - 8.0, t.text_dim, &v);
             right = p.x - 6.0;
         }
-        let c = if fav || hov { t.cat_plugin_db.shade(0.12) } else { t.cat_plugin_db };
+        let c = if fav || hov { (if s.docked_ui { t.text } else { t.cat_plugin_db }).shade(0.12) } else { (if s.docked_ui { t.text } else { t.cat_plugin_db }) };
         let ty = text_y(ui, fname, y, ROW_H);
         ui.c.text_clip(fname, lr.x + 8.0, ty, right - lr.x - 8.0, c, &fam.name);
     }

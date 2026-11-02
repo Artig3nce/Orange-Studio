@@ -10,9 +10,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag, created if it does not exist (e.g. v0.2.0)'
+        description: 'Release tag, created if it does not exist (e.g. v1.0.0)'
         required: true
-        default: 'v0.2.0'
+        default: 'v1.0.0'
 
 permissions:
   contents: write
@@ -55,7 +55,7 @@ jobs:
           name: Orange Studio ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           body: |
             Orange Studio for Windows (x64), Linux (x64) and Android (arm64): the portable builds run on Windows 10 and
-            11, Linux on X11 or Wayland, and — new in v0.4 — natively on Android, no Wine needed.
+            11, Linux on X11 or Wayland, and natively on Android, no Wine needed.
 
             Orange Studio is based on Lemon Studio by ItsAlphaNeon (https://github.com/ItsAlphaNeon/Lemon-Studio), free software
             under the GPL 3.0 or later. The Android port's scaffolding follows daijro's honeydew
@@ -63,9 +63,6 @@ jobs:
 
             - Unzip and run `orangestudio` (`orangestudio.exe` on Windows): no installer, and nothing else to install.
               On Android, install the APK and open Orange Studio from the launcher.
-            - v0.4: Orange Studio Mobile — the whole app (devices, plugins, Orange Beat included) runs on Android; one
-              finger is the mouse and a held finger is a right click. The new Orange Beat (a Gross Beat-style time
-              manipulator) joins the effects, automation clips gained Ableton-style shapes and an LFO, and the piano
               roll draws slide and portamento notes (the Note properties menu).
             - Desktop audio is unchanged; on Android the device plays through AAudio at the device's own settings.
             - If it will not start, `%APPDATA%\Orange Studio\panic-log.txt` (Windows), `~/.config/Orange Studio/panic-log.txt`
@@ -107,7 +104,7 @@ jobs:
           name: Orange Studio ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           body: |
             Orange Studio for Windows (x64), Linux (x64) and Android (arm64): the portable builds run on Windows 10 and
-            11, Linux on X11 or Wayland, and — new in v0.4 — natively on Android, no Wine needed.
+            11, Linux on X11 or Wayland, and natively on Android, no Wine needed.
 
             Orange Studio is based on Lemon Studio by ItsAlphaNeon (https://github.com/ItsAlphaNeon/Lemon-Studio), free software
             under the GPL 3.0 or later. The Android port's scaffolding follows daijro's honeydew
@@ -115,9 +112,6 @@ jobs:
 
             - Unzip and run `orangestudio` (`orangestudio.exe` on Windows): no installer, and nothing else to install.
               On Android, install the APK and open Orange Studio from the launcher.
-            - v0.4: Orange Studio Mobile — the whole app (devices, plugins, Orange Beat included) runs on Android; one
-              finger is the mouse and a held finger is a right click. The new Orange Beat (a Gross Beat-style time
-              manipulator) joins the effects, automation clips gained Ableton-style shapes and an LFO, and the piano
               roll draws slide and portamento notes (the Note properties menu).
             - Desktop audio is unchanged; on Android the device plays through AAudio at the device's own settings.
             - If it will not start, `%APPDATA%\Orange Studio\panic-log.txt` (Windows), `~/.config/Orange Studio/panic-log.txt`
@@ -160,7 +154,7 @@ jobs:
           name: Orange Studio ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           body: |
             Orange Studio for Windows (x64), Linux (x64) and Android (arm64): the portable builds run on Windows 10 and
-            11, Linux on X11 or Wayland, and — new in v0.4 — natively on Android, no Wine needed.
+            11, Linux on X11 or Wayland, and natively on Android, no Wine needed.
 
             Orange Studio is based on Lemon Studio by ItsAlphaNeon (https://github.com/ItsAlphaNeon/Lemon-Studio), free software
             under the GPL 3.0 or later. The Android port's scaffolding follows daijro's honeydew
@@ -168,9 +162,6 @@ jobs:
 
             - Unzip and run `orangestudio` (`orangestudio.exe` on Windows): no installer, and nothing else to install.
               On Android, install the APK and open Orange Studio from the launcher.
-            - v0.4: Orange Studio Mobile — the whole app (devices, plugins, Orange Beat included) runs on Android; one
-              finger is the mouse and a held finger is a right click. The new Orange Beat (a Gross Beat-style time
-              manipulator) joins the effects, automation clips gained Ableton-style shapes and an LFO, and the piano
               roll draws slide and portamento notes (the Note properties menu).
             - Desktop audio is unchanged; on Android the device plays through AAudio at the device's own settings.
             - If it will not start, `%APPDATA%\Orange Studio\panic-log.txt` (Windows), `~/.config/Orange Studio/panic-log.txt`

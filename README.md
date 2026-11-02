@@ -9,11 +9,11 @@
 <h3>A free and open-source digital audio workstation, written in Rust.</h3>
 
 <p>
-  <a href="https://github.com/apikun/Orange-Studio/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/apikun/Orange-Studio/ci.yml?branch=main&style=flat-square&label=CI"></a>
+  <a href="https://github.com/Artig3nce/Orange-Studio/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Artig3nce/Orange-Studio/ci.yml?branch=main&style=flat-square&label=CI"></a>
   <a href="LICENSE"><img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue?style=flat-square"></a>
   <img alt="Rust 2024 edition" src="https://img.shields.io/badge/rust-2024_edition-e57324?style=flat-square&logo=rust&logoColor=white">
   <img alt="Platform: Windows | Linux | macOS" src="https://img.shields.io/badge/platform-Windows_%7C_Linux_%7C_macOS-0078d4?style=flat-square">
-  <img alt="Status: pre-alpha" src="https://img.shields.io/badge/status-pre--alpha-ffe066?style=flat-square">
+  <a href="https://github.com/Artig3nce/Orange-Studio/releases"><img alt="Release: 1.0.0" src="https://img.shields.io/badge/release-1.0.0-ffb02e?style=flat-square"></a>
   <a href="https://discord.gg/yC2uCuGs3M"><img alt="Lemon Studio Discord" src="https://img.shields.io/badge/lemon_studio-discord-5865f2?style=flat-square&logo=discord&logoColor=white"></a>
 </p>
 
@@ -31,7 +31,7 @@
 
 <br>
 
-<img alt="Orange Studio with the channel rack, playlist and mixer open on a populated project" src="docs/assets/screenshot-main.png" width="900">
+<img alt="Orange Studio with the playlist and mixer open on a populated project" src="docs/assets/screenshot-main.png" width="900">
 
 </div>
 
@@ -78,7 +78,7 @@ kept and written back unchanged, so a project survives being opened and saved. T
 young, so read the warning below before trying it on real work.
 
 > [!WARNING]
-> **Orange Studio is pre-alpha software.** It is under active development and is not yet a usable DAW:
+> **Orange Studio is early software.** It is under active development and is not yet a usable DAW:
 > expect missing features, rough edges and breaking changes.
 >
 > - **Greyed-out controls are not implemented yet.** Many menus and buttons are already laid out but do
@@ -771,7 +771,7 @@ every feature marked as done, in progress or not started.
 - ✅ New name and logo: Orange Studio
 - ✅ Automatic builds and tests on Windows and Linux for every change
 - ✅ Windows releases: a portable x64 build attached to GitHub releases, runs under Wine (Winlator on Android)
-- 🚧 Pre-alpha: expect breaking changes
+- 🚧 Early days: expect breaking changes
 - ✅ Linux support (groundwork: builds off Windows, Wayland fixes)
 - ✅ Linux: runs on X11 and Wayland (through XWayland), plugin windows docked as on Windows, crisp text at any scale
 - ✅ Linux audio: shared mode through the sound server by default, exclusive mode on ALSA

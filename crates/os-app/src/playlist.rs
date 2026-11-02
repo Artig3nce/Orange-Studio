@@ -88,6 +88,9 @@ impl PlTool {
     }
 }
 
+/// The time zoom's limits: px per bar.
+pub const BAR_W_RANGE: (f32, f32) = (4.0, 4800.0);
+
 /// Snap settings (§4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Snap {
@@ -736,9 +739,9 @@ pub struct PlaylistState {
     /// audio clip's channel's whole sample lasted when it started.
     pub stretch: bool,
     pub stretch_base: Vec<(u16, f64)>,
-    /// A resized clip's length, kept for its source: new clips of that source are placed / painted at this length
-    /// until a clip of natural length is clicked (OS, as FL does).
-    pub lock_len: Option<(ClipSource, u32)>,
+    /// A trimmed clip, kept for its source: new clips of that source are placed / painted as this one, the same part
+    /// of the source at the same length, until an untrimmed clip is clicked (OS, as FL does for the length).
+    pub lock_clip: Option<Clip>,
     /// Track row pitch (vertical zoom: Alt+wheel; saved in the project's playlist view).
     pub row_h: f32,
     /// Last header click (track, time) for double-click rename.
@@ -786,7 +789,7 @@ impl Default for PlaylistState {
             arr_anchor: (300.0, 90.0),
             stretch: false,
             stretch_base: Vec::new(),
-            lock_len: None,
+            lock_clip: None,
             row_h: ROW_H,
             last_header: None,
             last_clip: None,
@@ -1518,21 +1521,34 @@ pub fn snap_delta(s: &State, g: &PGeom, dt: f32, alt: bool) -> i64 {
 
 /// Place a clip of the current source on `track` at `tick`; returns its index.
 pub fn place(s: &mut State, track: u16, tick: u32) -> usize {
+    let c = new_clip(s, track, tick);
+    arr_mut(s).clips.push(c);
+    s.piano.dirty = true;
+    clips(s).len() - 1
+}
+
+/// The clip `place` and painting add at `tick`: the kept trimmed clip of the current source if there is one.
+fn new_clip(s: &State, track: u16, tick: u32) -> Clip {
     let src = source(s);
-    let len = match s.playlist.lock_len {
-        Some((l, n)) if l == src => n,
-        _ => source_len(s, src),
-    };
-    let audio = source_kind(s, src) == PickKind::Audio && matches!(src, ClipSource::Channel(_));
-    let a = arr_mut(s);
-    let mut c = Clip::new(tick, len, track, src);
-    if audio {
+    if let Some(mut c) = s.playlist.lock_clip.filter(|c| c.source == src) {
+        c.position = tick;
+        c.track = track;
+        c.muted = false;
+        c.set_id(0);
+        c.set_group(0);
+        return c;
+    }
+    let mut c = Clip::new(tick, source_len(s, src), track, src);
+    if source_kind(s, src) == PickKind::Audio && matches!(src, ClipSource::Channel(_)) {
         // FL writes gain 1.0 into a new audio clip (spec: flp/events/playlist.md, byte 52).
         c.set_gain(1.0);
     }
-    a.clips.push(c);
-    s.piano.dirty = true;
-    clips(s).len() - 1
+    c
+}
+
+/// Whether `c` shows less of its source, or more, than a newly placed clip does.
+fn trimmed(s: &State, c: &Clip) -> bool {
+    c.length != source_len(s, c.source) || window(s, c).0 > 0.0
 }
 
 /// Delete clips by index (selection indices are remapped).
@@ -1702,7 +1718,7 @@ pub fn load_view(s: &mut State) {
     s.playlist.row_h = (v.row_px() as f32).clamp(ROW_MIN, ROW_MAX);
     let tpp = v.ticks_per_px();
     if tpp.is_finite() && tpp > 0.0 {
-        s.playlist_bar_w = (f64::from(bar(s)) / tpp).clamp(4.0, 600.0) as f32;
+        s.playlist_bar_w = (f64::from(bar(s)) / tpp).clamp(f64::from(BAR_W_RANGE.0), f64::from(BAR_W_RANGE.1)) as f32;
         let left = v.left();
         let tpp = f64::from(bar(s)) / f64::from(s.playlist_bar_w);
         s.playlist_scroll.0 = if left.is_finite() { (left / tpp).max(0.0) as f32 } else { 0.0 };
@@ -3526,8 +3542,8 @@ pub fn press_grid(app: &mut App, grid: Rect, right: bool) {
                     s.pattern = n;
                 }
                 s.playlist.picker = source_kind(s, c.source);
-                // A resized clip lends its length to the clips placed next; a clip of natural length clears it.
-                s.playlist.lock_len = (c.length != source_len(s, c.source)).then_some((c.source, c.length));
+                // A trimmed clip is what gets placed next; an untrimmed one clears it.
+                s.playlist.lock_clip = trimmed(s, &c).then_some(c);
                 // Grouped clips go along (§3a); clicking one selects its whole group.
                 let grouped = clips(s)[i].group() != 0;
                 let mut group = with_groups(s, if s.playlist.sel.contains(&i) { s.playlist.sel.clone() } else { vec![i] });
@@ -3715,7 +3731,6 @@ pub fn drag_move(app: &mut App, d: PlDrag, grid: Rect) {
             // Clips back to back along the track from the first, up to the mouse (either direction).
             let t = g.tick_at(x).max(0.0) as i64;
             let k = (t - i64::from(start)).div_euclid(i64::from(len));
-            let src = source(s);
             for j in k.min(0)..=k.max(0) {
                 let pos = i64::from(start) + j * i64::from(len);
                 if pos < 0 {
@@ -3724,7 +3739,8 @@ pub fn drag_move(app: &mut App, d: PlDrag, grid: Rect) {
                 let pos = pos as u32;
                 let taken = clips(s).iter().any(|c| c.track == track && c.position < pos + len && c.end() > pos);
                 if !taken {
-                    arr_mut(s).clips.push(Clip::new(pos, len, track, src));
+                    let c = new_clip(s, track, pos);
+                    arr_mut(s).clips.push(c);
                     s.piano.dirty = true;
                 }
             }
@@ -3884,11 +3900,11 @@ pub fn drag_end(app: &mut App, d: PlDrag, grid: Rect) {
     let s = &mut app.state;
     let g = PGeom::new(s, grid);
     let overlay = s.playlist.overlay.take();
-    // A resized clip's new length is used for the next clips of its source.
+    // A resized clip is what gets placed next.
     if let PlDrag::ResizeL { orig, .. } | PlDrag::ResizeR { orig, .. } = &d
-        && let Some(c) = orig.first().and_then(|&(i, _)| clips(s).get(i))
+        && let Some(c) = orig.first().and_then(|&(i, _)| clips(s).get(i)).copied()
     {
-        s.playlist.lock_len = Some((c.source, c.length));
+        s.playlist.lock_clip = Some(c);
     }
     if let PlDrag::TrackSize { row, moved: false, .. } = d {
         // A click: a track taller than the smallest shrinks to it, the smallest comes back to the others' height.
@@ -3972,7 +3988,7 @@ fn zoom_to(app: &mut App, grid: Rect, x0: f32, y0: f32) {
         s.playlist_scroll.0 = (t / bar * s.playlist_bar_w - (x1 - grid.x)).max(0.0);
     } else {
         let (t0, t1) = (g.tick_at(x0.min(x1)).max(0.0), g.tick_at(x0.max(x1)).max(0.0));
-        s.playlist_bar_w = (grid.w / ((t1 - t0).max(1.0) / bar)).clamp(4.0, 600.0);
+        s.playlist_bar_w = (grid.w / ((t1 - t0).max(1.0) / bar)).clamp(BAR_W_RANGE.0, BAR_W_RANGE.1);
         s.playlist_scroll.0 = t0 / bar * s.playlist_bar_w;
         s.playlist_scroll.1 = (s.playlist_scroll.1 + y0.min(y1) - grid.y).max(0.0);
     }
@@ -4000,7 +4016,7 @@ pub fn zoom_on(s: &mut State, grid: (f32, f32), idx: &[usize]) {
     let (Some(a), Some(b)) = (cs.iter().map(|c| c.position).min(), cs.iter().map(|c| c.end()).max()) else { return };
     let bar = bar(s) as f32;
     let span = ((b - a) as f32 / bar).max(1.0);
-    s.playlist_bar_w = (grid.0 / span).clamp(4.0, 600.0);
+    s.playlist_bar_w = (grid.0 / span).clamp(BAR_W_RANGE.0, BAR_W_RANGE.1);
     s.playlist_scroll.0 = a as f32 / bar * s.playlist_bar_w;
     let top = cs.iter().map(|c| c.track).min().unwrap_or(0);
     // The selected tracks fill the view's height, on FL's 2 px height steps (§5; FL measured only at the maximum).
@@ -4747,7 +4763,7 @@ pub fn run(app: &mut App, cmd: Cmd) -> Option<String> {
         Cmd::ZoomIn | Cmd::ZoomOut => {
             let k = if cmd == Cmd::ZoomIn { 1.25 } else { 0.8 };
             let center = (s.playlist_scroll.0 + grid_w / 2.0) / s.playlist_bar_w;
-            s.playlist_bar_w = (s.playlist_bar_w * k).clamp(4.0, 600.0);
+            s.playlist_bar_w = (s.playlist_bar_w * k).clamp(BAR_W_RANGE.0, BAR_W_RANGE.1);
             s.playlist_scroll.0 = (center * s.playlist_bar_w - grid_w / 2.0).max(0.0);
             None
         }
@@ -5441,13 +5457,13 @@ pub fn key(app: &mut App, key: &winit::keyboard::Key, ctrl: bool, alt: bool) -> 
 /// position, time selection, clipboard, locked clip length and undo steps follow, so nothing of the old timebase comes
 /// back (automation data stays, as in the project).
 pub fn rescale(s: &mut State, from: u16, to: u16) {
-    use os_model::{rescale_length, rescale_tick};
+    use os_model::rescale_tick;
     let pl = &mut s.playlist;
     pl.pos = rescale_tick(pl.pos, from, to);
     pl.range = pl.range.map(|(a, b)| (rescale_tick(a, from, to), rescale_tick(b, from, to)));
     pl.clipboard.iter_mut().for_each(|c| c.rescale(from, to));
-    if let Some((_, len)) = &mut pl.lock_len {
-        *len = rescale_length(*len, from, to);
+    if let Some(c) = &mut pl.lock_clip {
+        c.rescale(from, to);
     }
 }
 

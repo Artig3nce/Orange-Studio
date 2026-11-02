@@ -161,10 +161,10 @@ pub(super) struct Pdc {
     /// What the pads were last worked out with, for the automation waits: per track `leaving`, per slot `arriving`
     /// plus the delays of the slots above it that ran; and per track whether a slot was on (the master always counts).
     leaving: Vec<i64>,
-    slot_late: Vec<[i64; 10]>,
+    slot_late: Vec<[i64; os_model::SLOTS]>,
     any_on: Vec<bool>,
     /// Slots that were off when the project was loaded: values for them never wait.
-    off_at_load: Vec<[bool; 10]>,
+    off_at_load: Vec<[bool; os_model::SLOTS]>,
     /// The longest a sound takes through the pads, and the frames a live engine still plays after its last sound.
     reach: u64,
     pub drain: u64,
@@ -198,7 +198,7 @@ pub(super) struct Pdc {
 
 impl Pdc {
     /// For an engine with `channels` channels whose tracks have `slot_on` switches as loaded.
-    pub fn new(channels: usize, slot_on: impl Iterator<Item = [bool; 10]>) -> Pdc {
+    pub fn new(channels: usize, slot_on: impl Iterator<Item = [bool; os_model::SLOTS]>) -> Pdc {
         Pdc {
             chan_delay: vec![0; channels],
             chan_pad: vec![Pad::default(); channels],
@@ -344,7 +344,7 @@ impl Engine {
         let l = lateness(&ins, &self.order, self.rate);
         let runs: Vec<bool> = (0..n).map(|t| self.slots_run(t)).collect();
         let on: Vec<bool> = (0..n).map(|t| self.slots_on(t)).collect();
-        self.pdc.slot_late = vec![[0; 10]; n];
+        self.pdc.slot_late = vec![[0; os_model::SLOTS]; n];
         for (t, m) in self.tracks.iter_mut().enumerate() {
             // What the engine plays into the track itself (sampler voices, the metronome) reports no delay.
             m.pad.set_len(l.channel_pad(t, 0));
@@ -356,7 +356,7 @@ impl Engine {
                 fx.dry_pad.set_len(fx.delay as usize);
             }
             let mut late = l.arriving[t];
-            for k in 0..10 {
+            for k in 0..os_model::SLOTS {
                 self.pdc.slot_late[t][k] = late;
                 if runs[t] {
                     late += m.effects.iter().filter(|f| f.slot == k && f.on).map(|f| i64::from(f.delay)).sum::<i64>();

@@ -274,7 +274,9 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) {
         ui.c.fill_rect(win, t.rack_inset);
         ui.c.fill_rect(win.inset(1.0), t.rack_inset);
     }
-    super::display_edge(ui.c, t, win, if lemon { lk::r_panel(t) } else { 0.0 });
+    if !s.is_fixed(Win::ChannelRack) {
+        super::display_edge(ui.c, t, win, if lemon { lk::r_panel(t) } else { 0.0 });
+    }
     ui.hit(win, Action::RackArea, "Channel rack");
     let bar = Rect::span(x + 1.0, x + w - 1.0, y + 1.0, y + 29.0);
     ui.hit(bar, Action::WinDrag(Win::ChannelRack), "Channel rack - drag to move");
@@ -439,7 +441,7 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) {
                 let sr = Rect::new(step_x0 + STEP_W * k as f32 - sx, ry + 4.0, 13.0, 19.0);
                 let on = rk::step_on(notes, ch.index, k, per_step);
                 let hov = ui.hit(sr.intersect(&step_area), Action::Step(i, k), "Step - click or drag to paint (left / right)");
-                step_button(ui, sr, (k / group) % 2 == 1, on, k >= row_len, hov, on && cur_step.is_some_and(|c| c % len.max(1) == k));
+                step_button(ui, s.docked_ui, sr, (k / group) % 2 == 1, on, k >= row_len, hov, on && cur_step.is_some_and(|c| c % len.max(1) == k));
             }
             ui.c.pop_clip();
         }
@@ -501,9 +503,11 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) {
 
     // Resize zones: right edge, bottom edge, corner (§5).
     let (r, b) = (win.right(), win.bottom());
-    ui.hit(Rect::span(r - 3.0, r + 4.0, y + 29.0, b - 8.0), Action::RackResize(EDGE_RIGHT), "Drag to resize");
-    ui.hit(Rect::span(x, r - 8.0, b - 3.0, b + 4.0), Action::RackResize(EDGE_BOTTOM), "Drag to resize");
-    ui.hit(Rect::span(r - 10.0, r + 4.0, b - 10.0, b + 4.0), Action::RackResize(EDGE_RIGHT | EDGE_BOTTOM), "Drag to resize");
+    if !s.is_fixed(Win::ChannelRack) {
+        ui.hit(Rect::span(r - 3.0, r + 4.0, y + 29.0, b - 8.0), Action::RackResize(EDGE_RIGHT), "Drag to resize");
+        ui.hit(Rect::span(x, r - 8.0, b - 3.0, b + 4.0), Action::RackResize(EDGE_BOTTOM), "Drag to resize");
+        ui.hit(Rect::span(r - 10.0, r + 4.0, b - 10.0, b + 4.0), Action::RackResize(EDGE_RIGHT | EDGE_BOTTOM), "Drag to resize");
+    }
 
     graph_editor(ui, s, sx, first_step, steps_shown);
 }
@@ -662,15 +666,33 @@ fn title_bar(ui: &mut Ui, s: &State, win: Rect, c: Cols, f: &FrameInfo) {
             ui.c.fill_rect(Rect::new(b.x + 0.5, b.y + 2.0, b.w - 1.0, 1.0), Color::rgb(0x71292b));
         }
     }
-    let close = Rect::new(r - 22.0, y + 6.0, 16.0, 16.0);
-    let hov = ui.hit(close, Action::CloseWin(Win::ChannelRack), "Close");
-    icons::draw(ui.c, Icon::Close, close.inset(1.5), if hov { ui.t.tx(0xffffff) } else { t.glyph });
+    if !s.is_fixed(Win::ChannelRack) {
+        let close = Rect::new(r - 22.0, y + 6.0, 16.0, 16.0);
+        let hov = ui.hit(close, Action::CloseWin(Win::ChannelRack), "Close");
+        icons::draw(ui.c, Icon::Close, close.inset(1.5), if hov { ui.t.tx(0xffffff) } else { t.glyph });
+    }
 }
 
 /// One step button (§3): bordered, lighter at the top, a dark dash below the top edge (red at the play position).
 /// `odd`: in an odd colour group (red; a group is a beat of the project's signature, §23).
-fn step_button(ui: &mut Ui, r: Rect, odd: bool, on: bool, past_len: bool, hov: bool, playing: bool) {
+fn step_button(ui: &mut Ui, docked: bool, r: Rect, odd: bool, on: bool, past_len: bool, hov: bool, playing: bool) {
     let t = ui.t;
+    if docked {
+        // A flat rounded pad: the accent when on, two soft greys by beat group, darker past the pattern's length.
+        let off = Color::rgb(match (past_len, odd) {
+            (true, _) => 0x191919,
+            (false, true) => 0x232323,
+            (false, false) => 0x2c2c2c,
+        });
+        let face = if on { t.accent } else { off };
+        let face = if hov { face.shade(0.1) } else { face };
+        let pad = r.inset(1.0);
+        ui.c.fill_rrect(pad, 4.0_f32.min(pad.w / 2.0), face);
+        if playing {
+            ui.c.fill_rrect(Rect::new(pad.x + 2.0, pad.y + 2.0, pad.w - 4.0, 2.0), 1.0, Color::rgb(0xffffff));
+        }
+        return;
+    }
     if super::lemon(ui) {
         return lk::step(ui.c, t, r, on, odd, past_len, hov, playing);
     }

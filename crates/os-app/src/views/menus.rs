@@ -363,10 +363,21 @@ pub const BAR_FONT: Font = Font::condensed(18, 6);
 /// Menu bar item layout: (x0, x1, average character width of the font). Left edges are the measured word
 /// starts. The words are as wide as the font makes them; where a text engine sets them wider than the slots
 /// were measured for, all eight are condensed one step further so that no word runs into the next.
-pub fn bar_layout(c: &mut os_ui::Canvas) -> [(f32, f32, f32); 8] {
+pub fn bar_layout(c: &mut os_ui::Canvas, docked: bool) -> [(f32, f32, f32); 8] {
     const X: [f32; 8] = [8.0, 35.0, 61.0, 88.0, 143.0, 176.0, 226.0, 266.0];
     const END: f32 = 300.0;
     let mut out = [(0.0, 0.0, 6.0); 8];
+    if docked {
+        // The plain names, evenly spaced over the same room.
+        let w: Vec<f32> = MENUS.iter().map(|m| c.text_width(DOCKED_BAR_FONT, &docked_bar_name(m.title))).collect();
+        let gap = ((END - X[0] - 4.0 - w.iter().sum::<f32>()) / 7.0).max(3.0);
+        let mut x = X[0];
+        for (o, w) in out.iter_mut().zip(w) {
+            *o = (x, x + w, 0.0);
+            x += w + gap;
+        }
+        return out;
+    }
     for width in [BAR_FONT.width, 5, 4] {
         let f = Font::condensed(BAR_FONT.size, width);
         let mut fits = true;
@@ -380,6 +391,18 @@ pub fn bar_layout(c: &mut os_ui::Canvas) -> [(f32, f32, f32); 8] {
         }
     }
     out
+}
+
+/// The menu bar's type in the docked layout.
+pub const DOCKED_BAR_FONT: Font = Font::new(14);
+
+/// A menu's name in the docked layout: "PATTERNS" reads "Patterns".
+pub fn docked_bar_name(title: &str) -> String {
+    let mut name = title.to_lowercase();
+    if let Some(first) = name.get_mut(..1) {
+        first.make_ascii_uppercase();
+    }
+    name
 }
 
 /// VIEW's window entries toggle their window.
@@ -691,7 +714,7 @@ fn row_h(m: &os_ui::kit::menu::Metrics, it: &Item) -> f32 {
 /// `x / k` (see `Ui::scaled`).
 pub fn paint_dropdown(ui: &mut Ui, s: &State, menu: usize, k: f32) {
     let Some(m) = MENUS.get(menu) else { return };
-    let x0 = bar_layout(ui.c)[menu].0;
+    let x0 = bar_layout(ui.c, s.docked_ui)[menu].0;
     let t = ui.t;
     let mt = os_ui::kit::menu::metrics(ui.c.scale);
     let (row, border) = (mt.row, mt.border);

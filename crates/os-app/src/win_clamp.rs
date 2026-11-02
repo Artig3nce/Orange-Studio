@@ -158,6 +158,10 @@ pub fn keep_all(s: &mut State) -> bool {
     }
     let mut moved = false;
     for w in [Win::ChannelRack, Win::Plugin, Win::Perf, Win::Tapper, Win::Touch, Win::Strum, Win::Arp, Win::PianoDlg, Win::Events] {
+        // A docked window has its place, under the browser too.
+        if s.is_fixed(w) {
+            continue;
+        }
         let Some(r) = rect_of(s, w) else { continue };
         let pos = keep(r.x, r.y, r.w, work);
         if pos != (r.x, r.y) {

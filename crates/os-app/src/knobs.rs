@@ -237,7 +237,7 @@ impl State {
                 let sep = self.project.mixer.iter().find(|m| m.index == t).and_then(|m| m.stereo_separation).unwrap_or(0.0);
                 (0.5 + sep as f32 / 2.0).clamp(0.0, 1.0)
             }
-            KnobId::SlotMix(t, k) => self.project.mixer.iter().find(|m| m.index == t).map_or(1.0, |m| m.slot_mix[usize::from(k).min(9)] as f32),
+            KnobId::SlotMix(t, k) => self.project.mixer.iter().find(|m| m.index == t).map_or(1.0, |m| m.slot_mix[usize::from(k).min(os_model::SLOTS - 1)] as f32),
             KnobId::Send(a, b) => crate::mixer::send(self, a, b).unwrap_or(0.8) as f32,
             KnobId::ChanVol(i) => self.project.channels.get(i).map_or(0.8, |c| c.volume as f32).clamp(0.0, 1.0),
             KnobId::ChanPan(i) => self.project.channels.get(i).map_or(0.5, |c| 0.5 + c.pan as f32 / 2.0).clamp(0.0, 1.0),
@@ -302,7 +302,7 @@ impl State {
             }
             KnobId::SlotMix(t, k) => {
                 if let Some(m) = self.project.mixer.iter_mut().find(|m| m.index == t) {
-                    m.slot_mix[usize::from(k).min(9)] = f64::from(v);
+                    m.slot_mix[usize::from(k).min(os_model::SLOTS - 1)] = f64::from(v);
                     self.piano.dirty = true;
                 }
             }

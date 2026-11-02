@@ -211,7 +211,7 @@ impl App {
         let w = s.playlist_bar_w;
         if smoothing() <= 0.0 {
             let bar = (s.playlist_scroll.0 + anchor) / w;
-            s.playlist_bar_w = (w * factor).clamp(4.0, 600.0);
+            s.playlist_bar_w = (w * factor).clamp(crate::playlist::BAR_W_RANGE.0, crate::playlist::BAR_W_RANGE.1);
             s.playlist_scroll.0 = (bar * s.playlist_bar_w - anchor).max(0.0);
             return;
         }
@@ -219,7 +219,7 @@ impl App {
         self.smooth.list.retain(|e| e.axis != Axis::Bar(Scroll::PlaylistX));
         let ln = f64::from(w).ln();
         let z = self.smooth.zoom.get_or_insert(ZoomEase { target: w, anchor, first: ln, second: ln, shown: w });
-        z.target = (z.target * factor).clamp(4.0, 600.0);
+        z.target = (z.target * factor).clamp(crate::playlist::BAR_W_RANGE.0, crate::playlist::BAR_W_RANGE.1);
         z.anchor = anchor;
     }
 

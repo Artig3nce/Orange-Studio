@@ -316,6 +316,9 @@ impl PianoState {
     }
 }
 
+/// The time zoom's limits: px per beat.
+pub const PX_PER_BEAT_RANGE: (f32, f32) = (6.0, 6400.0);
+
 /// Mapping between grid pixels and ticks / keys for one frame.
 pub struct Geom {
     pub grid: Rect,
@@ -1004,7 +1007,7 @@ pub fn open_tick(s: &mut State) -> bool {
 pub fn auto_zoom(s: &mut State, grid: Rect) {
     let ppq = f32::from(s.project.ppq.max(4));
     let span = pattern_length(s, s.pattern) as f32 + s.project.bar_ticks() as f32 / 2.0;
-    s.piano.px_per_beat = (grid.w / span * ppq).clamp(6.0, 1600.0);
+    s.piano.px_per_beat = (grid.w / span * ppq).clamp(PX_PER_BEAT_RANGE.0, PX_PER_BEAT_RANGE.1);
     let ch = channel(s);
     let keys = notes(s).iter().filter(|n| Some(n.channel) == ch).map(|n| i32::from(n.key));
     let range = keys.clone().min().zip(keys.max());
@@ -1046,7 +1049,7 @@ pub fn set_rows(s: &mut State, grid: Rect, y: f32, row: f32) {
 pub fn zoom_time(s: &mut State, g: &Geom, x: f32, notches: f32) {
     let tick = g.tick_at(x);
     let p = &mut s.piano;
-    p.px_per_beat = (p.px_per_beat * 1.25f32.powf(notches)).clamp(6.0, 1600.0);
+    p.px_per_beat = (p.px_per_beat * 1.25f32.powf(notches)).clamp(PX_PER_BEAT_RANGE.0, PX_PER_BEAT_RANGE.1);
     let ppt = p.px_per_beat / f32::from(s.project.ppq.max(4));
     p.scroll_x = (tick - (x - g.grid.x) / ppt).max(0.0);
 }

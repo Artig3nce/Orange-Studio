@@ -68,12 +68,46 @@ pub(crate) const TOOL_ICONS: [Icon; 9] =
 const PICK_ROW: f32 = pl::PICK_ROW;
 const PICK_TITLE: f32 = 26.0;
 
+/// The Playlist's tools from `x`, at `ty`: its title bar's, or the top bar's in the docked layout.
+pub(crate) fn tools_row(ui: &mut Ui, s: &State, x: f32, ty: f32) {
+    let t = ui.t;
+    // Title-bar tools: ▸ options, snap magnet, then the nine tools (§1, §3).
+    let b = Rect::new(x + 13.0 - 9.0, ty, 18.0, 18.0);
+    let hov = ui.hit(b, Action::PlOptions, "Playlist options");
+    icons::draw(ui.c, Icon::ArrowRight, b, if hov { t.glyph } else { t.text });
+    let b = Rect::new(x + 33.0 - 9.0, ty, 18.0, 18.0);
+    let hov = ui.hit(b, Action::PlSnap, format!("Snap: {}", s.playlist.snap.label()));
+    icons::draw(ui.c, Icon::Magnet, b, if hov || pl::grid_snap(s) != pl::Snap::None { t.glyph } else { t.text });
+    for ((tool, icon), cx) in PlTool::ALL.into_iter().zip(TOOL_ICONS).zip(TOOL_X) {
+        let b = Rect::new(x + cx - 9.0, ty, 18.0, 18.0);
+        let on = s.playlist.tool == tool;
+        let hov = ui.hit(b, Action::PlTool(tool), tool.hint());
+        let ink = tool_face(ui, b, on, hov);
+        icons::draw(ui.c, icon, b, ink);
+    }
+    // Stretch mode (Shift+M, §9b): |<->| after the tools, lit while on.
+    {
+        let b = Rect::new(x + 254.0 - 9.0, ty, 18.0, 18.0);
+        let hov = ui.hit(b, Action::PlStretch, if s.playlist.stretch { "Stretch mode: on (Shift+M)" } else { "Stretch mode: off (Shift+M)" });
+        let on = s.playlist.stretch;
+        let col = tool_face(ui, b, on, hov);
+        let (cx, cy) = (b.cx(), b.cy());
+        ui.c.fill_rect(Rect::new(cx - 7.0, cy - 5.0, 1.2, 10.0), col);
+        ui.c.fill_rect(Rect::new(cx + 5.8, cy - 5.0, 1.2, 10.0), col);
+        ui.c.line(cx - 5.0, cy, cx + 4.0, cy, 1.2, col);
+        ui.c.fill_polygon(&[(cx - 5.5, cy), (cx - 2.5, cy - 2.5), (cx - 2.5, cy + 2.5)], col);
+        ui.c.fill_polygon(&[(cx + 4.5, cy), (cx + 1.5, cy - 2.5), (cx + 1.5, cy + 2.5)], col);
+    }
+}
+
 pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
     let t = ui.t;
     window_body(ui, r);
     let outer = r;
     let arr = pl::arrangement_name(s);
-    let title = format!("Playlist - {arr}  \u{203a}  {}  \u{203a}", pl::source_name(s, pl::source(s)));
+    // The docked layout has no title: its row is hidden above the workspace (`State::win_rect`).
+    let title_head = "Playlist - ";
+    let title = if s.docked_ui { String::new() } else { format!("{title_head}{arr}  \u{203a}  {}  \u{203a}", pl::source_name(s, pl::source(s))) };
     // The grid covers most of the window and is painted all over (rows and gaps): the frame skips it.
     let (fr, fc) = super::frame_rects(s, Win::Playlist, r);
     let cover = grid_rect(s, fr, fc);
@@ -83,9 +117,9 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
     // The window's own rim, like the toolbar readouts (theme token `display_edge`).
     super::display_edge(ui.c, t, outer, if super::lemon(ui) { os_ui::kit::lemon::r_panel(t) } else { 0.0 });
     // The arrangement name opens the arrangement menu; hovered it turns orange with a down arrow (§12, as FL).
-    {
+    if !s.docked_ui {
         let f = Font::new(17);
-        let x0 = r.x + 281.0 + ui.c.text_width(f, "Playlist - ");
+        let x0 = r.x + 281.0 + ui.c.text_width(f, title_head);
         let w = ui.c.text_width(f, &arr);
         let arrow_w = ui.c.text_width(f, "  \u{203a}  ");
         let hit = Rect::new(x0 - 2.0, r.y, w + arrow_w * 0.7, 22.0);
@@ -99,33 +133,8 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
         }
     }
 
-    // Title-bar tools: ▸ options, snap magnet, then the nine tools (§1, §3).
-    let ty = r.y + 2.0;
-    let b = Rect::new(r.x + 13.0 - 9.0, ty, 18.0, 18.0);
-    let hov = ui.hit(b, Action::PlOptions, "Playlist options");
-    icons::draw(ui.c, Icon::ArrowRight, b, if hov { t.glyph } else { t.text });
-    let b = Rect::new(r.x + 33.0 - 9.0, ty, 18.0, 18.0);
-    let hov = ui.hit(b, Action::PlSnap, format!("Snap: {}", s.playlist.snap.label()));
-    icons::draw(ui.c, Icon::Magnet, b, if hov || pl::grid_snap(s) != pl::Snap::None { t.glyph } else { t.text });
-    for ((tool, icon), cx) in PlTool::ALL.into_iter().zip(TOOL_ICONS).zip(TOOL_X) {
-        let b = Rect::new(r.x + cx - 9.0, ty, 18.0, 18.0);
-        let on = s.playlist.tool == tool;
-        let hov = ui.hit(b, Action::PlTool(tool), tool.hint());
-        let ink = tool_face(ui, b, on, hov);
-        icons::draw(ui.c, icon, b, ink);
-    }
-    // Stretch mode (Shift+M, §9b): |<->| after the tools, lit while on.
-    {
-        let b = Rect::new(r.x + 254.0 - 9.0, ty, 18.0, 18.0);
-        let hov = ui.hit(b, Action::PlStretch, if s.playlist.stretch { "Stretch mode: on (Shift+M)" } else { "Stretch mode: off (Shift+M)" });
-        let on = s.playlist.stretch;
-        let col = tool_face(ui, b, on, hov);
-        let (cx, cy) = (b.cx(), b.cy());
-        ui.c.fill_rect(Rect::new(cx - 7.0, cy - 5.0, 1.2, 10.0), col);
-        ui.c.fill_rect(Rect::new(cx + 5.8, cy - 5.0, 1.2, 10.0), col);
-        ui.c.line(cx - 5.0, cy, cx + 4.0, cy, 1.2, col);
-        ui.c.fill_polygon(&[(cx - 5.5, cy), (cx - 2.5, cy - 2.5), (cx - 2.5, cy + 2.5)], col);
-        ui.c.fill_polygon(&[(cx + 4.5, cy), (cx + 1.5, cy - 2.5), (cx + 1.5, cy + 2.5)], col);
+    if !s.docked_ui {
+        tools_row(ui, s, r.x, r.y + 2.0);
     }
     if r.h < 2.0 * crate::app::TITLE_H {
         return; // collapsed to the title bar
@@ -200,13 +209,17 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
         visible.push(row);
         row += 1;
     }
-    let gap_of = |row: u16| if g.rows.strip(row) { 1.0 } else { 3.0 };
+    // The docked layout's grid: thin light lines on one flat colour, no bands or heavy gaps.
+    let docked = s.docked_ui;
+    // Lines lighten what they cross, so they read the same on both colours of the bar groups.
+    let row_line = Color::rgb(0xffffff).with_alpha(13);
+    let gap_of = |row: u16| if docked || g.rows.strip(row) { 1.0 } else { 3.0 };
     ui.c.push_clip(grid);
     // Rows and the gaps under them (painted after the grid lines) tile the grid; past the last track it is a gap (the
     // frame skips the grid: `set_cover`).
     let end = visible.last().map_or(grid.y, |&r| g.y_of(r) + g.rows.height(r));
     if end < grid.bottom() {
-        ui.c.fill_rect(Rect::new(grid_x, end, grid_w, grid.bottom() - end), t.grid_gap);
+        ui.c.fill_rect(Rect::new(grid_x, end, grid_w, grid.bottom() - end), if docked { t.grid } else { t.grid_gap });
     }
     for &row in &visible {
         let (y, h) = (g.y_of(row), g.rows.height(row));
@@ -221,11 +234,15 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
         let x = g.x_of(p as f32).clamp(grid_x, grid.right());
         ui.c.fill_rect(Rect::span(grid_x, x, grid.y, grid.bottom()), t.s(0x000000).with_alpha(70));
     }
-    grid_lines(ui, &g, bar_w, start_bar(&g, start));
+    if docked {
+        docked_grid_lines(ui, s, &g, bar_w, start_bar(&g, start));
+    } else {
+        grid_lines(ui, &g, bar_w, start_bar(&g, start));
+    }
     for &row in &visible {
         let (y, h) = (g.y_of(row), g.rows.height(row));
         // The gap line at the theme's line strength (spec: ui/flstheme.md §3, PLGridContrast).
-        ui.c.fill_rect(Rect::new(grid_x, y + h - gap_of(row), grid_w, gap_of(row)), t.pl_line(t.grid_gap));
+        ui.c.fill_rect(Rect::new(grid_x, y + h - gap_of(row), grid_w, gap_of(row)), if docked { row_line } else { t.pl_line(t.grid_gap) });
     }
     // Time selection (§7).
     if let Some((a, b)) = s.playlist.range {
@@ -412,8 +429,75 @@ fn kind_icon(kind: PickKind) -> Icon {
     }
 }
 
+/// The docked layout's picker: the kinds by name, a plain list with the current source in the accent colour, and a
+/// labelled button for a new pattern (the same actions as `picker`).
+fn docked_picker(ui: &mut Ui, s: &State, p: Rect) {
+    let t = ui.t;
+    ui.c.fill_rect(p, t.picker);
+    let font = super::fnt(15.0);
+    let mut x = p.x + 4.0;
+    for (kind, name, hint) in [(PickKind::Pattern, "Patterns", "Patterns"), (PickKind::Audio, "Audio", "Audio clips"), (PickKind::Automation, "Auto", "Automation clips")] {
+        let w = ui.c.text_width(font, name) + 12.0;
+        let b = Rect::new(x, p.y + 8.0, w, 28.0);
+        let hov = ui.hit(b, Action::PlPickTab(kind), hint);
+        let on = s.playlist.picker == kind;
+        ui.c.text(font, x + 6.0, p.y + 13.0, if on || hov { t.text } else { t.text_dim }, name);
+        if on {
+            ui.c.fill_rect(Rect::new(x + 3.0, b.bottom() - 2.0, w - 6.0, 2.0), t.accent);
+        }
+        x += w;
+    }
+    let bottom = p.bottom() - 30.0;
+    let list = Rect::span(p.x + 6.0, p.right() - 6.0, p.y + 42.0, bottom);
+    if list.h < 8.0 {
+        return;
+    }
+    ui.hit(list, Action::PlPickList, "");
+    let items = pick_items(s);
+    let cur = pl::source(s);
+    let pitch = s.playlist.pick_row();
+    let total = items.len() as f32 * pitch + 4.0;
+    let scroll = s.playlist.pick_scroll.min((total - list.h).max(0.0)).max(0.0);
+    ui.c.push_clip(list);
+    let row_w = if total > list.h { list.w - 12.0 } else { list.w };
+    for (i, src) in items.into_iter().enumerate() {
+        let y = list.y + i as f32 * pitch - scroll;
+        if y > list.bottom() || y + pitch < list.y {
+            continue;
+        }
+        let row = Rect::new(list.x, y + 1.0, row_w, pitch - 2.0);
+        let hov = ui.hit(row, Action::PlPick(src), "Select clip source (right-click for its menu)");
+        let on = src == cur;
+        if on {
+            ui.c.fill_rrect(row, 6.0, t.accent);
+        } else if hov {
+            ui.c.fill_rrect(row, 6.0, t.button_hi);
+        }
+        let ink = if on { t.pill_text } else if pick_used(s, src) { t.text } else { t.text_dim };
+        ui.c.text_clip(Font::new(14), row.x + 9.0, row.y + (row.h.min(PICK_ROW) - 18.0) / 2.0, row.w - 14.0, ink, &pl::source_name(s, src));
+    }
+    ui.c.pop_clip();
+    if total > list.h {
+        super::scrollbar(ui, Rect::span(list.right() - 9.0, list.right(), list.y, list.bottom()), true, scroll, list.h, total, crate::app::Scroll::PlPick);
+    }
+    let foot = Rect::new(p.x + 6.0, bottom + 2.0, p.w - 12.0, 26.0);
+    let hov = ui.hit(foot, Action::PlPickAdd, "New pattern (find first empty)");
+    // A card like a track's (`header`), lighter under the mouse as the selected track is.
+    let (top, low) = if hov { (Color::rgb(0x2a2a2a), Color::rgb(0x1a1a1a)) } else { (Color::rgb(0x202020), Color::rgb(0x121212)) };
+    let rad = lk::r_panel(t).min(foot.h / 2.0);
+    ui.c.fill_rrect(foot, rad, super::MANGO_MIXER_RIM);
+    let face = foot.inset(1.0);
+    ui.c.fill_rect_gradient(face, top, low, (rad - 1.0).max(0.0));
+    ui.c.fill_rrect(Rect::new(face.x + 4.0, face.y + 1.0, (face.w - 8.0).max(1.0), 1.0), 0.5, top.mix(Color::rgb(0xffffff), 0.12));
+    icons::draw(ui.c, Icon::Plus, Rect::new(foot.x + 8.0, foot.cy() - 7.0, 14.0, 14.0), t.text);
+    ui.c.text(Font::new(14), foot.x + 26.0, foot.cy() - 9.0, t.text, "New pattern");
+}
+
 /// Picker panel: kind tabs, then the list of clip sources of that kind (§1).
 fn picker(ui: &mut Ui, s: &State, p: Rect) {
+    if s.docked_ui {
+        return docked_picker(ui, s, p);
+    }
     let t = ui.t;
     ui.c.fill_rect(p, t.picker);
     for (i, (kind, hint)) in [(PickKind::Pattern, "Patterns"), (PickKind::Audio, "Audio clips"), (PickKind::Automation, "Automation clips")].into_iter().enumerate() {
@@ -516,10 +600,9 @@ fn picker(ui: &mut Ui, s: &State, p: Rect) {
     // Footer "+": new pattern (find first empty).
     let foot = Rect::new(p.x, bottom, bx.w, FOOT_H);
     let hov = ui.hit(foot, Action::PlPickAdd, "New pattern (find first empty)");
-    let pc = if hov { ui.t.tx(0xa0a4a6) } else { ui.t.s(0x545657) };
     let (cx, cy) = ((list.x + list.right()) / 2.0, foot.y + FOOT_H / 2.0);
-    ui.c.fill_rect(Rect::new(cx - 3.5, cy - 0.5, 8.0, 2.0), pc);
-    ui.c.fill_rect(Rect::new(cx - 0.5, cy - 3.5, 2.0, 8.0), pc);
+    // As the mixer's "+".
+    icons::draw(ui.c, Icon::Plus, Rect::new(cx - 7.0, cy - 7.0, 14.0, 14.0), if hov { ui.t.tx(0xffffff) } else { ui.t.tx(0xc4ccd0) });
 }
 
 /// The picker's scroll bar in the Classic design (§1a, measured from FL): bordered dithered track, raised thumb with
@@ -861,6 +944,87 @@ fn grid_lines(ui: &mut Ui, g: &PGeom, bar_w: f32, sb: i32) {
     }
 }
 
+/// How the snap setting divides a bar on the grid: whether beats show, and into how many parts the finer lines cut it
+/// (when those are far enough apart to draw).
+fn snap_division(s: &State, g: &PGeom, bar_w: f32) -> (bool, Option<u32>) {
+    match pl::grid_snap(s) {
+        pl::Snap::Bar => (false, None),
+        // Zoomed in far enough that Line snaps to steps: the steps show.
+        pl::Snap::Line | pl::Snap::Cell | pl::Snap::None => (bar_w >= 48.0, (bar_w >= 256.0).then_some(16)),
+        sn => {
+            let parts = g.ppq * 4 / sn.ticks(g.ppq, bar_w);
+            (bar_w >= 24.0, (parts > 4 && bar_w / parts as f32 >= 4.0).then_some(parts))
+        }
+    }
+}
+
+/// The docked layout's vertical lines: bars, and what the snap setting divides them into (`snap_division`).
+fn docked_grid_lines(ui: &mut Ui, s: &State, g: &PGeom, bar_w: f32, sb: i32) {
+    let t = ui.t;
+    let grid = g.grid;
+    let mut bar_step = 1;
+    while bar_w * (bar_step as f32) < 8.0 {
+        bar_step *= 2;
+    }
+    let first_bar = ((g.scroll_x / bar_w) as i32 / bar_step) * bar_step;
+    let n = (grid.w / bar_w).ceil() as i32 + bar_step + 1;
+    let bar_x = |b: i32, d: f32| g.xs(f64::from(b) * f64::from(bar_w) + f64::from(d));
+    let (bar_line, beat, fine) = (Color::rgb(0xffffff).with_alpha(24), Color::rgb(0xffffff).with_alpha(10), Color::rgb(0xffffff).with_alpha(5));
+    let (beats, parts) = snap_division(s, g, bar_w);
+    let mut b = first_bar;
+    while b < first_bar + n {
+        // Every other group of four bars lighter, counted from the Start marker's bar.
+        if (b - sb).div_euclid(4).rem_euclid(2) == 1 {
+            let x = bar_x(b, 0.0);
+            ui.c.fill_rect(Rect::new(x, grid.y, bar_x(b + bar_step, 0.0) - x, grid.h), t.grid_alt);
+        }
+        if bar_step == 1 {
+            for q in 1..parts.unwrap_or(1) {
+                ui.c.fill_rect(Rect::new(bar_x(b, bar_w * q as f32 / parts.unwrap_or(1) as f32), grid.y, 1.0, grid.h), fine);
+            }
+            if beats {
+                for q in 1..4 {
+                    ui.c.fill_rect(Rect::new(bar_x(b, bar_w * q as f32 / 4.0), grid.y, 1.0, grid.h), beat);
+                }
+            }
+        }
+        ui.c.fill_rect(Rect::new(bar_x(b, 0.0), grid.y, 1.0, grid.h), bar_line);
+        b += bar_step;
+    }
+}
+
+/// The grid's bars and beats (`docked_grid_lines`' places) across clip tile `r`, clear of its rounded ends.
+#[allow(clippy::too_many_arguments)]
+fn clip_grid_lines(ui: &mut Ui, s: &State, g: &PGeom, bar_w: f32, r: Rect, rad: f32, bar_line: Color, beat: Color) {
+    let (beats, parts) = snap_division(s, g, bar_w);
+    let mut bar_step = 1;
+    while bar_w * (bar_step as f32) < 8.0 {
+        bar_step *= 2;
+    }
+    let bar_x = |b: i32, d: f32| g.xs(f64::from(b) * f64::from(bar_w) + f64::from(d));
+    let (from, to) = (r.x + rad, r.right() - rad);
+    let first = (((r.x - g.grid.x + g.scroll_x) / bar_w).floor() as i32 / bar_step) * bar_step;
+    let mut b = first;
+    while bar_x(b, 0.0) < to {
+        if bar_step == 1 {
+            let n = if let Some(n) = parts { n } else if beats { 4 } else { 1 };
+            for q in 1..n {
+                let x = bar_x(b, bar_w * q as f32 / n as f32);
+                // The finer lines only faintly: the beats stay readable among them.
+                let line = if q * 4 % n == 0 && beats { beat } else { beat.with_alpha(120) };
+                if x > from && x < to {
+                    ui.c.fill_rect(Rect::new(x, r.y, 1.0, r.h), line);
+                }
+            }
+        }
+        let x = bar_x(b, 0.0);
+        if x > from && x < to {
+            ui.c.fill_rect(Rect::new(x, r.y, 1.0, r.h), bar_line);
+        }
+        b += bar_step;
+    }
+}
+
 /// `c` with `d` added to each component, clamped (spec: ui/playlist.md §2, "Channel-colour rule").
 fn offset(c: Color, d: i16) -> Color {
     let f = |v: u8| (i16::from(v) + d).clamp(0, 255) as u8;
@@ -897,6 +1061,12 @@ fn clip_paint(ui: &mut Ui, s: &State, g: &PGeom, i: usize, c: &Clip) {
     // A pattern clip's title strip takes the pattern's (or its track's) colour, as in FL's newer versions; the older
     // measured look (a neutral strip) stays for a pattern with no colour.
     let tint = pl::clip_tint(s, c.source).map(rgb).or_else(|| if kind == PickKind::Pattern { color } else { None });
+    if s.docked_ui {
+        // Audio and automation channels get a colour when they are made: only the track's counts here, so those clips
+        // otherwise keep the logo's.
+        let own = pl::track_info(s, c.track).and_then(|t| t.color).map(rgb);
+        return docked_clip(ui, s, g, i, c, kind, if kind == PickKind::Pattern { tint.or(color) } else { own });
+    }
 
     // Title strip: (edge rows, highlight row, gradient top, gradient bottom, text).
     let (edge, high, top, bottom, text, body) = if selected {
@@ -976,18 +1146,7 @@ fn clip_paint(ui: &mut Ui, s: &State, g: &PGeom, i: usize, c: &Clip) {
         }
     }
     if r.w > 16.0 {
-        let mut name = pl::source_name(s, c.source);
-        if let ClipSource::Channel(ch) = c.source {
-            if s.project.channel(ch).is_some_and(|chan| chan.sound.fx.flags & os_model::SampleFx::REVERSE != 0) {
-                name.push_str(" [REV]");
-            }
-            let g_val = c.gain();
-            if (g_val - 1.0).abs() > 0.005 {
-                let db = 20.0 * g_val.log10();
-                name.push_str(&format!(" ({:+.1} dB)", db));
-            }
-        }
-        ui.c.text_clip(Font::new(10), inner.x + 13.0, inner.y - 1.0, inner.w - 15.0, ic, &name);
+        ui.c.text_clip(Font::new(10), inner.x + 13.0, inner.y - 1.0, inner.w - 15.0, ic, &clip_name(s, c));
     }
     // Content.
     let content = if c.muted { dim(text).with_alpha(90) } else { dim(cc(t, NOTE)) };
@@ -1009,12 +1168,87 @@ fn clip_paint(ui: &mut Ui, s: &State, g: &PGeom, i: usize, c: &Clip) {
             (PickKind::Automation, ClipSource::Channel(ch)) => {
                 // As FL's: a thin line in a pale tint of the clip's colour over a lighter fill.
                 let col = if c.muted { content } else { dim(body.mix(Color::rgb(0xffffff), 0.55)) };
-                curve(ui, s, g, i, c, ch, body_at, dim(body), col);
+                curve(ui, s, g, i, c, ch, body_at, dim(body), col, None);
             }
             _ => {}
         }
     }
     ui.c.pop_clip();
+}
+
+/// The name a clip shows: its source's, and an audio clip's reversal and gain.
+fn clip_name(s: &State, c: &Clip) -> String {
+    let mut name = pl::source_name(s, c.source);
+    if let ClipSource::Channel(ch) = c.source {
+        if s.project.channel(ch).is_some_and(|chan| chan.sound.fx.flags & os_model::SampleFx::REVERSE != 0) {
+            name.push_str(" [REV]");
+        }
+        let g_val = c.gain();
+        if (g_val - 1.0).abs() > 0.005 {
+            let db = 20.0 * g_val.log10();
+            name.push_str(&format!(" ({:+.1} dB)", db));
+        }
+    }
+    name
+}
+
+/// A clip in the docked layout: a rounded tile in the logo's colours with its name on it and no title strip, the same
+/// geometry (and so the same handles) as `clip_paint`'s. `own` is the colour its track or source was given.
+fn docked_clip(ui: &mut Ui, s: &State, g: &PGeom, i: usize, c: &Clip, kind: PickKind, own: Option<Color>) {
+    let t = ui.t;
+    let (r, clip_x) = g.clip_draw_rect(c);
+    let full_w = g.clip_rect(c).w;
+    let hex = Color::rgb;
+    let track_on = pl::track_on(s, c.track);
+    let dim = |col: Color| if track_on { col } else { col.mix(t.grid, 0.5) };
+    let dark_ink = hex(0x2e1e00);
+    // (fill, rim, contents, name)
+    let (fill, rim, ink, name_ink) = match (c.muted, kind, own) {
+        (true, ..) => (hex(0x2b2b2b), None, hex(0x5a5a5a), hex(0xa3a3a3)),
+        (_, _, Some(o)) => {
+            let light = u32::from(o.r) * 3 + u32::from(o.g) * 6 + u32::from(o.b) > 1200;
+            (o, None, o.mix(hex(0x000000), 0.55), if light { o.mix(hex(0x000000), 0.8) } else { hex(0xffffff) })
+        }
+        (_, PickKind::Automation, _) => (hex(0x2a2118), Some(hex(0xffb02e)), hex(0xffb02e), hex(0xffd27a)),
+        (_, PickKind::Audio, _) => (hex(0xffd27a), None, hex(0x7a5200), dark_ink),
+        _ => (hex(0xffb02e), None, hex(0x6e4500), dark_ink),
+    };
+    let (fill, ink, name_ink) = (dim(fill), dim(ink), dim(name_ink));
+    // A line of the grid's colour between clips that touch; the clip keeps its full size for the mouse.
+    let tile = if r.w > 6.0 { Rect::new(r.x + 1.0, r.y, r.w - 2.0, r.h) } else { r };
+    let rad = 8.0_f32.min(tile.w / 2.0).min(tile.h / 2.0);
+    ui.c.fill_rrect(tile, rad, fill);
+    // The grid shows through.
+    clip_grid_lines(ui, s, g, s.playlist_bar_w, tile, rad, fill.mix(hex(0x000000), 0.2), fill.mix(hex(0x000000), 0.09));
+    if let Some(rim) = rim {
+        ui.c.stroke_rrect(tile.inset(0.75), rad, 1.5, dim(rim));
+    }
+    let body_r = g.body(c);
+    let body_r = Rect::new(r.x, body_r.y, r.w, r.bottom() - body_r.y);
+    let body_at = Body { r: body_r, x: clip_x, w: f64::from(full_w) };
+    ui.c.push_clip(r.intersect(&g.grid));
+    if r.w > 16.0 {
+        ui.c.text_clip(Font::new(12), r.x + 6.0, r.y + 2.0, r.w - 10.0, name_ink, &clip_name(s, c));
+    }
+    match (kind, c.source) {
+        (PickKind::Pattern, ClipSource::Pattern(n)) => {
+            // Clear of the tile's rounded bottom corners.
+            let inset = Rect::new(body_r.x, body_r.y, body_r.w, (body_r.h - 6.0).max(4.0));
+            pattern_notes(ui, s, g, c, n, Body { r: inset, ..body_at }, ink);
+        }
+        (PickKind::Audio, ClipSource::Channel(ch)) => {
+            waveform(ui, s, g, c, ch, body_at, ink, None);
+            if !c.muted {
+                fades(ui, s, g, i, c, body_at, ink);
+            }
+        }
+        (PickKind::Automation, ClipSource::Channel(ch)) => curve(ui, s, g, i, c, ch, body_at, fill, ink, Some((tile.inset(2.0), rad))),
+        _ => {}
+    }
+    ui.c.pop_clip();
+    if s.playlist.sel.contains(&i) {
+        ui.c.stroke_rrect(tile.inset(1.0), rad, 2.0, hex(0xffffff));
+    }
 }
 
 /// A clip's body as drawn (`r`, its edges possibly pulled in by `PGeom::clip_draw_rect`) and its true left edge and
@@ -1038,7 +1272,8 @@ fn pattern_notes(ui: &mut Ui, s: &State, g: &PGeom, c: &Clip, n: u16, body: Body
     pitches.sort_unstable();
     pitches.dedup();
     let pitch_count = pitches.len() as f32;
-    let h = (((br.h - 4.0).max(1.0) / pitch_count * 0.6).clamp(2.0, 3.5)).min(br.h.max(1.0));
+    let h_max = if s.docked_ui { 5.0 } else { 3.5 };
+    let h = (((br.h - 4.0).max(1.0) / pitch_count * 0.6).clamp(2.0, h_max)).min(br.h.max(1.0));
     let usable = (br.h - 4.0 - h).max(0.0);
     let pad = (br.h - h - usable) / 2.0;
     let step = (g.ppq / 4).max(1);
@@ -1066,7 +1301,13 @@ fn pattern_notes(ui: &mut Ui, s: &State, g: &PGeom, c: &Clip, n: u16, body: Body
         };
         let y = pl::snap(f64::from(br.y + pad + usable * (1.0 - k)));
         let y1 = pl::snap(f64::from(y) + f64::from(h));
-        ui.c.fill_rect(Rect::new(x0, y, (x1 - x0).max(2.0), y1 - y), col);
+        let bar = Rect::new(x0, y, (x1 - x0).max(2.0), y1 - y);
+        if s.docked_ui {
+            // Rounded like the logo's bars.
+            ui.c.fill_rrect(bar, (bar.h / 2.0).min(bar.w / 2.0), col);
+        } else {
+            ui.c.fill_rect(bar, col);
+        }
     }
 }
 
@@ -1319,8 +1560,20 @@ fn fades(ui: &mut Ui, s: &State, g: &PGeom, i: usize, c: &Clip, edges: Body, wav
     }
 }
 
+/// Point `p` moved to the nearest place inside rect `r` with corners of radius `rad`.
+fn inside_tile(p: (f32, f32), r: Rect, rad: f32) -> (f32, f32) {
+    let x = p.0.clamp(r.x, r.right().max(r.x));
+    let y = p.1.clamp(r.y, r.bottom().max(r.y));
+    let dx = (r.x + rad - x).max(x - (r.right() - rad)).max(0.0);
+    if dx == 0.0 {
+        return (x, y);
+    }
+    let reach = (rad * rad - dx * dx).max(0.0).sqrt();
+    (x, y.clamp(r.y + rad - reach, (r.bottom() - rad + reach).max(r.y + rad - reach)))
+}
+
 #[allow(clippy::too_many_arguments)]
-fn curve(ui: &mut Ui, s: &State, g: &PGeom, i: usize, c: &Clip, ch: u16, edges: Body, bg: Color, col: Color) {
+fn curve(ui: &mut Ui, s: &State, g: &PGeom, i: usize, c: &Clip, ch: u16, edges: Body, bg: Color, col: Color, within: Option<(Rect, f32)>) {
     let Some(a) = s.project.automation(ch) else { return };
     if a.points.is_empty() {
         return;
@@ -1340,7 +1593,10 @@ fn curve(ui: &mut Ui, s: &State, g: &PGeom, i: usize, c: &Clip, ch: u16, edges: 
     let (w0, _) = pl::window(s, c);
     let clip_x = g.x64(f64::from(c.position));
     let beat = |x: f64| w0 + (x - clip_x) / f64::from(g.ppt) / f64::from(g.ppq);
-    let point = |x: f64| (pl::snap(x), pl::value_y(body, a.value_at(beat(x)).unwrap_or(0.0)));
+    let point = |x: f64| {
+        let p = (pl::snap(x), pl::value_y(body, a.value_at(beat(x)).unwrap_or(0.0)));
+        within.map_or(p, |(r, rad)| inside_tile(p, r, rad))
+    };
     let mut pts = Vec::new();
     let mut k = k0;
     while edges.x + 2.0 * k <= x1 {
@@ -1350,8 +1606,15 @@ fn curve(ui: &mut Ui, s: &State, g: &PGeom, i: usize, c: &Clip, ch: u16, edges: 
     pts.push(point(x1));
     let (x0, x1) = (pl::snap(x0), pl::snap(x1));
     let mut area = pts.clone();
-    area.push((x1, body.bottom()));
-    area.push((x0, body.bottom()));
+    if let Some((r, rad)) = within {
+        // Along the tile's bottom, round its corners.
+        let (from, to) = (pts.first().map_or(x0, |p| p.0), pts.last().map_or(x1, |p| p.0));
+        let n = ((to - from) / 2.0).ceil().max(1.0) as usize;
+        area.extend((0..=n).rev().map(|k| inside_tile((from + (to - from) * k as f32 / n as f32, r.bottom()), r, rad)));
+    } else {
+        area.push((x1, body.bottom()));
+        area.push((x0, body.bottom()));
+    }
     ui.c.fill_polygon(&area, bg.mix(Color::rgb(0xffffff), 0.12));
     ui.c.polyline(&pts, 1.25, col);
     // Points and tension handles while the mouse is over the clip (§8).
@@ -1399,23 +1662,44 @@ fn header(ui: &mut Ui, s: &State, g: &PGeom, row: u16, x: f32, w: f32) {
     let base = if s.playlist.track == row { base.shade(0.1) } else { base };
     let base = if on { base } else { base.mix(t.grid_gap, 0.4) };
     let (bx, bw) = if member { (x + INDENT, w - INDENT) } else { (x, w) };
-    let gap = if strip { 1.0 } else { 3.0 };
+    let docked = s.docked_ui;
+    let gap = if strip || docked { 1.0 } else { 3.0 };
     let bh = if joins_below { h } else { h - gap };
     let hr = Rect::new(bx, y, bw, bh);
     if member {
         // The indent beside the members: a dark strip (FL dithers it).
         ui.c.fill_rect(Rect::new(x, y, INDENT, bh), t.s(0x2b3439));
     }
-    let (top, bottom) = if super::lemon(ui) { (base, base) } else { (base.shade(0.035), base.shade(-0.03)) };
-    let k = if super::lemon(ui) { lk::r_btn(t) + 1.0 } else { RADIUS }.min(bh / 2.0);
-    ui.c.fill_rect_gradient(hr, top, bottom, k);
-    // Square the corners that continue into the rows above / below.
-    if member {
-        ui.c.fill_rect(Rect::new(hr.x, hr.y, hr.w, k), top);
-    }
-    if joins_below {
-        let left = if lead { hr.x + k } else { hr.x };
-        ui.c.fill_rect(Rect::new(left, hr.bottom() - k, hr.right() - left, k), bottom);
+    let selected = s.playlist.track == row;
+    if docked && !strip && super::lemon(ui) {
+        // The docked layout: a card like a mixer strip's (`mixer::strip_body`), on black, lit from the top down and
+        // rimmed, the selected one lighter with a mango rim.
+        ui.c.fill_rect(Rect::new(x, y, w, h), t.window_title);
+        let face = Rect::new(hr.x + 2.0, y + 2.0, hr.w - 4.0, h - 4.0);
+        let (top, low, rim) = if selected {
+            (Color::rgb(0x2a2a2a), Color::rgb(0x1a1a1a), t.accent.mix(super::MANGO_MIXER_RIM, 0.55))
+        } else {
+            (Color::rgb(0x202020), Color::rgb(0x121212), super::MANGO_MIXER_RIM)
+        };
+        let tint = |c: Color, k: f32| colored.map_or(c, |o| c.mix(o, k));
+        let dim = |c: Color| if on { c } else { c.mix(Color::rgb(0x000000), 0.4) };
+        let (top, low) = (dim(tint(top, 0.3)), dim(tint(low, 0.22)));
+        let rad = lk::r_panel(t).min(face.h / 2.0);
+        ui.c.fill_rrect(face.outset(1.0), rad + 1.0, rim);
+        ui.c.fill_rect_gradient(face, top, low, rad);
+        ui.c.fill_rrect(Rect::new(face.x + 4.0, face.y + 1.0, (face.w - 8.0).max(1.0), 1.0), 0.5, top.mix(Color::rgb(0xffffff), 0.12));
+    } else {
+        let (top, bottom) = if docked || super::lemon(ui) { (base, base) } else { (base.shade(0.035), base.shade(-0.03)) };
+        let k = if docked { 0.0 } else if super::lemon(ui) { lk::r_btn(t) + 1.0 } else { RADIUS }.min(bh / 2.0);
+        ui.c.fill_rect_gradient(hr, top, bottom, k);
+        // Square the corners that continue into the rows above / below.
+        if member {
+            ui.c.fill_rect(Rect::new(hr.x, hr.y, hr.w, k), top);
+        }
+        if joins_below {
+            let left = if lead { hr.x + k } else { hr.x };
+            ui.c.fill_rect(Rect::new(left, hr.bottom() - k, hr.right() - left, k), bottom);
+        }
     }
     ui.hit(hr, Action::PlHeader(row), "Track (drop an instrument on it: it lands here, double-click: rename, right-click: menu, Shift+wheel: move)");
     if strip {
@@ -1424,27 +1708,41 @@ fn header(ui: &mut Ui, s: &State, g: &PGeom, row: u16, x: f32, w: f32) {
     // The LED and "…" keep their distance from the row's bottom when the track height changes (Alt+wheel); short
     // rows drop the "…" and keep the name clear of the LED.
     let short = h < pl::ROW_H - 8.0;
-    let led = Rect::new(hr.right() - 19.0, (h - gap - 15.0).max(1.0) + hr.y, 14.0, 14.0);
+    let led = if docked { Rect::new(hr.x + 9.0, hr.cy() - 7.0, 14.0, 14.0) } else { Rect::new(hr.right() - 19.0, (h - gap - 15.0).max(1.0) + hr.y, 14.0, 14.0) };
     ui.hit(led, Action::PlLed(row), "Mute track (right-click / Ctrl+click: solo)");
-    let text = if colored.is_some() { ui.t.tx(0xdce8f0) } else { t.text_faint };
+    let text = if docked && selected { t.accent } else if colored.is_some() { ui.t.tx(0xdce8f0) } else if docked { t.text } else { t.text_faint };
     let text = if on { text } else { text.shade(-0.35) };
     let editing = matches!(s.playlist.edit.as_ref().map(|e| e.target), Some(pl::EditTarget::TrackName(r)) if r == row);
     if !editing {
-        let name_w = if short { hr.w - 26.0 } else { hr.w - 4.0 };
-        ui.c.text_clip(Font::new(16), hr.x + 2.0, hr.y + 1.0, name_w, text, &pl::track_name(s, row));
+        let font = Font::new(16);
+        let (name_x, name_y, name_w) = if docked {
+            (hr.x + 27.0, (hr.cy() - ui.c.line_height(font) / 2.0).round(), hr.w - 27.0 - if lead { 48.0 } else if ui.hovering(hr) { 15.0 } else { 6.0 })
+        } else {
+            (hr.x + 2.0, hr.y + 1.0, if short { hr.w - 26.0 } else { hr.w - 4.0 })
+        };
+        ui.c.text_clip(font, name_x, name_y, name_w, text, &pl::track_name(s, row));
     }
     // The "..." handle (FL's): drag to size this track, click to shrink it or bring it back. A short track keeps it
     // as its bottom edge.
-    let grip = if short { Rect::new(hr.x, hr.bottom() - 5.0, (hr.w - 24.0).max(8.0), 5.0) } else { Rect::new(hr.x, led.y - 2.0, 26.0, 16.0) };
+    let grip = if short {
+        Rect::new(hr.x, hr.bottom() - 5.0, (hr.w - 24.0).max(8.0), 5.0)
+    } else if docked {
+        Rect::new(hr.right() - 24.0, hr.cy() - 8.0, 22.0, 16.0)
+    } else {
+        Rect::new(hr.x, led.y - 2.0, 26.0, 16.0)
+    };
     let hov = ui.hit(grip, Action::PlTrackSize(row), "Track height: drag to size this track, click to shrink it or bring it back");
-    if !short {
+    if !short && !docked {
         // Under the start of the name.
         ui.c.text(Font::new(14), hr.x + 2.0, led.y - 6.0, if hov { text } else { text.shade(-0.2) }, "...");
+    } else if !short && (hov || ui.hovering(hr)) {
+        // The docked layout: at the row's right end, with the mouse on the row.
+        ui.c.text(Font::new(14), hr.right() - 14.0, grip.y - 3.0, if hov { text } else { text.shade(-0.2) }, "...");
     }
     let info = pl::track_info(s, row);
     if lead {
         // Collapse arrow left of the LED: up while open, down while collapsed.
-        let a = Rect::new(led.x - 18.0, led.y, 14.0, 14.0);
+        let a = if docked { Rect::new(hr.right() - 42.0, led.y, 14.0, 14.0) } else { Rect::new(led.x - 18.0, led.y, 14.0, 14.0) };
         let hov = ui.hit(a, Action::PlGroupArrow(row), "Collapse / expand the group");
         let col = if hov { ui.t.tx(0xffffff) } else { text };
         let (cx, cy) = (a.cx(), a.cy());

@@ -674,8 +674,8 @@ pub fn right(app: &mut App, h: MHit) -> bool {
             // Solo the slot: the track's other slots are bypassed (§7).
             let t = s.selected_mixer;
             if let Some(m) = track_mut(s, t) {
-                let only = (0..10).all(|k| m.slot_on[k] == (k == usize::from(i)));
-                for k in 0..10 {
+                let only = (0..os_model::SLOTS).all(|k| m.slot_on[k] == (k == usize::from(i)));
+                for k in 0..os_model::SLOTS {
                     m.slot_on[k] = only || k == usize::from(i);
                 }
                 changed(s);
@@ -721,7 +721,7 @@ pub fn slot_wheel(app: &mut App, slot: u8, notches: i32) {
     let d: i8 = if notches > 0 { -1 } else { 1 };
     for _ in 0..notches.unsigned_abs() {
         let to = i32::from(slot) + i32::from(d);
-        if !(0..10).contains(&to) {
+        if !(0..os_model::SLOTS as i32).contains(&to) {
             break;
         }
         run(app, MCmd::SlotMove(slot, d));
@@ -936,8 +936,8 @@ fn remove_tracks(s: &mut State, gone: &[u16]) -> Option<String> {
     }
     let m = |t: u16| new_of.get(&t).copied();
     for &t in gone {
-        for slot in 0..10 {
-            s.mixer.pending.push(FxReq::Delete { track: t, slot });
+        for slot in 0..os_model::SLOTS {
+            s.mixer.pending.push(FxReq::Delete { track: t, slot: slot as u8 });
         }
     }
     let mut map = Vec::new();
@@ -1089,8 +1089,8 @@ fn delete_track(s: &mut State, n: u16) -> Option<String> {
     for c in s.project.channels.iter_mut().filter(|c| c.mixer_track == n) {
         c.mixer_track = 0;
     }
-    for k in 0..10 {
-        s.mixer.pending.push(FxReq::Delete { track: n, slot: k });
+    for k in 0..os_model::SLOTS {
+        s.mixer.pending.push(FxReq::Delete { track: n, slot: k as u8 });
     }
     s.mixer.slot_names.retain(|(t, _), _| *t != n);
     // The hidden last track stays last; the default track comes before it (spec: flp/events/mixer.md "The last track").
@@ -1519,7 +1519,7 @@ pub fn run(app: &mut App, c: MCmd) -> Option<String> {
         MCmd::SlotMove(slot, d) => {
             let t = s.selected_mixer;
             let o = i32::from(slot) + i32::from(d);
-            if !(0..10).contains(&o) {
+            if !(0..os_model::SLOTS as i32).contains(&o) {
                 return None;
             }
             let (a, b) = (usize::from(slot), o as usize);

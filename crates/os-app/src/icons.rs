@@ -76,6 +76,9 @@ pub enum Icon {
     FilePreset,
     FileZip,
     FileBlank,
+    Gear,
+    Refresh,
+    CollapseAll,
 }
 
 /// A kick drum seen from the side on its two legs, its pedal's beater against the head (the Tempo tapper). Lemon
@@ -86,8 +89,14 @@ const KICK: TablerIcon = TablerIcon { filled: false, d: "M 13.5 10.5 C 13.5 14.3
 /// four checks (2026-10-16)").
 const REDO: TablerIcon = TablerIcon { filled: false, d: "M 15 14 L 19 10 L 15 6 M 19 10 L 8 10 C 5.791 10 4 11.791 4 14 C 4 16.209 5.791 18 8 18 L 9 18" };
 
+/// Two chevrons pointing up: close everything. Orange Studio's own, in Tabler's style.
+const COLLAPSE_ALL: TablerIcon = TablerIcon { filled: false, d: "M 7 11 L 12 6 L 17 11 M 7 18 L 12 13 L 17 18" };
+
 fn shape(icon: Icon) -> &'static TablerIcon {
     match icon {
+        Icon::Gear => &tb::SETTINGS,
+        Icon::Refresh => &tb::ROTATE_CLOCKWISE_2,
+        Icon::CollapseAll => &COLLAPSE_ALL,
         Icon::Minimize => &tb::MINUS,
         Icon::Restore => &tb::SQUARES,
         Icon::Close => &tb::X,

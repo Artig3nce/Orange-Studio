@@ -64,6 +64,11 @@ impl Win {
         }
     }
 
+    /// Whether the window lives in the bottom panel of the docked layout, one at a time under its tab.
+    pub fn is_panel(self) -> bool {
+        matches!(self, Win::Mixer | Win::PianoRoll | Win::ChannelRack)
+    }
+
     /// Smallest outer size (the layouts stay intact down to this).
     pub fn min_size(self) -> (f32, f32) {
         match self {
@@ -96,6 +101,13 @@ impl CloseAll {
         })
     }
 }
+
+/// The docked layout's bottom panel: its tab strip's height, its default and smallest height (the Mixer's minimum under
+/// the strip) and where its height is kept.
+pub const PANEL_TABS_H: f32 = 30.0;
+const PANEL_H: f32 = 670.0;
+const PANEL_MIN_H: f32 = 400.0 + PANEL_TABS_H;
+const PANEL_KEY: &str = "panel_height";
 
 /// Resize edge bits for `Action::WinResize`.
 pub const EDGE_L: u8 = 1;
@@ -278,6 +290,10 @@ pub enum Action {
     BrowserSearch,
     /// The splitter right of the browser: drag to resize it, double-click for the default width (§9).
     BrowserSplitter,
+    /// A tab of the docked layout's bottom panel.
+    PanelTab(Win),
+    /// The bottom panel's tab strip, past its tabs: drag to resize the panel.
+    PanelSplitter,
     /// The plugin browser (Plugin database tab): filter button `i` (`views::plugin_panel::FILTERS`), a category
     /// (`None`: all of them), the star of row `i`.
     BrowserPlugFilter(usize),
@@ -820,6 +836,25 @@ impl Ui<'_> {
         hovered
     }
 
+    /// How many hits are registered, for `keep_hits_in`.
+    pub fn hits_len(&self) -> usize {
+        self.hits.len()
+    }
+
+    /// The hits registered since there were `from` of them take clicks only inside `area`: what a window draws is
+    /// clipped to it, its clickable parts must be too.
+    pub fn keep_hits_in(&mut self, from: usize, area: Rect) {
+        let mut i = from;
+        while i < self.hits.len() {
+            self.hits[i].rect = self.hits[i].rect.intersect(&area);
+            if self.hits[i].rect.is_empty() {
+                self.hits.remove(i);
+            } else {
+                i += 1;
+            }
+        }
+    }
+
     /// Marks the hit just registered as a row of menu `menu` (1 or more) that the wheel steps to.
     pub fn menu_row(&mut self, menu: u8) {
         if let Some(h) = self.hits.last_mut() {
@@ -915,6 +950,8 @@ pub enum Drag {
     PianoSplit { dy: f32, top: f32, h: f32 },
     /// The browser's splitter: `dx` = grab offset from the browser's right edge (spec: ui/browser.md §9).
     BrowserSplit { dx: f32 },
+    /// The bottom panel's top edge, `dy` above the mouse.
+    PanelSplit { dy: f32 },
     /// Monitor debug panel slider.
     MonParam(usize),
     /// Cable physics debug panel slider.
@@ -1049,6 +1086,13 @@ pub struct State {
     /// spec: ui/close-windows.md §2).
     pub no_focus: bool,
     pub show_browser: bool,
+    /// The docked layout: the Playlist fills the workspace above a tabbed bottom panel, nothing else floats by default.
+    /// Tests lay the windows out as they float, unless they ask for it.
+    pub docked_ui: bool,
+    /// The window under the bottom panel's open tab.
+    pub panel: Win,
+    /// The bottom panel's height, its tab strip included.
+    pub panel_h: f32,
     /// No window places were kept (a first start): the paints lay the windows out as FL does (`layout::fl_default`) on
     /// the screen they get, again whenever its size changes (the main window maximized after its first paint), until
     /// a window is moved, resized, minimized or maximized.
@@ -1197,7 +1241,57 @@ impl State {
 
     /// Whether `w` is maximized and not collapsed (it fills the workspace).
     pub fn is_max(&self, w: Win) -> bool {
-        w.slot().is_some_and(|i| self.wins[i].maxed && !self.wins[i].mini)
+        !self.is_fixed(w) && w.slot().is_some_and(|i| self.wins[i].maxed && !self.wins[i].mini)
+    }
+
+    /// Whether `w` has a fixed place in the docked layout: the Playlist above, the bottom panel's window below.
+    pub fn is_fixed(&self, w: Win) -> bool {
+        self.docked_ui && (w == Win::Playlist || w.is_panel())
+    }
+
+    /// Whether window `w` (one with a stored rect) floats: it can be moved and resized and has a floating frame.
+    pub fn floats(&self, w: Win) -> bool {
+        !self.is_fixed(w) && w.slot().is_some_and(|i| !self.wins[i].maxed && !self.wins[i].mini)
+    }
+
+    /// The bottom panel of the docked layout, its tab strip included: never so tall that the Playlist goes under its
+    /// minimum, the smallest screens excepted.
+    pub fn panel_area(&self) -> Rect {
+        let work = self.work_rect();
+        let room = work.h - Win::Playlist.min_size().1;
+        let h = self.panel_h.min(room).max(PANEL_MIN_H);
+        Rect::new(0.0, work.bottom() - h, self.screen.0, h)
+    }
+
+    /// Where the panel's window goes, under the tab strip.
+    fn panel_rect(&self) -> Rect {
+        let a = self.panel_area();
+        Rect::new(a.x, a.y + PANEL_TABS_H, a.w, a.h - PANEL_TABS_H)
+    }
+
+    /// The order windows are painted in: as stacked, the docked layout's fixed windows under every floating one (a
+    /// click on the Playlist gives it the keyboard, not the place of a plugin window over it).
+    pub fn paint_order(&self) -> Vec<Win> {
+        let (fixed, floating): (Vec<Win>, Vec<Win>) = self.z.iter().partition(|&&w| self.is_fixed(w));
+        fixed.into_iter().chain(floating).collect()
+    }
+
+    /// Holds the docked layout together, whatever opened or closed a window: the Playlist is always shown, with one
+    /// panel window, the one raised last. The Channel rack keeps its own position and size in `rack_pos`, `rack_size`.
+    fn keep_docked(&mut self) {
+        if !self.docked_ui {
+            return;
+        }
+        self.panel = self.z.iter().rev().copied().find(|w| w.is_panel()).unwrap_or(self.panel);
+        let panel = self.panel;
+        self.z.retain(|w| !w.is_panel() || *w == panel);
+        for w in [panel, Win::Playlist] {
+            if !self.z.contains(&w) {
+                self.z.insert(0, w);
+            }
+        }
+        let r = self.panel_rect();
+        (self.rack_pos, self.rack_size) = ((r.x, r.y), (r.w, r.h));
     }
 
     /// The maximized window in front (the one filling the workspace), if any.
@@ -1228,15 +1322,24 @@ impl State {
     /// Where window `w` paints and takes clicks: its rect plus, while it floats, the resize zones past its edges.
     pub fn win_area(&self, w: Win) -> Rect {
         let r = self.win_rect(w);
-        match w.slot() {
-            Some(i) if !self.wins[i].maxed && !self.wins[i].mini => r.outset(4.0),
-            _ => r,
+        if self.floats(w) {
+            r.outset(4.0)
+        } else if self.is_fixed(w) && !w.is_panel() {
+            // Not its title row, above the workspace (`win_rect`).
+            r.intersect(&self.work_rect())
+        } else {
+            r
         }
     }
 
     /// Where the window is painted: the workspace when maximized, a title bar when minimized.
     pub fn win_rect(&self, w: Win) -> Rect {
         let Some(i) = w.slot() else { return Rect::new(0.0, 0.0, 0.0, 0.0) };
+        if self.is_fixed(w) {
+            let work = self.work_rect();
+            // The Playlist's title row goes above the workspace, under the top bar, which has its tools.
+            return if w.is_panel() { self.panel_rect() } else { Rect::new(work.x, work.y - TITLE_H, work.w, self.panel_area().y - work.y + TITLE_H) };
+        }
         let f = self.float_rect(w);
         let ws = self.wins[i];
         if ws.mini {
@@ -1466,9 +1569,13 @@ impl App {
                 file: None,
                 path: None,
                 // A start shows the playlist, the mixer along the bottom and the channel rack on top, as in FL.
-                z: vec![Win::Playlist, Win::Mixer, Win::ChannelRack],
+                // The docked layout opens on the Mixer's tab.
+                z: if cfg!(test) { vec![Win::Playlist, Win::Mixer, Win::ChannelRack] } else { vec![Win::Playlist, Win::Mixer] },
                 no_focus: false,
                 show_browser: true,
+                docked_ui: !cfg!(test),
+                panel: Win::Mixer,
+                panel_h: crate::settings_file::get(PANEL_KEY).and_then(|v| v.parse().ok()).unwrap_or(PANEL_H),
                 fl_layout: false,
                 fl_screen: (0.0, 0.0),
                 palette: Default::default(),
@@ -2973,7 +3080,7 @@ impl App {
         let px = |r: Rect| [(r.x * k).floor() as i32 + ox, (r.y * k).floor() as i32 + oy, (r.right() * k).ceil() as i32 + ox, (r.bottom() * k).ceil() as i32 + oy];
         let work = px(self.state.work_rect());
         let over: Vec<[i32; 4]> = self.overlays.iter().map(|&r| px(r.outset(2.0))).collect();
-        let z = self.state.z.clone();
+        let z = self.state.paint_order();
         let stacked: Vec<usize> = z.iter().filter_map(|w| if let Win::Hosted(r) = w { Some(*r) } else { None }).collect();
         self.plugins.stack(&stacked);
         let docked_at = z.iter().rposition(|&w| self.state.is_max(w));
@@ -4436,6 +4543,7 @@ impl App {
         }
         self.state.screen = canvas.size();
         self.state.ui_scale = canvas.scale;
+        self.state.keep_docked();
         // A first start: the windows are laid out on the workspace the screen gives, as FL lays them out, again when
         // the screen grows or shrinks before any window is placed by hand.
         if self.state.fl_layout && self.state.fl_screen != self.state.screen {
@@ -4465,9 +4573,10 @@ impl App {
         self.live.clear();
         self.keep.full = damage.is_none();
         let title = self.title();
+        let docked_colors = self.state.docked_ui.then(|| views::docked_palette(&self.theme.colors));
         let mut ui = Ui {
             c: canvas,
-            t: &self.theme.colors,
+            t: docked_colors.as_ref().unwrap_or(&self.theme.colors),
             hits: &mut self.hits,
             bars: &mut self.bars,
             hover: &self.hover,
@@ -5997,6 +6106,11 @@ impl App {
                     }
                 }
                 Drag::BrowserSplit { dx } => self.browser_split_drag(x - dx),
+                Drag::PanelSplit { dy } => {
+                    let bottom = self.state.work_rect().bottom();
+                    self.state.panel_h = (bottom - (self.mouse.1 - dy)).round().max(PANEL_MIN_H);
+                    self.invalidate();
+                }
                 Drag::SongPosHold { .. } => {}
                 Drag::PrefSlider { label, x: x0, w } => self.pref_slider_drag(label, x0, w),
                 Drag::Ppi { x0, n0 } => self.ppi_set(crate::ppi::dragged(n0, x - x0, self.px_scale)),
@@ -6451,6 +6565,10 @@ impl App {
         if self.hover == Some(Action::PlaylistArea) && self.over_clip && matches!(self.state.playlist.tool, PlTool::Draw | PlTool::Paint | PlTool::Select) {
             return Cursor::Move;
         }
+        // The same over a note, for the tools that drag notes.
+        if matches!(self.hover, Some(Action::PianoNote(_))) && matches!(self.state.piano.tool, Tool::Draw | Tool::Paint | Tool::Select) {
+            return Cursor::Move;
+        }
         let icon = match &self.hover {
             // The playlist's and the piano roll's tools show their toolbar icons over their grids: the Draw tool is
             // the pencil in both (as FL's playlist does).
@@ -6486,6 +6604,9 @@ impl App {
                 e if e == EDGE_L | EDGE_T || e == EDGE_R | EDGE_B => Cursor::NwseResize,
                 _ => Cursor::NeswResize,
             };
+        }
+        if matches!((&self.drag, &self.hover), (Some(Drag::PanelSplit { .. }), _) | (None, Some(Action::PanelSplitter))) {
+            return Cursor::NsResize;
         }
         if matches!((&self.drag, &self.hover), (Some(Drag::PianoSplit { .. }), _) | (None, Some(Action::PianoSplitter))) {
             return Cursor::NsResize;
@@ -6620,8 +6741,8 @@ impl App {
 
     fn zoom_set(&mut self, t: Scroll, z: f32) {
         match t {
-            Scroll::PianoX => self.state.piano.px_per_beat = z.clamp(6.0, 1600.0),
-            Scroll::PlaylistX => self.state.playlist_bar_w = z.clamp(4.0, 600.0),
+            Scroll::PianoX => self.state.piano.px_per_beat = z.clamp(crate::piano::PX_PER_BEAT_RANGE.0, crate::piano::PX_PER_BEAT_RANGE.1),
+            Scroll::PlaylistX => self.state.playlist_bar_w = z.clamp(crate::playlist::BAR_W_RANGE.0, crate::playlist::BAR_W_RANGE.1),
             _ => {}
         }
     }
@@ -7061,6 +7182,11 @@ impl App {
             Some(Drag::Bar(d)) => self.bar_drop(d),
             Some(Drag::PianoSplit { .. }) => crate::piano_split::save(self.state.piano.split),
             Some(Drag::BrowserSplit { .. }) => crate::browser::save_width(self.state.browser_w),
+            Some(Drag::PanelSplit { .. }) => {
+                let h = self.state.panel_area().h;
+                self.state.panel_h = h;
+                crate::settings_file::write(PANEL_KEY, &h.to_string());
+            }
             Some(Drag::Marker) if self.transport.playing() && !self.transport.song() => {
                 self.start_playback();
             }
@@ -7310,7 +7436,7 @@ impl App {
             p.scroll_x = (tick - (x1 - g.grid.x) * ppq / p.px_per_beat).max(0.0);
         } else {
             let (t0, t1) = (g.tick_at(x0.min(x1)).max(0.0), g.tick_at(x0.max(x1)).max(0.0));
-            p.px_per_beat = (g.grid.w / ((t1 - t0).max(1.0) / ppq)).clamp(6.0, 1600.0);
+            p.px_per_beat = (g.grid.w / ((t1 - t0).max(1.0) / ppq)).clamp(crate::piano::PX_PER_BEAT_RANGE.0, crate::piano::PX_PER_BEAT_RANGE.1);
             p.scroll_x = t0;
             p.scroll_y = (p.scroll_y + y0.min(y1) - g.grid.y).max(0.0);
         }
@@ -8966,6 +9092,16 @@ impl App {
             | Action::RackGraphArea
             | Action::RackGraphTab(_)
             | Action::RackFill(_) => {}
+            // A docked window stays where it is.
+            Action::WinDrag(win) if s.is_fixed(win) => {}
+            Action::MinWin(win) | Action::MaxWin(win) if s.is_fixed(win) => {}
+            Action::PanelTab(w) => {
+                self.state.raise(w);
+                self.invalidate();
+            }
+            Action::PanelSplitter => {
+                self.drag = Some(Drag::PanelSplit { dy: self.mouse.1 - self.state.panel_area().y });
+            }
             Action::WinDrag(win) => {
                 // Double-click on the title bar toggles maximized / floating (like the max button).
                 let now = std::time::Instant::now();
@@ -9473,7 +9609,7 @@ impl App {
             (HELP_MENU, HELP_ABOUT) => {
                 // The Windows build includes the ASIO SDK, which is under version 3 only (THIRD-PARTY-NOTICES.txt §9).
                 let licence = if cfg!(windows) { "the GNU GPL v3" } else { "the GNU GPL v3 or later" };
-                self.state.message = Some(format!("Orange Studio {} (pre-alpha), free software under {licence}", env!("CARGO_PKG_VERSION")));
+                self.state.message = Some(format!("Orange Studio {}, free software under {licence}", env!("CARGO_PKG_VERSION")));
             }
             (ADD_MENU | TOOLS_MENU, i) if item_at(menu, i).is_some_and(|it| it.label == "Pattern") => {
                 let at = crate::patterns::box_at_mouse(self.mouse);
@@ -12795,14 +12931,17 @@ mod tests {
     #[test]
     fn scroll_repaint_matches_full() {
         for design in Design::ALL {
-            scroll_repaint_in(design);
+            scroll_repaint_in(design, false);
+            scroll_repaint_in(design, true);
         }
     }
 
-    fn scroll_repaint_in(design: Design) {
+    fn scroll_repaint_in(design: Design, docked: bool) {
         let Ok(mut a) = Canvas::new(1920, 1080, 1.0) else { return };
         let mut b = Canvas::new(1920, 1080, 1.0).unwrap();
         let mut app = App::new(None);
+        app.state.docked_ui = docked;
+        app.state.panel_h = 430.0;
         // Rounded (Lemon) windows: their corners are not part of what scrolling keeps (spec: ui/lemon-design.md §3).
         app.theme = design_theme(design, false);
         app.state.project = test_project();
@@ -12846,6 +12985,8 @@ mod tests {
         app.mouse_move(ar.x + 20.0, ar.bottom() + 60.0);
         check(&mut app, &mut a, &mut b, "automation clip left");
         // A plain click on a tool button: the press only shows it pressed, the release picks the tool.
+        // (The docked layout has its tools in the top bar, a panel this test does not lay out.)
+        if !docked {
         let tool = hit_rect(&app, &Action::PlTool(crate::playlist::PlTool::Paint));
         app.mouse_move(tool.cx(), tool.cy());
         app.mouse_down();
@@ -12859,6 +13000,7 @@ mod tests {
         assert_same(&a, &b, "tool button released");
         assert_eq!(app.state.playlist.tool, crate::playlist::PlTool::Paint);
         app.state.playlist.tool = crate::playlist::PlTool::Draw;
+        }
         app.invalidate();
         frame_damage(&mut app, &mut a, Some(None));
         let _ = app.take_damage();
@@ -19056,6 +19198,33 @@ mod tests {
         let _ = std::fs::remove_file(&wav);
     }
 
+    /// Clicking a clip trimmed at both ends and placing the next one repeats the trim: the same part, the same length.
+    #[test]
+    fn a_trimmed_clip_is_placed_as_trimmed() {
+        use crate::playlist as pl;
+        let mut app = App::new(None);
+        app.state.pattern = 1;
+        let ppq = u32::from(app.state.project.ppq);
+        app.state.playlist.source = Some(os_model::ClipSource::Pattern(1));
+        let i = pl::place(&mut app.state, 0, 0);
+        let natural = pl::clips(&app.state)[i];
+        let mut c = natural;
+        c.length = ppq;
+        c.window = Some((f64::from(ppq), f64::from(ppq * 2)));
+        c.set_group(3);
+        c.muted = true;
+        pl::arr_mut(&mut app.state).clips[i] = c;
+        app.state.playlist.lock_clip = Some(c);
+        let j = pl::place(&mut app.state, 2, ppq * 8);
+        let n = pl::clips(&app.state)[j];
+        assert_eq!((n.position, n.track, n.length, n.window), (ppq * 8, 2, ppq, c.window));
+        assert_eq!((n.group(), n.muted), (0, false), "a clip of its own, sounding");
+        // Another source's clips aren't touched by it.
+        app.state.playlist.source = Some(os_model::ClipSource::Pattern(2));
+        let k = pl::place(&mut app.state, 3, 0);
+        assert_eq!(pl::clips(&app.state)[k].window, None);
+    }
+
     /// A pattern dragged from the playlist's clip list onto the grid drops a clip of it where it lands, as FL's picker
     /// does; a click on it only selects it.
     #[test]
@@ -20212,6 +20381,193 @@ mod tests {
     /// selection, Shift+G / Alt+G / Alt+U clip groups (lowest free number, move together, duplicates get their own
     /// group, ungroup deselects, saved), Right-Shift+drag slice in Draw, Shift+Tab snap cycle, Ctrl+Insert without a
     /// time selection, Ctrl+P / Ctrl+Shift+P not available yet, F5 raises, the view saved in the project (event 242).
+    /// The docked layout's bars and panels share one background.
+    #[test]
+    fn docked_colours_are_one() {
+        let t = Theme::default();
+        let d = views::docked_palette(&t.colors);
+        for c in [d.toolbar, d.browser_list, d.browser_tabs, d.picker, d.ruler, d.grid, d.mixer_bg, d.scrollbar, d.track_header] {
+            assert_eq!(c, d.window_title);
+        }
+    }
+
+    /// The docked layout's browser: named tabs, the search field over the list, and the list down to the window's bottom.
+    #[test]
+    fn docked_browser() {
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.state.docked_ui = true;
+        app.paint(&mut c, None);
+        let search = hit_rect(&app, &Action::BrowserSearch);
+        let top = views::browser::list_top(&app.state);
+        assert!(search.bottom() <= top, "the search field is above the list");
+        assert_eq!(top + views::browser::list_h(&app.state), app.state.panel_area().y - views::browser::BRAND_H, "only the logo strip under the list");
+        assert!(!app.hits.iter().any(|h| h.action == Action::BrowserTab(3)), "no Favorites until they work");
+        app.mouse_move(search.cx(), search.cy());
+        app.mouse_down();
+        app.mouse_up();
+        assert!(app.state.browser_search_focus, "a click focuses the search");
+        for i in [views::browser::PROJECT_TAB, views::browser::PLUGIN_TAB, 0] {
+            app.paint(&mut c, None);
+            let tab = hit_rect(&app, &Action::BrowserTab(i));
+            app.mouse_move(tab.cx(), tab.cy());
+            app.mouse_down();
+            app.mouse_up();
+            assert_eq!(app.state.browser_tab, i);
+        }
+        for a in [Action::BrowserMenu, Action::BrowserCollapse, Action::BrowserReread] {
+            assert!(app.hits.iter().any(|h| h.action == a), "{a:?}");
+        }
+    }
+
+    /// The docked top row has the panels that matter, and fits them and the logo.
+    #[test]
+    fn docked_top_row_fits() {
+        let l = crate::toolbar::Layout::docked();
+        assert_eq!(l.rows.len(), 1);
+        use crate::toolbar::Panel;
+        for p in [Panel::Volume, Panel::Pitch, Panel::SongPos, Panel::Modes, Panel::Snap] {
+            assert!(l.has(p), "{p:?}");
+        }
+        assert!(!l.has(Panel::Windows), "the tabs and the fixed Playlist replace its buttons");
+        assert!(!l.has(Panel::Pattern), "the Playlist's clip list picks and adds patterns");
+        assert!(crate::toolbar::natural_width(&l, false) + crate::toolbar::LOGO_ROOM <= 1920.0, "every panel and the logo at 1920 px");
+    }
+
+    /// The docked layout: the Playlist over a bottom panel showing one window under its tab, whatever opens or closes
+    /// windows; floating windows stay over the docked ones, and the panel resizes within the workspace.
+    #[test]
+    fn docked_layout() {
+        use crate::playlist as pl;
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.state.docked_ui = true;
+        app.state.z = vec![Win::ChannelRack, Win::Mixer, Win::Perf];
+        app.paint(&mut c, None);
+        assert!(app.state.shown(Win::Playlist) && app.state.shown(Win::Mixer) && !app.state.shown(Win::ChannelRack));
+        let (pl, mx, work) = (app.state.win_rect(Win::Playlist), app.state.win_rect(Win::Mixer), app.state.work_rect());
+        assert!(pl.bottom() <= mx.y && mx.bottom() == work.bottom() && pl.w == work.w);
+        assert_eq!(app.state.win_area(Win::Playlist).y, work.y, "nothing of it over the top bar");
+        assert_eq!(app.state.win_area(Win::Mixer), mx, "all of the panel is painted");
+        assert_eq!((mx.x, mx.w), (0.0, 1920.0), "the panel runs under the browser, the window's whole width");
+        assert_eq!(views::browser::bottom(&app.state), app.state.panel_area().y, "the browser ends over it");
+
+        app.act(Action::PanelTab(Win::ChannelRack));
+        app.paint(&mut c, None);
+        assert!(app.state.shown(Win::ChannelRack) && !app.state.shown(Win::Mixer));
+        let rack = crate::views::rack::rect(&app.state);
+        assert_eq!((rack.x, rack.y, rack.w, rack.bottom()), (mx.x, mx.y, mx.w, work.bottom()), "the rack goes where the mixer was");
+
+        // A track's header: the mute light left of its name, the size handle at the right.
+        let (led, grip) = (hit_rect(&app, &Action::PlLed(1)), hit_rect(&app, &Action::PlTrackSize(1)));
+        let head = hit_rect(&app, &Action::PlHeader(1));
+        assert!(led.right() < head.x + 30.0 && grip.x > head.cx(), "{led:?} {grip:?} in {head:?}");
+        assert!((led.cy() - head.cy()).abs() < 1.0, "centred");
+
+        // The clip list keeps its controls, and picking a pattern in it still works.
+        for a in [Action::PlPickTab(pl::PickKind::Audio), Action::PlPickAdd] {
+            assert!(app.hits.iter().any(|h| h.action == a), "{a:?}");
+        }
+        let row = app.hits.iter().find(|h| matches!(h.action, Action::PlPick(_))).expect("a pattern in the list").rect;
+        app.mouse_move(row.cx(), row.cy());
+        app.mouse_down();
+        app.mouse_up();
+        app.paint(&mut c, None);
+
+        // The Playlist's tools from the top bar's panel (a test's layout has none: laid out by hand here).
+        app.state.bar.layout = crate::toolbar::Layout::docked();
+        app.paint(&mut c, None);
+        let tool = hit_rect(&app, &Action::PlTool(crate::playlist::PlTool::Slice));
+        assert!(tool.bottom() <= app.state.work_rect().y, "in the top bar");
+        app.mouse_move(tool.cx(), tool.cy());
+        app.mouse_down();
+        app.mouse_up();
+        assert_eq!(app.state.playlist.tool, crate::playlist::PlTool::Slice);
+        assert!(!app.hits.iter().any(|h| h.action == Action::PlArrangement), "no arrangement title");
+        app.state.playlist.tool = crate::playlist::PlTool::Draw;
+        app.state.bar.layout = crate::toolbar::Layout::load();
+        app.paint(&mut c, None);
+
+        // The transport keeps its controls.
+        for a in [Action::PatSong(false), Action::PatSong(true), Action::Play, Action::Stop, Action::Record, Action::Tempo, Action::Clock] {
+            assert!(app.hits.iter().any(|h| h.action == a), "{a:?}");
+        }
+
+        // The tabs by the mouse.
+        for w in [Win::Mixer, Win::PianoRoll, Win::ChannelRack] {
+            let tab = hit_rect(&app, &Action::PanelTab(w));
+            app.mouse_move(tab.cx(), tab.cy());
+            app.mouse_down();
+            app.mouse_up();
+            app.paint(&mut c, None);
+            assert!(app.state.shown(w) && app.state.panel == w, "{w:?} by the mouse");
+        }
+
+        // The same as the window does it: repainting only what changed between the events.
+        for w in [Win::Mixer, Win::PianoRoll, Win::ChannelRack, Win::Mixer, Win::ChannelRack] {
+            let tab = hit_rect(&app, &Action::PanelTab(w));
+            let damage = |app: &mut App, c: &mut Canvas| {
+                if let Some(d) = app.take_damage() {
+                    app.paint_region(c, d.as_deref());
+                }
+            };
+            app.mouse_move(tab.cx(), tab.cy() - 200.0);
+            damage(&mut app, &mut c);
+            app.mouse_move(tab.cx(), tab.cy());
+            damage(&mut app, &mut c);
+            assert_eq!(app.top_hit(tab.cx(), tab.cy()).map(|h| h.action.clone()), Some(Action::PanelTab(w)));
+            app.mouse_down();
+            damage(&mut app, &mut c);
+            app.mouse_up();
+            damage(&mut app, &mut c);
+            assert!(app.state.shown(w) && app.state.panel == w, "{w:?} with partial repaints");
+        }
+
+        // Nothing of the Playlist reaches over the panel, at any height: its rows run on past its bottom edge.
+        app.state.hide(Win::Perf);
+        app.state.raise(Win::Playlist);
+        for h in (430..700).step_by(7) {
+            app.state.panel_h = h as f32;
+            app.paint(&mut c, None);
+            let top = app.state.panel_area().y;
+            for w in [Win::Mixer, Win::PianoRoll, Win::ChannelRack] {
+                let tab = hit_rect(&app, &Action::PanelTab(w));
+                for x in [tab.x + 1.0, tab.cx(), tab.right() - 1.0] {
+                    let hit = app.top_hit(x, tab.cy()).map(|h| h.action.clone());
+                    assert_eq!(hit, Some(Action::PanelTab(w)), "{w:?} at x {x}, panel height {h}");
+                }
+            }
+            assert!(app.hits.iter().all(|h| h.win != Some(Win::Playlist) || h.rect.bottom() <= top), "panel height {h}");
+        }
+        app.state.panel_h = PANEL_H;
+        app.state.raise(Win::Perf);
+        app.paint(&mut c, None);
+
+        // A click on the Playlist takes the keyboard, a floating window stays over it.
+        app.state.raise(Win::Playlist);
+        assert_eq!(app.state.z.last(), Some(&Win::Playlist));
+        assert_eq!(app.state.paint_order().last(), Some(&Win::Perf));
+
+        // Closing or maximizing changes nothing.
+        app.state.wins[Win::Playlist.slot().unwrap()].maxed = true;
+        app.state.hide(Win::Playlist);
+        app.state.hide(Win::ChannelRack);
+        app.paint(&mut c, None);
+        assert!(app.state.shown(Win::Playlist) && app.state.shown(Win::ChannelRack) && !app.state.is_max(Win::Playlist));
+        assert_eq!(app.state.win_rect(Win::Playlist), pl);
+
+        // The tab strip resizes the panel, the Playlist keeping its minimum.
+        let top = app.state.panel_area().y;
+        app.mouse_move(work.x + 900.0, top + 10.0);
+        app.mouse_down();
+        assert!(matches!(app.drag, Some(Drag::PanelSplit { .. })), "the strip past the tabs");
+        app.mouse_move(work.x + 900.0, top - 60.0);
+        assert_eq!(app.state.panel_area().y, top - 70.0);
+        app.mouse_move(work.x + 900.0, 0.0);
+        assert_eq!(app.state.win_area(Win::Playlist).h, Win::Playlist.min_size().1);
+        app.mouse_up();
+    }
+
     #[test]
     fn playlist_keybinds() {
         use crate::playlist::{self as pl, Snap};
@@ -20309,7 +20665,7 @@ mod tests {
         // End zooms on the selection (all clips when none is selected).
         app.state.playlist.sel = vec![pl::clips(&app.state).iter().position(|c| c.track == 0 && c.position == 2 * bar).unwrap()];
         app.key(&Key::Named(NamedKey::End), false, false);
-        assert!((app.state.playlist_bar_w - 600.0f32.min(grid.w)).abs() < 0.01, "one bar fills the view: {}", app.state.playlist_bar_w);
+        assert!((app.state.playlist_bar_w - pl::BAR_W_RANGE.1.min(grid.w)).abs() < 0.01, "one bar fills the view: {}", app.state.playlist_bar_w);
         assert!((app.state.playlist_scroll.0 - 2.0 * app.state.playlist_bar_w).abs() < 0.01);
         assert_eq!(app.state.playlist.row_h, pl::ROW_MAX, "one selected track fills the view's height (up to the maximum)");
         app.state.playlist.row_h = pl::ROW_H;
@@ -21507,7 +21863,7 @@ mod tests {
         // Dragged onto the palette: off the toolbar, which keeps the layout in settings.txt.
         drag_to(&mut app, &mut c, (hint.cx(), hint.cy()), (600.0, pal.y + 40.0));
         assert!(!app.state.bar.layout.has(Panel::Hint));
-        assert!(!crate::settings_file::get("toolbar_layout").expect("kept").contains("hint"));
+        assert!(!crate::settings_file::get("toolbar_layout_v2").expect("kept").contains("hint"));
         // Its tile, bright again, back at row 1's start; a tile of a panel on the toolbar is dimmed and does not drag.
         let tile = hit_rect(&app, &Action::Bar(BarHit::Tile(Tile::Panel(Panel::Hint))));
         drag_to(&mut app, &mut c, (tile.x + 5.0, tile.cy()), (14.0, 20.0));

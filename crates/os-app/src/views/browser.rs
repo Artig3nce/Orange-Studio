@@ -538,7 +538,7 @@ fn plugin_rows(s: &State, root: &str, cat: u8, out: &mut Vec<Row>) {
 
 /// Height of the list viewport for a browser of height `h` (from `WORK_Y`).
 pub fn list_h(s: &State) -> f32 {
-    (s.screen.1 - list_top(s) - FOOTER_H - info_h(&rows(s), s)).max(0.0)
+    (bottom(s) - list_top(s) - footer_h(s) - info_h(&rows(s), s)).max(0.0)
 }
 
 /// The selected disk entry, shown in the info panel (spec §6).
@@ -627,7 +627,17 @@ fn paint_info(ui: &mut Ui, s: &State, path: &Path, r: Rect) {
 pub fn list_top(s: &State) -> f32 {
     let lift = super::work_y(s) - super::WORK_Y;
     let chips = if s.browser_tab == PLUGIN_TAB { super::plugin_panel::CHIPS_H } else { 0.0 };
-    lift + chips + if opt(s, OPT_TOP) { LIST_Y + SEARCH_ROW } else { LIST_Y }
+    lift + chips + if !s.docked_ui && opt(s, OPT_TOP) { LIST_Y + SEARCH_ROW } else { LIST_Y }
+}
+
+/// Where the browser ends: the window's bottom, or in the docked layout the top of the bottom panel.
+pub fn bottom(s: &State) -> f32 {
+    if s.docked_ui { s.panel_area().y } else { s.screen.1 }
+}
+
+/// What the footer takes under the list: in the docked layout, whose search is at the top, just the logo and name.
+fn footer_h(s: &State) -> f32 {
+    if s.docked_ui { BRAND_H } else { FOOTER_H }
 }
 
 /// Height of the search row above the list ("Search box on top").
@@ -673,85 +683,99 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect) {
     // The panel left of the splitter: 201 px measured, wider as the splitter is dragged (§9).
     let bw = r.w - SPLITTER;
     ui.hit(r, Action::Swallow, "");
-    // Title bar.
-    ui.c.fill_rect(Rect::span(0.0, bw - 1.0, 83.0 + dy, 105.0 + dy), t.browser_title);
-    let at = menu_at(s);
-    let menu_open = s.playlist.popup.as_ref().is_some_and(|p| p.x == at.0 && p.y == at.1);
-    let mhov = ui.hit(Rect::new(2.0, 85.0 + dy, 16.0, 18.0), Action::BrowserMenu, "Browser options");
-    if mhov || menu_open {
-        ui.c.stroke_rrect(Rect::new(3.0, 86.0 + dy, 15.0, 16.0), 2.0, 1.2, t.browser_tab_outline);
-    }
-    icons::draw(ui.c, Icon::ArrowRight, Rect::new(5.0, 87.0 + dy, 12.0, 14.0), if mhov || menu_open { t.glyph } else { t.text_dim });
-    // Collapse structure and Reread structure (spec §4, "Title-bar icons"): outlined like the ▸ while hovered.
-    for (r, icon, action, hint) in [
-        (Rect::new(17.0, 85.0 + dy, 16.0, 18.0), Icon::ArrowUp, Action::BrowserCollapse, "Collapse structure (Ctrl+Up)"),
-        (Rect::new(33.0, 85.0 + dy, 15.0, 18.0), Icon::Back, Action::BrowserReread, "Reread structure (Ctrl+R)"),
-    ] {
-        let hov = ui.hit(r, action, hint);
-        if hov {
-            ui.c.stroke_rrect(Rect::new(r.x + 1.0, 86.0 + dy, r.w - 1.0, 16.0), 2.0, 1.2, t.browser_tab_outline);
+    if s.docked_ui {
+        docked_head(ui, s, bw, dy);
+    } else {
+        // Title bar.
+        ui.c.fill_rect(Rect::span(0.0, bw - 1.0, 83.0 + dy, 105.0 + dy), t.browser_title);
+        let at = menu_at(s);
+        let menu_open = s.playlist.popup.as_ref().is_some_and(|p| p.x == at.0 && p.y == at.1);
+        let mhov = ui.hit(Rect::new(2.0, 85.0 + dy, 16.0, 18.0), Action::BrowserMenu, "Browser options");
+        if mhov || menu_open {
+            ui.c.stroke_rrect(Rect::new(3.0, 86.0 + dy, 15.0, 16.0), 2.0, 1.2, t.browser_tab_outline);
         }
-        icons::draw(ui.c, icon, Rect::new(r.x + 1.0, 87.0 + dy, 12.0, 14.0), if hov { t.glyph } else { t.text_dim });
-    }
-    ui.c.text(os_ui::Font::new(14), 52.0, 85.0 + dy, t.text_dim, "Browser");
-    // Tabs (spec ui/browser.md §1): FL's five without Online content, sharing the strip.
-    ui.c.fill_rect(Rect::span(0.0, bw - 1.0, 106.0 + dy, 141.0 + dy), t.browser_tabs);
-    const TIPS: [&str; 4] = ["All", "Current project", "Plugin database", "Favorites"];
-    for (i, icon) in [Icon::Wave, Icon::Page, Icon::Speaker, Icon::Star].into_iter().enumerate() {
-        let cx = 25.0 + 50.0 * i as f32;
-        let rr = Rect::new(cx - 18.0, 108.0 + dy, 36.0, 30.0);
-        // Favorites: not available yet, greyed out.
-        let hov = if i >= OFF_TABS {
-            ui.off(rr, TIPS[i]);
-            false
-        } else {
-            ui.hit(rr, Action::BrowserTab(i), TIPS[i])
-        };
-        if i == s.browser_tab {
-            ui.c.stroke_rrect(rr, 4.0, 1.5, t.browser_tab_outline);
+        icons::draw(ui.c, Icon::ArrowRight, Rect::new(5.0, 87.0 + dy, 12.0, 14.0), if mhov || menu_open { t.glyph } else { t.text_dim });
+        // Collapse structure and Reread structure (spec §4, "Title-bar icons"): outlined like the ▸ while hovered.
+        for (r, icon, action, hint) in [
+            (Rect::new(17.0, 85.0 + dy, 16.0, 18.0), Icon::ArrowUp, Action::BrowserCollapse, "Collapse structure (Ctrl+Up)"),
+            (Rect::new(33.0, 85.0 + dy, 15.0, 18.0), Icon::Back, Action::BrowserReread, "Reread structure (Ctrl+R)"),
+        ] {
+            let hov = ui.hit(r, action, hint);
+            if hov {
+                ui.c.stroke_rrect(Rect::new(r.x + 1.0, 86.0 + dy, r.w - 1.0, 16.0), 2.0, 1.2, t.browser_tab_outline);
+            }
+            icons::draw(ui.c, icon, Rect::new(r.x + 1.0, 87.0 + dy, 12.0, 14.0), if hov { t.glyph } else { t.text_dim });
         }
-        let c = if i >= OFF_TABS { t.text_faint } else if hov || i == s.browser_tab { t.glyph } else { t.glyph.shade(-0.1) };
-        icons::draw(ui.c, icon, Rect::new(cx - 9.0, 114.0 + dy, 18.0, 18.0), c);
+        ui.c.text(os_ui::Font::new(14), 52.0, 85.0 + dy, t.text_dim, "Browser");
+        // Tabs (spec ui/browser.md §1): FL's five without Online content, sharing the strip.
+        ui.c.fill_rect(Rect::span(0.0, bw - 1.0, 106.0 + dy, 141.0 + dy), t.browser_tabs);
+        const TIPS: [&str; 4] = ["All", "Current project", "Plugin database", "Favorites"];
+        for (i, icon) in [Icon::Wave, Icon::Page, Icon::Speaker, Icon::Star].into_iter().enumerate() {
+            let cx = 25.0 + 50.0 * i as f32;
+            let rr = Rect::new(cx - 18.0, 108.0 + dy, 36.0, 30.0);
+            // Favorites: not available yet, greyed out.
+            let hov = if i >= OFF_TABS {
+                ui.off(rr, TIPS[i]);
+                false
+            } else {
+                ui.hit(rr, Action::BrowserTab(i), TIPS[i])
+            };
+            if i == s.browser_tab {
+                ui.c.stroke_rrect(rr, 4.0, 1.5, t.browser_tab_outline);
+            }
+            let c = if i >= OFF_TABS { t.text_faint } else if hov || i == s.browser_tab { t.glyph } else { t.glyph.shade(-0.1) };
+            icons::draw(ui.c, icon, Rect::new(cx - 9.0, 114.0 + dy, 18.0, 18.0), c);
+        }
     }
     // List.
     let top = list_top(s);
-    let search_on_top = opt(s, OPT_TOP);
+    let search_on_top = !s.docked_ui && opt(s, OPT_TOP);
     if search_on_top {
         ui.c.fill_rect(Rect::new(0.0, LIST_Y + dy, bw, SEARCH_ROW), t.browser_footer);
         search_box(ui, s, Rect::new(13.0, LIST_Y + dy + 4.0, bw - 38.0, 20.0));
     }
     if s.browser_tab == PLUGIN_TAB {
-        super::plugin_panel::paint(ui, s, Rect::span(0.0, bw - 1.0, top - super::plugin_panel::CHIPS_H, r.bottom() - FOOTER_H));
+        super::plugin_panel::paint(ui, s, Rect::span(0.0, bw - 1.0, top - super::plugin_panel::CHIPS_H, r.bottom() - footer_h(s)));
     } else {
         paint_tree(ui, s, r, bw, top);
     }
-    // Footer: the search field takes the width the splitter adds.
-    let fy = r.bottom() - 27.0;
-    // Over it, in the window's bottom-left corner: the logo and the app's name.
-    let by = fy - BRAND_H;
-    ui.c.fill_rect(Rect::span(13.0, bw - 1.0, by, fy), t.browser_list);
-    let lr = 11.0;
-    icons::logo_colour(ui.c, 13.0 + lr, by + BRAND_H / 2.0, lr);
-    let f = os_ui::Font::new(16);
-    let ty = (by + (BRAND_H - ui.c.line_height(f)) / 2.0).round();
-    ui.c.text(f, 13.0 + 2.0 * lr + 8.0, ty, t.text, "Orange Studio");
-    ui.c.fill_rect(Rect::new(0.0, fy, bw, 27.0), t.browser_footer);
-    // Tags: not available yet, greyed out.
-    let tags = Rect::new(13.0, fy + 4.0, 41.0, 20.0);
-    ui.off(tags, "Tags");
-    ui.c.fill_rrect(tags, 3.0, t.sunken);
-    ui.c.text_center(os_ui::Font::condensed(11, 6).bold(), tags, ui.t.tx(0xc0c8cc), "TAGS");
-    ui.veil(tags, t.browser_footer);
-    let field = Rect::new(57.0, fy + 4.0, bw - 82.0, 20.0);
-    if !search_on_top {
-        search_box(ui, s, field);
+    if s.docked_ui {
+        let by = r.bottom() - BRAND_H;
+        ui.c.fill_rect(Rect::span(0.0, bw - 1.0, by, r.bottom()), t.browser_list);
+        let lr = 11.0;
+        icons::logo_colour(ui.c, 10.0 + lr, by + BRAND_H / 2.0, lr);
+        let f = os_ui::Font::new(16);
+        let ty = (by + (BRAND_H - ui.c.line_height(f)) / 2.0).round();
+        ui.c.text(f, 10.0 + 2.0 * lr + 8.0, ty, t.text, "Orange Studio");
     } else {
-        ui.c.fill_rrect(field, 3.0, t.sunken);
+        // Footer: the search field takes the width the splitter adds.
+        let fy = r.bottom() - 27.0;
+        // Over it, in the window's bottom-left corner: the logo and the app's name.
+        let by = fy - BRAND_H;
+        ui.c.fill_rect(Rect::span(13.0, bw - 1.0, by, fy), t.browser_list);
+        let lr = 11.0;
+        icons::logo_colour(ui.c, 13.0 + lr, by + BRAND_H / 2.0, lr);
+        let f = os_ui::Font::new(16);
+        let ty = (by + (BRAND_H - ui.c.line_height(f)) / 2.0).round();
+        ui.c.text(f, 13.0 + 2.0 * lr + 8.0, ty, t.text, "Orange Studio");
+        ui.c.fill_rect(Rect::new(0.0, fy, bw, 27.0), t.browser_footer);
+        // Tags: not available yet, greyed out.
+        let tags = Rect::new(13.0, fy + 4.0, 41.0, 20.0);
+        ui.off(tags, "Tags");
+        ui.c.fill_rrect(tags, 3.0, t.sunken);
+        ui.c.text_center(os_ui::Font::condensed(11, 6).bold(), tags, ui.t.tx(0xc0c8cc), "TAGS");
+        ui.veil(tags, t.browser_footer);
+        let field = Rect::new(57.0, fy + 4.0, bw - 82.0, 20.0);
+        if !search_on_top {
+            search_box(ui, s, field);
+        } else {
+            ui.c.fill_rrect(field, 3.0, t.sunken);
+        }
+        icons::draw(ui.c, Icon::Folder, Rect::new(field.right() - 18.0, fy + 7.0, 14.0, 14.0), t.text_faint);
+        let glass = Rect::new(bw - 23.0, fy + 3.0, 21.0, 21.0);
+        let hov = ui.hit(glass, Action::BrowserSearch, "Search the browser (Enter = find next, Esc = clear)");
+        icons::draw(ui.c, Icon::Search, Rect::new(glass.x + 2.0, fy + 5.0, 17.0, 17.0), if hov { t.browser_search.shade(0.2) } else { t.browser_search });
     }
-    icons::draw(ui.c, Icon::Folder, Rect::new(field.right() - 18.0, fy + 7.0, 14.0, 14.0), t.text_faint);
-    let glass = Rect::new(bw - 23.0, fy + 3.0, 21.0, 21.0);
-    let hov = ui.hit(glass, Action::BrowserSearch, "Search the browser (Enter = find next, Esc = clear)");
-    icons::draw(ui.c, Icon::Search, Rect::new(glass.x + 2.0, fy + 5.0, 17.0, 17.0), if hov { t.browser_search.shade(0.2) } else { t.browser_search });
     // Splitter: drags the browser's width (§9).
     ui.c.fill_rect(Rect::new(bw, r.y, 6.0, r.h), t.splitter);
     ui.c.fill_rect(Rect::new(bw + 6.0, r.y, 2.0, r.h), t.splitter_dark);
@@ -764,8 +788,8 @@ fn paint_tree(ui: &mut Ui, s: &State, r: Rect, bw: f32, top: f32) {
     let rows = rows(s);
     let info = info_path(&rows, s);
     let ih = if info.is_some() { INFO_H } else { 0.0 };
-    let list = Rect::span(13.0, bw - 1.0, top, r.bottom() - FOOTER_H - ih);
-    ui.c.fill_rect(Rect::new(0.0, top, 13.0, list.h), t.browser_tabs.shade(0.02));
+    let list = Rect::span(13.0, bw - 1.0, top, r.bottom() - footer_h(s) - ih);
+    ui.c.fill_rect(Rect::new(0.0, top, 13.0, list.h), if s.docked_ui { t.browser_list } else { t.browser_tabs.shade(0.02) });
     ui.c.fill_rect(list, t.browser_list);
     ui.hit(Rect::new(0.0, top, bw, list.h), Action::BrowserList, "");
     ui.c.push_clip(Rect::new(0.0, top, bw, list.h));
@@ -790,14 +814,17 @@ fn paint_tree(ui: &mut Ui, s: &State, r: Rect, bw: f32, top: f32) {
             ui.c.fill_rect(rect, t.browser_row_hi);
         }
         let base = match row.cat {
+            // The docked layout: one colour for every row, the accent on the selected one.
+            _ if s.docked_ui => t.text,
             FOLDER => t.browser_folder,
             FILE => t.text.shade(-0.08),
             c => cats[usize::from(c).min(1)],
         };
         let c = if row.bright { base.shade(0.12) } else if row.depth > 0 { base.shade(-0.06) } else { base };
+        let c = if s.docked_ui && sel == Some(row.key.as_str()) { t.accent } else { c };
         let c = if matches!(row.item, Item::History(e) if s.history.undone(e)) { t.text_faint } else { c };
         // Expander: only an opened node shows its ▾ in the gutter (FL screenshots, spec §2).
-        if row.open == Some(true) && s.browser_search.is_empty() {
+        if row.open == Some(true) && s.browser_search.is_empty() && !s.docked_ui {
             let (ax, cy) = (x - 9.0, y + ROW_H / 2.0);
             for k in 0..4 {
                 let k = k as f32;
@@ -806,11 +833,24 @@ fn paint_tree(ui: &mut Ui, s: &State, r: Rect, bw: f32, top: f32) {
         }
         // File-type tints (spec §6): audio / project orange, MIDI blue.
         let ic = match row.icon {
+            _ if s.docked_ui => c,
             Icon::FileAudio | Icon::FileProject => t.browser_search,
             Icon::PianoRoll if row.cat == FILE => t.cat_plugin_db,
             _ => c,
         };
-        icons::draw(ui.c, row.icon, Rect::new(x + 6.0, y + 3.0, 17.0, 17.0), ic);
+        if s.docked_ui {
+            // The docked layout's own marks, no file-manager icons: a caret on what opens, a bar from the logo on the rest.
+            let cy = y + ROW_H / 2.0;
+            match row.open {
+                Some(open) => {
+                    let dir = if open { os_ui::kit::Dir::Down } else { os_ui::kit::Dir::Right };
+                    os_ui::kit::triangle(ui.c, x + 14.0, cy, 4.0, dir, t.text_dim);
+                }
+                None => ui.c.fill_rrect(Rect::new(x + 13.0, cy - 5.0, 3.0, 10.0), 1.5, if c == t.accent { c } else { t.text_dim }),
+            }
+        } else {
+            icons::draw(ui.c, row.icon, Rect::new(x + 6.0, y + 3.0, 17.0, 17.0), ic);
+        }
         let (f, w) = (os_ui::Font::new(17), bw - 1.0 - x - 27.0);
         let over = ui.c.text_width(f, &row.label) - w;
         // Hovered, a label that does not fit scrolls (§9) rather than being cut.
@@ -864,7 +904,43 @@ const OFF_TABS: usize = 3;
 
 /// Where the options menu opens (just below the title bar's ▸, spec §4).
 pub fn menu_at(s: &State) -> (f32, f32) {
-    (1.0, 105.0 + super::work_y(s) - super::WORK_Y)
+    (1.0, if s.docked_ui { 111.0 } else { 105.0 } + super::work_y(s) - super::WORK_Y)
+}
+
+/// The top of the browser in the docked layout: its tabs by name with the options menu, then the search field with
+/// Collapse and Reread structure.
+fn docked_head(ui: &mut Ui, s: &State, bw: f32, dy: f32) {
+    let t = ui.t;
+    ui.c.fill_rect(Rect::span(0.0, bw - 1.0, 83.0 + dy, LIST_Y + dy), t.browser_tabs);
+    let font = super::fnt(16.0);
+    let mut x = 6.0;
+    for (i, name, tip) in [(0, "All", "All"), (PROJECT_TAB, "Project", "Current project"), (PLUGIN_TAB, "Plugins", "Plugin database")] {
+        let w = ui.c.text_width(font, name) + 16.0;
+        let r = Rect::new(x, 83.0 + dy, w, 28.0);
+        let hov = ui.hit(r, Action::BrowserTab(i), tip);
+        let open = s.browser_tab == i;
+        ui.c.text(font, x + 8.0, 88.0 + dy, if open || hov { t.text } else { t.text_dim }, name);
+        if open {
+            ui.c.fill_rect(Rect::new(x + 4.0, r.bottom() - 2.0, w - 8.0, 2.0), t.accent);
+        }
+        x += w;
+    }
+    let tool = |ui: &mut Ui, r: Rect, icon: Icon, action: Action, hint: &'static str, lit: bool| {
+        let hov = ui.hit(r, action, hint);
+        icons::draw(ui.c, icon, r.inset(2.0), if hov || lit { t.glyph } else { t.text_dim });
+    };
+    let at = menu_at(s);
+    let menu_open = s.playlist.popup.as_ref().is_some_and(|p| p.x == at.0 && p.y == at.1);
+    tool(ui, Rect::new(bw - 24.0, 88.0 + dy, 18.0, 18.0), Icon::Gear, Action::BrowserMenu, "Browser options", menu_open);
+    let y = 116.0 + dy;
+    tool(ui, Rect::new(bw - 44.0, y + 1.0, 18.0, 18.0), Icon::CollapseAll, Action::BrowserCollapse, "Collapse structure (Ctrl+Up)", false);
+    tool(ui, Rect::new(bw - 24.0, y + 1.0, 18.0, 18.0), Icon::Refresh, Action::BrowserReread, "Reread structure (Ctrl+R)", false);
+    let field = Rect::span(10.0, bw - 50.0, y, y + 20.0);
+    search_box(ui, s, field);
+    if s.browser_search.is_empty() && !s.browser_search_focus {
+        ui.c.text(os_ui::Font::new(14), field.x + 5.0, field.y + 1.0, t.text_faint, "Search");
+    }
+    icons::draw(ui.c, Icon::Search, Rect::new(field.right() - 18.0, field.y + 3.0, 14.0, 14.0), t.text_dim);
 }
 
 /// The search field (spec §5): typed text, a caret while focused; click focuses.

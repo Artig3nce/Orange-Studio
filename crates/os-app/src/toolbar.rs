@@ -29,7 +29,7 @@ pub const FLEX_EDIT_W: f32 = 16.0;
 /// The preset file's extension.
 pub const EXT: &str = "lstoolbar";
 /// The settings key of the layout.
-const KEY: &str = "toolbar_layout";
+const KEY: &str = "toolbar_layout_v2";
 
 /// What the toolbar can hold.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -51,6 +51,8 @@ pub enum Panel {
     Pattern,
     Windows,
     Tools,
+    /// The Playlist's tools, for the docked layout, which has no title row on the Playlist.
+    PlTools,
     /// A fixed space (`SPACE_W`).
     Space,
     /// A space that grows: the flexible spaces of a row share what the window leaves over.
@@ -58,7 +60,7 @@ pub enum Panel {
 }
 
 /// Every panel, in the palette's order.
-pub const PANELS: [Panel; 19] = [
+pub const PANELS: [Panel; 20] = [
     Panel::Menu,
     Panel::Hint,
     Panel::Caption,
@@ -76,6 +78,7 @@ pub const PANELS: [Panel; 19] = [
     Panel::Pattern,
     Panel::Windows,
     Panel::Tools,
+    Panel::PlTools,
     Panel::Space,
     Panel::Flex,
 ];
@@ -101,6 +104,7 @@ impl Panel {
             Panel::Pattern => "pattern",
             Panel::Windows => "windows",
             Panel::Tools => "tools",
+            Panel::PlTools => "playlist-tools",
             Panel::Space => "space",
             Panel::Flex => "flex",
         }
@@ -130,6 +134,7 @@ impl Panel {
             Panel::Pattern => "Pattern picker",
             Panel::Windows => "Window buttons",
             Panel::Tools => "Pickers and tools",
+            Panel::PlTools => "Playlist tools",
             Panel::Space => "Space",
             Panel::Flex => "Flexible space",
         }
@@ -161,6 +166,7 @@ impl Panel {
             Panel::Pattern => (1, 834.0, 967.0),
             Panel::Windows => (1, 967.0, 1136.0),
             Panel::Tools => (1, 1136.0, 1270.0),
+            Panel::PlTools => (0, 1500.0, 1770.0),
             Panel::Space => (0, 0.0, SPACE_W),
             Panel::Flex => (0, 0.0, 0.0),
         }
@@ -192,6 +198,7 @@ impl Panel {
             Panel::Pattern => 962.0,
             Panel::Windows => 1003.0,
             Panel::Tools => 1168.0,
+            Panel::PlTools => 1768.0,
             Panel::Space | Panel::Flex => 0.0,
         }
     }
@@ -250,6 +257,11 @@ impl Default for Layout {
 }
 
 impl Layout {
+    /// The top of the docked layout: one row, with the logo.
+    pub fn docked() -> Layout {
+        Layout { rows: vec![vec![Menu, Volume, Pitch, SongPos, Flex, PlTools, Transport, Time, Flex, Modes, Snap, Hint, Caption]], logo: true }
+    }
+
     /// The layout of spec ui/main-window.md §1-3.
     pub fn classic() -> Layout {
         PRESETS[0].layout()
@@ -317,7 +329,7 @@ impl Layout {
     /// The layout kept in `settings.txt`; the classic one when there is none or it cannot be read. Tests start with
     /// "Caption left", every panel at its home, where they measure the panels.
     pub fn load() -> Layout {
-        let first = if cfg!(test) { PRESETS[CAPTION_LEFT].layout() } else { Layout::classic() };
+        let first = if cfg!(test) { PRESETS[CAPTION_LEFT].layout() } else { Layout::docked() };
         crate::settings_file::get(KEY).and_then(|v| Layout::parse(&v)).unwrap_or(first)
     }
 

@@ -117,7 +117,9 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
     let r = inner.unwrap_or(r);
     let client = super::window_frame_ex(ui, Win::Mixer, Rect::new(r.x, r.y, r.w - panel_w, r.h), "", 0.0, false, inner.is_some());
     // The window's own rim, like the toolbar readouts and the other windows (theme token `display_edge`).
-    super::display_edge(ui.c, ui.t, outer, if super::lemon(ui) { os_ui::kit::lemon::r_panel(ui.t) } else { 0.0 });
+    if !s.is_fixed(Win::Mixer) {
+        super::display_edge(ui.c, ui.t, outer, if super::lemon(ui) { os_ui::kit::lemon::r_panel(ui.t) } else { 0.0 });
+    }
     title_tools(ui, s, r);
     if r.h < 2.0 * TITLE_H {
         // Collapsed to the title bar: only the slot panel's title with the window buttons.
@@ -135,7 +137,7 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
     let head_h = if wide { HEAD_Y1 - HEAD_Y0 } else { g.head_h };
 
     let strips = Rect::new(r.x, client.y, r.w - panel_w - 7.0, client.h);
-    ui.c.fill_rect(Rect::new(r.x, client.y, r.w - panel_w, client.h), ui.t.s(0x232527));
+    ui.c.fill_rect(Rect::new(r.x, client.y, r.w - panel_w, client.h), if s.is_fixed(Win::Mixer) { ui.t.window_title } else { ui.t.s(0x232527) });
     ui.hit(strips, Action::MixerArea, "Mixer");
     let inserts = mx::inserts(s);
     let bottom = r.bottom();
@@ -1239,8 +1241,9 @@ fn fader_handle(ui: &mut Ui, cx: f32, cy: f32, selected: bool, hov: bool) {
 
 fn slot_panel(ui: &mut Ui, s: &State, r: Rect) {
     let t = ui.t;
-    ui.c.fill_rect(r, ui.t.s(0x2e3133));
-    ui.c.fill_rect(Rect::new(r.x - 1.0, r.y, 1.0, r.h), ui.t.s(0x1b1e20));
+    let docked = s.is_fixed(Win::Mixer);
+    ui.c.fill_rect(r, if docked { t.window_title } else { ui.t.s(0x2e3133) });
+    ui.c.fill_rect(Rect::new(r.x - 1.0, r.y, 1.0, r.h), if docked { t.window_title } else { ui.t.s(0x1b1e20) });
     ui.hit(r, Action::Swallow, "");
     let n = s.selected_mixer;
     let track = s.project.mixer.iter().find(|m| m.index == n);
@@ -1252,19 +1255,23 @@ fn slot_panel(ui: &mut Ui, s: &State, r: Rect) {
     ui.c.fill_rect(Rect::new(r.x, r.y, r.w, 23.0), t.window_title);
     ui.c.text_clip(Font::new(17), r.x + 1.0, r.y + 2.0, r.w - 70.0, ui.t.tx(0xd4dade), &title);
     ui.hit(Rect::new(r.x, r.y, r.w, 23.0), Action::WinDrag(Win::Mixer), "Drag to move");
-    window_buttons(ui, Win::Mixer, r.right() - 58.0, r.y, ui.t.tx(0xd4dade), ui.t.tx(0xffffff));
+    if !s.is_fixed(Win::Mixer) {
+        window_buttons(ui, Win::Mixer, r.right() - 58.0, r.y, ui.t.tx(0xd4dade), ui.t.tx(0xffffff));
+    }
     if r.h < 2.0 * TITLE_H {
         return;
     }
     // Squish: the slot rows and the equalizer graph shrink with the height (the knob rows under
     // the graph are dropped when they no longer fit); the top and bottom rows keep their size.
     let room = r.h - 125.0;
-    let kp = ((room - 15.0) / 503.0).clamp(0.3, 1.0);
+    // The docked layout has no equalizer here: all the slots, as tall as the panel lets them be.
+    let slot_count = if s.is_fixed(Win::Mixer) { os_model::SLOTS } else { 10 };
+    let kp = if s.is_fixed(Win::Mixer) { ((r.h - 145.0) / (33.0 * slot_count as f32)).clamp(0.3, 1.0) } else { ((room - 15.0) / 503.0).clamp(0.3, 1.0) };
     let knobs = room >= 579.0;
     let q = kp.max(0.55);
     // Input row: the record-source icon with its label, the input combo, the input latency clock (not available yet:
     // greyed out). Spec: audio/track-io.md §1.1, §2.3.
-    let input_bg = ui.t.s(0x2b2e30);
+    let input_bg = if docked { t.window_title } else { ui.t.s(0x2b2e30) };
     ui.c.fill_rect(Rect::new(r.x, r.y + 23.0, r.w, 36.0), input_bg);
     let io = track.map_or((-1, os_model::REC_POST_EQ), |m| (m.audio_in, m.rec_source));
     let icon = Rect::new(r.x + 3.0, r.y + 28.0, 21.0, 23.0);
@@ -1293,8 +1300,8 @@ fn slot_panel(ui: &mut Ui, s: &State, r: Rect) {
     ui.off(clock, "Input latency");
     ui.veil(clock, input_bg);
 
-    // Ten effect slots.
-    for i in 0..10 {
+    // The effect slots.
+    for i in 0..slot_count {
         let row = Rect::new(r.x + 1.0, r.y + 61.0 + 33.0 * kp * i as f32, r.w - 2.0, 28.0 * kp);
         let k = i as u8;
         let plugin = mx::slot_name(s, n, k);
@@ -1303,27 +1310,34 @@ fn slot_panel(ui: &mut Ui, s: &State, r: Rect) {
         let ha = ui.hit(Rect::new(row.x, row.y, 19.0, row.h), Action::Mix(MHit::SlotArrow(k)), hint.clone());
         let hn = ui.hit(Rect::new(row.x + 19.0, row.y, row.w - 64.0, row.h), Action::Mix(MHit::SlotName(k)), hint);
         let hov = ha || hn;
-        if super::lemon(ui) {
+        if docked {
+            // A pill, in the mixer strips' colours.
+            let pill = Rect::new(row.x + 2.0, row.y, row.w - 4.0, row.h);
+            ui.c.fill_rrect(pill, pill.h / 2.0, super::MANGO_MIXER_RIM);
+            ui.c.fill_rrect(pill.inset(1.0), (pill.h - 2.0) / 2.0, Color::rgb(if hov { 0x2a2a2a } else { 0x1a1a1a }));
+        } else if super::lemon(ui) {
             let face = if hov { ui.t.s(0x2f3335) } else { ui.t.s(0x2a2d2f) };
             lk::outlined(ui.c, Rect::new(row.x + 2.0, row.y, row.w - 4.0, row.h), lk::r_btn(t).min(row.h / 2.0), ui.t.s(0x1f2224), face);
         } else {
             ui.c.fill_rect(row, ui.t.s(0x1f2224));
             ui.c.fill_rect(row.inset(1.0), if hov { ui.t.s(0x2f3335) } else { ui.t.s(0x2a2d2f) });
         }
-        chevron(ui, row.x + 10.0, row.cy(), true, if ha { ui.t.tx(0xffffff) } else { ui.t.tx(0xc4ccd0) });
+        let inset = if docked { 4.0 } else { 0.0 };
+        chevron(ui, row.x + 10.0 + inset, row.cy(), true, if ha { ui.t.tx(0xffffff) } else { ui.t.tx(0xc4ccd0) });
         let (f, name, ink) = match &plugin {
-            Some(p) => (Font::new(fs), p.to_string(), ui.t.tx(0xc9d0d4)),
+            Some(p) => (Font::new(fs), p.to_string(), if docked { t.text } else { ui.t.tx(0xc9d0d4) }),
+            None if docked => (Font::new(fs), format!("Slot {}", i + 1), t.text_dim),
             None => (Font::new(fs).italic(), format!("Slot {}", i + 1), ui.t.s(0x50575b)),
         };
         // Lemon centres the name's capitals on the row, level with the chevron, knob and LED: the baseline sits half a
         // cap height (the face's is about 0.72 of its size) under the middle, measured on the face drawn (the italic
         // one has its own ascent). Classic keeps FL's place.
         let ty = if super::lemon(ui) { (row.cy() + 0.36 * f32::from(fs) - ui.c.ascent(f)).round() } else { row.y + 4.0 * kp };
-        ui.c.text_clip(f, row.x + 19.0, ty, 140.0, ink, &name);
+        ui.c.text_clip(f, row.x + 19.0 + inset, ty, 140.0 - inset, ink, &name);
         let mix = KnobId::SlotMix(n, k);
         if super::lemon(ui) {
             // The Orange skin: a level bar like the mixer's pan and separation bars.
-            let cx = row.right() - 33.0;
+            let cx = row.right() - 33.0 - inset;
             ui.hit(Rect::new(cx - 16.0, row.y, 32.0, row.h), Action::Knob(mix), s.knob_text(mix));
             centre_bar(ui, cx, row.cy(), 15.0, 8.0, s.knob(mix), Bar::Level);
         } else {
@@ -1331,12 +1345,13 @@ fn slot_panel(ui: &mut Ui, s: &State, r: Rect) {
             mixer_knob(ui, row.right() - 33.0, row.cy(), 10.5 * q, 12.0 * q, s.knob(mix), Some(false));
             ui.c.stroke_circle(row.right() - 33.0, row.cy(), 11.8 * q, 1.5, ui.t.s(0x55595c));
         }
-        ui.hit(Rect::new(row.right() - 18.0, row.y, 18.0, row.h), Action::Mix(MHit::SlotLed(k)), "Mute / solo  (ctrl)0..9");
-        led_small(ui, row.right() - 10.0, row.cy(), track.is_none_or(|m| m.slot_on[i]));
+        ui.hit(Rect::new(row.right() - 18.0 - inset, row.y, 18.0, row.h), Action::Mix(MHit::SlotLed(k)), "Mute / solo  (ctrl)0..9");
+        led_small(ui, row.right() - 10.0 - inset, row.cy(), track.is_none_or(|m| m.slot_on[i]));
     }
-    let sep = r.y + 61.0 + 330.0 * kp;
+    let sep = r.y + 61.0 + 33.0 * slot_count as f32 * kp;
     ui.c.fill_rect(Rect::new(r.x, sep, r.w, 1.0), ui.t.s(0x1f2224));
 
+    if !s.is_fixed(Win::Mixer) {
     // Equalizer: response graph, three band gain faders (±18 dB), band frequency and width knobs (spec: ui/mixer.md §8).
     let eq = Rect::new(r.x + 4.0, sep + 11.0, 146.0, 173.0 * kp);
     let settings = track.map_or(os_model::EQ_DEFAULT, |m| m.eq);
@@ -1413,6 +1428,7 @@ fn slot_panel(ui: &mut Ui, s: &State, r: Rect) {
     g.polygon(&[(r.x + 135.0, ay), (r.x + 139.0, ay - 3.0), (r.x + 139.0, ay + 3.0)]).polygon(&[(r.x + 151.0, ay), (r.x + 147.0, ay - 3.0), (r.x + 147.0, ay + 3.0)]);
     if knobs {
         ui.c.glyph(ui.t.tx(0x8c969c), &g);
+    }
     }
     let b = r.bottom();
 

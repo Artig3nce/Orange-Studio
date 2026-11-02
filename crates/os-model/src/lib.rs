@@ -147,7 +147,7 @@ impl ControllerLink {
     /// The controller's mixer track and slot, when it sits in a mixer slot (FL 24.2 places).
     pub fn source_slot(&self) -> Option<(u16, u8)> {
         let s = self.source();
-        (0x7000..0x7000 + 128 * 64).contains(&s).then(|| ((s - 0x7000) / 64, ((s - 0x7000) % 64) as u8)).filter(|&(_, k)| k < 10)
+        (0x7000..0x7000 + 128 * 64).contains(&s).then(|| ((s - 0x7000) / 64, ((s - 0x7000) % 64) as u8)).filter(|&(_, k)| usize::from(k) < SLOTS)
     }
 
     /// The driven target, as an automation target id ([`target`]).
@@ -1366,6 +1366,9 @@ impl Note {
     }
 }
 
+/// Effect slots on a mixer track. FL Studio has ten: a project using more keeps them when opened here.
+pub const SLOTS: usize = 16;
+
 #[derive(Debug, Clone)]
 pub struct MixerTrack {
     /// 0 = Master.
@@ -1373,8 +1376,8 @@ pub struct MixerTrack {
     pub name: Option<String>,
     pub color: Option<Rgb>,
     pub enabled: bool,
-    /// Effects by slot (0..10); `None` = empty slot.
-    pub slots: [Option<SlotPlugin>; 10],
+    /// Effects by slot (0..SLOTS); `None` = empty slot.
+    pub slots: [Option<SlotPlugin>; SLOTS],
     /// Destination tracks this track sends to.
     pub routes: Vec<u16>,
     /// Explicit send levels `(destination, level 0..=1)`; routes without an entry send at unity
@@ -1392,8 +1395,8 @@ pub struct MixerTrack {
     /// The track's "effects enabled" switch (event 236 flag 0x04): when off no slot runs.
     pub slots_enabled: bool,
     /// Per slot: enabled (the slot LED) and mix level 0..=1 (spec: ui/mixer.md §7).
-    pub slot_on: [bool; 10],
-    pub slot_mix: [f64; 10],
+    pub slot_on: [bool; SLOTS],
+    pub slot_mix: [f64; SLOTS],
     /// The three-band equaliser as stored, per band `[gain, frequency, width]`: gain -1800..=1800 in 0.01 dB,
     /// frequency and width 0..=65536 (spec: audio/mixer.md "Equaliser"). Band 1 low shelf, 2 peaking, 3 high shelf.
     pub eq: [[i32; 3]; 3],
@@ -1507,8 +1510,8 @@ impl MixerTrack {
             polarity: false,
             swap: false,
             slots_enabled: true,
-            slot_on: [true; 10],
-            slot_mix: [1.0; 10],
+            slot_on: [true; SLOTS],
+            slot_mix: [1.0; SLOTS],
             eq: EQ_DEFAULT,
             latency_out: 0.0,
             latency_in: 0.0,
@@ -2013,7 +2016,7 @@ pub mod target {
         u32::from(0x7000 + track * 64) << 16 | 0x1F00 | u32::from(id)
     }
 
-    /// Setting `id` ([`SLOT_ON`], [`SLOT_MIX`]) of mixer track `track`'s slot `slot` (0..9).
+    /// Setting `id` ([`SLOT_ON`], [`SLOT_MIX`]) of mixer track `track`'s slot `slot` (0..SLOTS).
     pub fn slot(track: u16, slot: u8, id: u8) -> u32 {
         u32::from(0x7000 + track * 64 + u16::from(slot)) << 16 | 0x1F00 | u32::from(id)
     }
@@ -2032,7 +2035,7 @@ pub mod target {
         channel(ch, PLUGIN_PARAM | (k & 0x7FFF))
     }
 
-    /// Parameter `k` of the plugin in mixer track `track`'s slot `slot` (0..9).
+    /// Parameter `k` of the plugin in mixer track `track`'s slot `slot` (0..SLOTS).
     pub fn slot_param(track: u16, slot: u8, k: u16) -> u32 {
         u32::from(0x7000 + track * 64 + u16::from(slot)) << 16 | u32::from(PLUGIN_PARAM | (k & 0x7FFF))
     }
@@ -2110,7 +2113,7 @@ pub mod target {
         let lo = t as u16;
         if (0x7000..0x7000 + 128 * 64).contains(&hi) && lo >= PLUGIN_PARAM {
             let loc = hi - 0x7000;
-            if loc % 64 < 10 {
+            if usize::from(loc % 64) < crate::SLOTS {
                 return Target::SlotParam(loc / 64, (loc % 64) as u8, lo - PLUGIN_PARAM);
             }
         }
@@ -2118,7 +2121,7 @@ pub mod target {
             return Target::ChannelParam(hi, lo - PLUGIN_PARAM);
         }
         // Mixer places from FL 24.2 on (spec: flp/layouts.md "Mixer places", "Parameter ids in an automation link").
-        if (0x7000..0x7000 + 127 * 64).contains(&hi) && (hi - 0x7000) % 64 < 10 {
+        if (0x7000..0x7000 + 127 * 64).contains(&hi) && usize::from((hi - 0x7000) % 64) < crate::SLOTS {
             let (track, slot) = ((hi - 0x7000) / 64, ((hi - 0x7000) % 64) as u8);
             let id = lo as u8;
             return match lo >> 8 {

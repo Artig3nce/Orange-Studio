@@ -4232,12 +4232,14 @@ pub fn press_ruler(app: &mut App, grid: Rect, right: bool) {
         s.playlist.last_ruler = None;
         app.drag = Some(Drag::Pl(PlDrag::TimeSel { t0: t }));
     } else {
-        // A double click clears the time selection (a Lemon Studio choice, besides FL's right click).
+        // A double click clears the time selection and the clip selection (a Lemon Studio choice, besides FL's right
+        // click).
         let now = std::time::Instant::now();
         let double = s.playlist.last_ruler.is_some_and(|t| now.duration_since(t).as_millis() < 450);
         s.playlist.last_ruler = (!double).then_some(now);
         if double {
             s.playlist.range = None;
+            s.playlist.sel.clear();
         }
         s.playlist.pos = snap_down(s, &g, g.tick_at(x), alt);
         // Moving the song position switches to SONG mode; a time selection does not (§7). The initial values follow

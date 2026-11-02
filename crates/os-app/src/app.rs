@@ -19476,6 +19476,21 @@ mod tests {
         app.mouse_up();
     }
 
+    /// A double click on the playlist's ruler deselects the clips; one click leaves them selected.
+    #[test]
+    fn a_ruler_double_click_deselects_the_clips() {
+        use crate::playlist as pl;
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let (mut app, ruler, g, bar) = ruler_app(&mut c);
+        pl::arr_mut(&mut app.state).clips = vec![os_model::Clip::new(0, bar, 0, os_model::ClipSource::Pattern(1))];
+        app.state.playlist.sel = vec![0];
+        let x = g.grid.x + 300.0;
+        ruler_press(&mut app, &mut c, x, x, ruler.cy(), false);
+        assert_eq!(app.state.playlist.sel, [0], "one click keeps them");
+        ruler_press(&mut app, &mut c, x, x, ruler.cy(), false);
+        assert!(app.state.playlist.sel.is_empty());
+    }
+
     /// Clicking a clip trimmed at both ends and placing the next one repeats the trim: the same part, the same length.
     #[test]
     fn a_trimmed_clip_is_placed_as_trimmed() {

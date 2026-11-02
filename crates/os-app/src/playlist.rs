@@ -715,6 +715,8 @@ pub struct PlaylistState {
     pub pos: u32,
     /// Time selection (ticks).
     pub range: Option<(u32, u32)>,
+    /// While the clips of the time selection are dragged: where the selection started from.
+    pub range_drag: Option<(u32, u32)>,
     pub clipboard: Vec<Clip>,
     /// The clip gain copied from a gain handle's menu (`Cmd::GainCopy`).
     pub gain_clip: Option<f32>,
@@ -775,6 +777,7 @@ impl Default for PlaylistState {
             track: 0,
             pos: 0,
             range: None,
+            range_drag: None,
             clipboard: Vec::new(),
             gain_clip: None,
             overlay: None,
@@ -1905,6 +1908,22 @@ pub fn copy(s: &mut State) {
     }
     let idx = if s.playlist.sel.is_empty() { Vec::new() } else { s.playlist.sel.clone() };
     s.playlist.clipboard = idx.iter().filter_map(|&i| clips(s).get(i).copied()).collect();
+}
+
+/// Remove what the time selection covers and return it: clips across its edges are cut there, and the clips after it
+/// stay where they are. Nothing without a time selection.
+fn take_range(s: &mut State) -> Vec<Clip> {
+    let Some((r0, r1)) = s.playlist.range.filter(|r| r.1 > r.0) else { return Vec::new() };
+    for t in [r0, r1] {
+        let ids: Vec<usize> = clips(s).iter().enumerate().filter(|(_, c)| c.position < t && c.end() > t).map(|(i, _)| i).collect();
+        for i in ids {
+            split(s, i, t);
+        }
+    }
+    let inside: Vec<usize> = clips(s).iter().enumerate().filter(|(_, c)| c.position >= r0 && c.end() <= r1).map(|(i, _)| i).collect();
+    let taken = inside.iter().map(|&i| clips(s)[i]).collect();
+    delete(s, inside);
+    taken
 }
 
 /// Paste at the song position, keeping the clips' tracks and spacing.
@@ -3544,6 +3563,17 @@ pub fn press_grid(app: &mut App, grid: Rect, right: bool) {
                 s.playlist.picker = source_kind(s, c.source);
                 // A trimmed clip is what gets placed next; an untrimmed one clears it.
                 s.playlist.lock_clip = trimmed(s, &c).then_some(c);
+                // A clip inside the highlighted time range: every clip in the range goes along, and the highlight too.
+                s.playlist.range_drag = None;
+                if edge(g.clip_rect(&c), x) == 0
+                    && let Some((r0, r1)) = s.playlist.range.filter(|&(a, b)| b > a && c.position >= a && c.end() <= b)
+                {
+                    let inside: Vec<usize> = clips(s).iter().enumerate().filter(|(_, c)| c.position >= r0 && c.end() <= r1).map(|(j, _)| j).collect();
+                    if s.playlist.sel.iter().all(|j| inside.contains(j)) {
+                        s.playlist.sel = inside;
+                        s.playlist.range_drag = Some((r0, r1));
+                    }
+                }
                 // Grouped clips go along (§3a); clicking one selects its whole group.
                 let grouped = clips(s)[i].group() != 0;
                 let mut group = with_groups(s, if s.playlist.sel.contains(&i) { s.playlist.sel.clone() } else { vec![i] });
@@ -3657,7 +3687,7 @@ pub fn drag_move(app: &mut App, d: PlDrag, grid: Rect) {
     let stretching = !app.state.playlist.stretch_base.is_empty() && matches!(d, PlDrag::ResizeL { .. } | PlDrag::ResizeR { .. });
     let handle = matches!(d, PlDrag::Fade { .. } | PlDrag::FadeTension { .. } | PlDrag::Gain { .. } | PlDrag::Crossfade { .. });
     let moved: Option<Vec<usize>> = match &d {
-        _ if stretching => None,
+        _ if stretching || app.state.playlist.range_drag.is_some() => None,
         PlDrag::Move { orig, .. } | PlDrag::ResizeL { orig, .. } | PlDrag::ResizeR { orig, .. } => Some(orig.iter().map(|&(i, _)| i).collect()),
         PlDrag::Slip { i, .. } => Some(vec![*i]),
         PlDrag::Fade { clip, .. } | PlDrag::FadeTension { clip, .. } | PlDrag::Gain { clip, .. } => Some(vec![*clip]),
@@ -3688,6 +3718,10 @@ pub fn drag_move(app: &mut App, d: PlDrag, grid: Rect) {
             let mut dt = snap_delta(s, &g, (x - x0) / g.ppt, alt);
             let min_pos = orig.iter().map(|(_, c)| i64::from(c.position)).min().unwrap_or(0);
             dt = dt.max(-min_pos);
+            if let Some((r0, r1)) = s.playlist.range_drag {
+                dt = dt.max(-i64::from(r0));
+                s.playlist.range = Some(((i64::from(r0) + dt) as u32, (i64::from(r1) + dt) as u32));
+            }
             let dk = i32::from(g.track_at(y)) - i32::from(g.track_at(y0));
             let lo = orig.iter().map(|(_, c)| i32::from(c.track)).min().unwrap_or(0);
             let hi = orig.iter().map(|(_, c)| i32::from(c.track)).max().unwrap_or(0);
@@ -3781,6 +3815,10 @@ pub fn drag_move(app: &mut App, d: PlDrag, grid: Rect) {
         PlDrag::TimeSel { t0 } => {
             let t = snap_round(s, &g, g.tick_at(x), alt);
             s.playlist.range = (t != t0).then(|| (t0.min(t), t0.max(t)));
+            // What's highlighted now is what the editing keys work on.
+            if s.playlist.range.is_some() {
+                s.playlist.sel.clear();
+            }
         }
         PlDrag::Marker { i, t0, .. } => {
             let t = snap_round(s, &g, g.tick_at(x), alt);
@@ -3900,6 +3938,7 @@ pub fn drag_end(app: &mut App, d: PlDrag, grid: Rect) {
     let s = &mut app.state;
     let g = PGeom::new(s, grid);
     let overlay = s.playlist.overlay.take();
+    s.playlist.range_drag = None;
     // A resized clip is what gets placed next.
     if let PlDrag::ResizeL { orig, .. } | PlDrag::ResizeR { orig, .. } = &d
         && let Some(c) = orig.first().and_then(|&(i, _)| clips(s).get(i)).copied()
@@ -4615,10 +4654,14 @@ pub fn run(app: &mut App, cmd: Cmd) -> Option<String> {
             None
         }
         Cmd::Cut => {
-            copy(s);
             snapshot(s);
-            let sel = s.playlist.sel.clone();
-            delete(s, sel);
+            if s.playlist.sel.is_empty() {
+                s.playlist.clipboard = take_range(s);
+            } else {
+                copy(s);
+                let sel = s.playlist.sel.clone();
+                delete(s, sel);
+            }
             None
         }
         Cmd::GainCopy(i) => {
@@ -4649,8 +4692,12 @@ pub fn run(app: &mut App, cmd: Cmd) -> Option<String> {
         }
         Cmd::Delete => {
             snapshot(s);
-            let sel = s.playlist.sel.clone();
-            delete(s, sel);
+            if s.playlist.sel.is_empty() {
+                take_range(s);
+            } else {
+                let sel = s.playlist.sel.clone();
+                delete(s, sel);
+            }
             None
         }
         Cmd::ShiftTime(d) => {

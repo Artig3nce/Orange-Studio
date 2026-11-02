@@ -19227,6 +19227,62 @@ mod tests {
         app.act(Action::Stop);
     }
 
+    /// Ctrl+X on a highlighted time range takes what's in it, cutting clips at its edges; Ctrl+V brings it back.
+    #[test]
+    fn ctrl_x_cuts_the_highlighted_range() {
+        use crate::playlist as pl;
+        use winit::keyboard::Key;
+        let mut app = App::new(None);
+        let bar = app.state.project.bar_ticks();
+        let src = os_model::ClipSource::Pattern(1);
+        pl::arr_mut(&mut app.state).clips = vec![os_model::Clip::new(0, bar, 0, src), os_model::Clip::new(bar, bar, 1, src), os_model::Clip::new(bar * 2, bar * 2, 2, src), os_model::Clip::new(bar * 5, bar, 3, src)];
+        app.state.playlist.sel.clear();
+        app.state.playlist.range = Some((bar, bar * 3));
+        app.state.raise(Win::Playlist);
+        app.key(&Key::Character("x".into()), true, false);
+        let left = |app: &App| {
+            let mut v: Vec<_> = pl::clips(&app.state).iter().map(|c| (c.track, c.position, c.length)).collect();
+            v.sort_unstable();
+            v
+        };
+        assert_eq!(left(&app), [(0, 0, bar), (2, bar * 3, bar), (3, bar * 5, bar)], "what's in the range is gone, the rest stays put");
+        assert_eq!(app.state.playlist.clipboard.len(), 2);
+        app.state.playlist.pos = bar;
+        app.key(&Key::Character("v".into()), true, false);
+        assert_eq!(pl::clips(&app.state).len(), 5, "pasted back");
+        app.key(&Key::Character("z".into()), true, false);
+        assert_eq!(pl::clips(&app.state).len(), 3);
+        app.key(&Key::Character("z".into()), true, false);
+        assert_eq!(pl::clips(&app.state).len(), 4, "undone whole");
+    }
+
+    /// Dragging a clip inside the highlighted time range moves every clip in the range and the highlight with them.
+    #[test]
+    fn dragging_a_clip_in_the_highlight_moves_them_all() {
+        use crate::playlist as pl;
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let (mut app, _, _, _) = ruler_app(&mut c);
+        app.state.playlist_bar_w = 100.0;
+        app.state.playlist_scroll = (0.0, 0.0);
+        let bar = app.state.project.bar_ticks();
+        let src = os_model::ClipSource::Pattern(1);
+        pl::arr_mut(&mut app.state).clips = vec![os_model::Clip::new(0, bar, 0, src), os_model::Clip::new(bar, bar, 0, src), os_model::Clip::new(bar * 2, bar, 1, src)];
+        app.state.playlist.sel.clear();
+        app.state.playlist.range = Some((bar, bar * 3));
+        app.state.playlist.tool = pl::PlTool::Draw;
+        frame(&mut app, &mut c, None);
+        let g = pl::PGeom::new(&app.state, app.pl_grid().unwrap());
+        let r = g.clip_rect(&pl::clips(&app.state)[1]);
+        app.mouse_move(r.cx(), r.cy());
+        app.mouse_down();
+        app.mouse_move(r.cx() + 200.0, r.cy());
+        app.mouse_up();
+        let pos: Vec<u32> = pl::clips(&app.state).iter().map(|c| c.position / bar).collect();
+        assert_eq!(pos, [0, 3, 4], "the two in the range moved two bars, the one outside stayed");
+        assert_eq!(app.state.playlist.range, Some((bar * 3, bar * 5)));
+        assert_eq!(app.state.playlist.range_drag, None);
+    }
+
     /// Clicking a clip trimmed at both ends and placing the next one repeats the trim: the same part, the same length.
     #[test]
     fn a_trimmed_clip_is_placed_as_trimmed() {

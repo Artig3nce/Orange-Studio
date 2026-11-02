@@ -109,6 +109,11 @@ zip = { version = "9.1.2", default-features = false, features = ["deflate"] }
 # machine without MIDI). AMIDI can replace it when Android MIDI arrives.
 midir = "0.11"
 
+[features]
+default = ["asio"]
+# ASIO on Windows. Off for a cross-build with MinGW, which cannot build it: such a build plays through WASAPI only.
+asio = ["dep:asio-sys"]
+
 [target.'cfg(target_os = "android")'.dependencies]
 # The event loop runs on the NativeActivity (`mobile::run`).
 winit = { version = "0.30", features = ["android-native-activity"] }
@@ -120,7 +125,7 @@ jni = "0.21"
 
 [target.'cfg(windows)'.dependencies]
 # ASIO output (`device::asio`), built from the ASIO SDK's host files in `asiosdk` (`.cargo/config.toml`).
-asio-sys = "0.4"
+asio-sys = { version = "0.4", optional = true }
 # WASAPI exclusive and low-latency shared output (`device::wasapi`): the version cpal is built with.
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Media_Audio", "Win32_Media_KernelStreaming", "Win32_Media_Multimedia", "Win32_Devices_Properties", "Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_System_Threading", "Win32_System_Variant", "Win32_UI_Shell_PropertiesSystem"] }
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_LibraryLoader", "Win32_Storage_Xps", "Win32_System_Threading", "Win32_System_Memory", "Win32_System_ProcessStatus", "Win32_System_Diagnostics_ToolHelp", "Win32_UI_Shell", "Win32_System_Com", "Win32_System_Diagnostics_Debug", "Win32_UI_HiDpi", "Win32_System_Registry"] }

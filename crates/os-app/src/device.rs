@@ -31,7 +31,10 @@ use crossbeam_queue::ArrayQueue;
 
 use crate::audio_cfg::{self, AudioCfg, BUFFERS};
 
-#[cfg(windows)]
+#[cfg(all(windows, feature = "asio"))]
+mod asio;
+#[cfg(all(windows, not(feature = "asio")))]
+#[path = "device/asio_off.rs"]
 mod asio;
 #[cfg(windows)]
 mod wasapi;

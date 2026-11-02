@@ -787,7 +787,7 @@ mod tests {
         let mut p = crate::app::default_project();
         let ch = p.channels[0].clone();
         p.channels = vec![ch.clone(), ch.clone(), ch];
-        p.channels[0].plugin = Some("Mango Sampler".into());
+        p.channels[0].plugin = Some("Orange Sampler".into());
         p.channels[1].plugin = Some(String::new());
         p.channels[2].plugin = None;
         (p.channels[0].mixer_track, p.channels[1].mixer_track, p.channels[2].mixer_track) = (1, 1, 0);

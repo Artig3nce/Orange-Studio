@@ -22,7 +22,7 @@ const INDENT: f32 = 13.0;
 pub const LIST_Y: f32 = 142.0;
 /// Footer height below the list.
 pub const FOOTER_H: f32 = 28.0 + BRAND_H;
-/// The strip over the footer with the logo and "Mango Studio".
+/// The strip over the footer with the logo and "Orange Studio".
 pub const BRAND_H: f32 = 34.0;
 
 /// Category colour indices (`cat_color`); 255 = folder.
@@ -734,7 +734,7 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect) {
     icons::logo_colour(ui.c, 13.0 + lr, by + BRAND_H / 2.0, lr);
     let f = os_ui::Font::new(16);
     let ty = (by + (BRAND_H - ui.c.line_height(f)) / 2.0).round();
-    ui.c.text(f, 13.0 + 2.0 * lr + 8.0, ty, t.text, "Mango Studio");
+    ui.c.text(f, 13.0 + 2.0 * lr + 8.0, ty, t.text, "Orange Studio");
     ui.c.fill_rect(Rect::new(0.0, fy, bw, 27.0), t.browser_footer);
     // Tags: not available yet, greyed out.
     let tags = Rect::new(13.0, fy + 4.0, 41.0, 20.0);

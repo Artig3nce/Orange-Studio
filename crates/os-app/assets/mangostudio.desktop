@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Mango Studio
+Name=Orange Studio
 GenericName=Digital Audio Workstation
 Comment=Pattern-based music production
 Exec=mangostudio %f

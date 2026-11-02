@@ -638,7 +638,7 @@ impl Logic {
             return vec![Act::Repaint];
         }
         if i == 8 && !self.hosted && !right {
-            self.say("Dump score sends the slices to the piano roll of Mango Studio");
+            self.say("Dump score sends the slices to the piano roll of Orange Studio");
             return vec![Act::Repaint];
         }
         match (i, right) {
@@ -756,7 +756,7 @@ impl Logic {
                 let i = self.chosen(&st);
                 format!("Reverse slice\t{}", if st.slices.get(i).is_some_and(|s| s.reversed()) { "on" } else { "off" })
             }
-            Some(Target::Logo) => "Mango Slicex".into(),
+            Some(Target::Logo) => "Orange Slicex".into(),
             Some(Target::Ext(c)) => self.ext_hint(*c),
             None => String::new(),
         }
@@ -1100,7 +1100,7 @@ impl Logic {
                 }
             }
             MenuReq::About => {
-                m.head("Mango Slicex", Cmd::None);
+                m.head("Orange Slicex", Cmd::None);
                 m.add(MenuItem::item(&format!("Version {}", env!("CARGO_PKG_VERSION"))).enabled(false), Cmd::None);
                 m.add(MenuItem::item("Lemon Studio's recreation of Slicex").enabled(false), Cmd::None);
             }
@@ -1698,7 +1698,7 @@ impl Logic {
 
     /// What the playlist hear about: said once the host answered.
     pub fn sent(&mut self, ok: bool) {
-        self.say(if ok { "Sent to the playlist" } else { "Only Mango Studio takes the loop as an audio clip" });
+        self.say(if ok { "Sent to the playlist" } else { "Only Orange Studio takes the loop as an audio clip" });
     }
 
     /// The name the save dialog starts with.
@@ -1985,7 +1985,7 @@ impl Logic {
     }
 }
 
-/// Where the edited loops are kept: Mango Studio's own folder (tests use a temporary one).
+/// Where the edited loops are kept: Orange Studio's own folder (tests use a temporary one).
 fn edit_dir() -> std::path::PathBuf {
     if cfg!(test) {
         std::env::temp_dir().join(format!("lemon-slicex-test-{}", std::process::id()))
@@ -2115,7 +2115,7 @@ mod win32 {
                 last_sig: 0,
                 last_raw: u64::MAX,
             });
-            let title = pw::wide("Mango Slicex");
+            let title = pw::wide("Orange Slicex");
             let hwnd = CreateWindowExW(
                 0,
                 class.as_ptr(),

@@ -121,7 +121,7 @@ pub fn paint(c: &mut Canvas, d: &Display) {
     c.fill_rect(panel, RACK_PANEL);
     c.stroke_rrect(panel, 0.0, 1.0, Color::rgb(0x3c3c3c));
 
-    c.text(TITLE, 28.0, 22.0, brand::MAIN, "MANGO FONT");
+    c.text(TITLE, 28.0, 22.0, brand::MAIN, "ORANGE FONT");
     c.text(SMALL, 30.0, 48.0, plug::DIM, "SOUNDFONT PLAYER");
 
     c.text(SMALL, 30.0, 66.0, plug::DIM, "SOUNDFONT");

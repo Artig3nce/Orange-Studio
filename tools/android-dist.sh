@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-# Build the Mango Studio Android APK (arm64). The gradle project's shape and this flow follow
+# Build the Orange Studio Android APK (arm64). The gradle project's shape and this flow follow
 # daijro's honeydew (GPL-3.0-or-later), https://github.com/daijro/honeydew.
 # usage: tools/android-dist.sh [--debug]
 set -eu
@@ -77,5 +77,5 @@ for lib in $needed; do
     printf '%s\n' "$packed" | grep -qF "lib/arm64-v8a/$lib" ||
         { echo "the APK is missing $lib (the app's .so needs it): repack" >&2; exit 1; }
 done
-cp "$apk" Mango-Studio-android-arm64.apk
-echo "wrote Mango-Studio-android-arm64.apk"
+cp "$apk" Orange-Studio-android-arm64.apk
+echo "wrote Orange-Studio-android-arm64.apk"

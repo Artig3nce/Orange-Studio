@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Dashboard: Mango Studio's hardware panel (a recreation of FL's Dashboard) as a plugin. Twelve knobs and
+//! Orange Dashboard: Orange Studio's hardware panel (a recreation of FL's Dashboard) as a plugin. Twelve knobs and
 //! four faders that sound nothing, laid out like a machine's face: a performance links them to anything (the app's
 //! Multilink, the automation clips), records and draws their moves, and the channel rack holds the silence a voice
 //! would fill.
@@ -65,9 +65,9 @@ const CONTROLS: [Control; 16] = [
 ];
 
 pub const SPEC: &GenSpec = &GenSpec {
-    name: "Mango Dashboard",
+    name: "Orange Dashboard",
     word: "DASHBOARD",
-    about: "Mango Studio's hardware panel",
+    about: "Orange Studio's hardware panel",
     settings: &SETTINGS,
     version: None,
     any_version: false,
@@ -146,7 +146,7 @@ pub struct DashboardKind;
 impl Kind for DashboardKind {
     const SPEC: &'static GenSpec = SPEC;
     const CLAP_ID: &'static str = "org.openstudio.mango-dashboard";
-    const CLAP_DESCRIPTION: &'static str = "Mango Studio's hardware panel";
+    const CLAP_DESCRIPTION: &'static str = "Orange Studio's hardware panel";
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::Instrument, ClapFeature::Stereo];
     const VST3_CLASS_ID: [u8; 16] = *b"MangoStudioDash1";
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Instrument];

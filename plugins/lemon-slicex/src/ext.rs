@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! What Mango Slicex adds to the slicer's saved state: eight articulators (a filter and, for six targets, the sources
+//! What Orange Slicex adds to the slicer's saved state: eight articulators (a filter and, for six targets, the sources
 //! that move them), which articulator each slice plays through, the modulation pad, and the two decks' layering. It is
 //! saved next to the slicer's own state (`params::EXT_FIELD`) in a small binary form that ignores bytes it does not
 //! know, so later versions can add to it.

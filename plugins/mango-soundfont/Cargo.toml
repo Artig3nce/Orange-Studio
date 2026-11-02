@@ -1,6 +1,6 @@
 [package]
 name = "mango-soundfont"
-description = "Mango Studio's SF2 SoundFont instrument"
+description = "Orange Studio's SF2 SoundFont instrument"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

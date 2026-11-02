@@ -59,7 +59,7 @@ pub enum Instrument {
     Trio,
     Citrus,
     Sampler,
-    /// Every part chants: the channels are Mango Monk, the chanting monk.
+    /// Every part chants: the channels are Orange Monk, the chanting monk.
     Monk,
     /// The Trio with every oscillator a square: the channels take the patch as their saved state.
     EightBit,
@@ -555,7 +555,7 @@ pub(crate) fn stem_of_audio(path: &Path) -> String {
 }
 
 /// The audio import's placement (`crate::audio_file`): one part becomes one channel in pattern `n`, as the MIDI
-/// import's own parts do (the 8-bit's channel is a 3x Osc whose state is squares, the monk's a Mango Monk; no mixer
+/// import's own parts do (the 8-bit's channel is a 3x Osc whose state is squares, the monk's a Orange Monk; no mixer
 /// tracks are set and no signatures come with a melody).
 pub(crate) fn place_audio(s: &mut State, part: Part, name: &str, instrument: Instrument, n: u16) {
     let imp = Imported { parts: vec![part], ..Imported::default() };
@@ -1091,7 +1091,7 @@ mod tests {
         assert_eq!(p.ppq, 96);
         assert_eq!(p.channels.iter().map(|c| c.name.as_deref().unwrap_or("")).collect::<Vec<_>>(), ["Piano", "Bass", "Drums"]);
         assert_eq!(p.channels.iter().map(|c| c.mixer_track).collect::<Vec<_>>(), [1, 2, 3]);
-        assert!(p.channels.iter().all(|c| c.plugin.as_deref() == Some(crate::osc3::FILE_NAME)), "Mango Trio plays them");
+        assert!(p.channels.iter().all(|c| c.plugin.as_deref() == Some(crate::osc3::FILE_NAME)), "Orange Trio plays them");
         assert_eq!(p.patterns.len(), 1);
         assert_eq!(p.patterns[0].name.as_deref(), Some(stem(&path).as_str()));
         assert_eq!(p.patterns[0].notes.len(), 4);
@@ -1268,7 +1268,7 @@ mod tests {
     }
 
     /// The type combo's silly half: 8-bit gives Trio channels whose saved state is squares all round (the patch is the
-    /// channel's state, so hosting starts from it and the file keeps it), and the monk gives Mango Monk channels.
+    /// channel's state, so hosting starts from it and the file keeps it), and the monk gives Orange Monk channels.
     #[test]
     fn imported_as_eight_bit_or_monk() {
         let f = three(96);
@@ -1286,7 +1286,7 @@ mod tests {
                 assert_eq!(vals[lemon_3x_osc::params::osc(n) + lemon_3x_osc::params::SHAPE], 2, "osc {} is a square", n + 1);
             }
         }
-        // The monk: every part is a Mango Monk channel with no state of its own.
+        // The monk: every part is a Orange Monk channel with no state of its own.
         let o = Options { instrument: Instrument::Monk, ..Options::default() };
         app.import_into_project(&path, &f, &o);
         let monks: Vec<&str> = app.state.project.channels.iter().filter_map(|c| c.plugin.as_deref()).collect();

@@ -943,7 +943,7 @@ pub enum Drag {
     /// Right-drag in a channel lane deletes its points (a Lemon Studio choice, spec §7b).
     ControlErase { last_x: f32 },
     Knob { id: crate::knobs::KnobId, y0: f32, v0: f32 },
-    /// The Mango skin's pan and separation bars: the value follows the mouse across the bar (`x0`, `w`).
+    /// The Orange skin's pan and separation bars: the value follows the mouse across the bar (`x0`, `w`).
     KnobX { id: crate::knobs::KnobId, x0: f32, w: f32 },
     /// Left button held on the piano keyboard: each key entered is auditioned (§8).
     PianoKeys { key: i32 },
@@ -1722,11 +1722,11 @@ impl App {
             let name = path.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned());
             let saved = if v.trim().is_empty() { "an older version".to_string() } else { format!("version {}", v.trim()) };
             let rest = format!(
-                " yet.\n\nIt was saved by {saved}. Mango Studio reads projects saved by version {} or later.\n\nOpen the \
+                " yet.\n\nIt was saved by {saved}. Orange Studio reads projects saved by version {} or later.\n\nOpen the \
                  project in version 24.2 or later, save it again, then open the new copy here.",
                 os_flp::project::legacy::OLDEST
             );
-            self.tell(crate::dialog::Kind::Info, "Project not supported yet", crate::dialog::spans(&["Mango Studio cannot open ", &name, &rest]));
+            self.tell(crate::dialog::Kind::Info, "Project not supported yet", crate::dialog::spans(&["Orange Studio cannot open ", &name, &rest]));
         }
         match result {
             Ok((file, project)) => {
@@ -2430,7 +2430,7 @@ impl App {
                 }
                 Err(e) => {
                     self.sampler_failed.push(row);
-                    self.state.message = Some(format!("Mango Sampler: {e}"));
+                    self.state.message = Some(format!("Orange Sampler: {e}"));
                 }
             }
         }
@@ -2627,7 +2627,7 @@ impl App {
             // A row hosted this tick already started from its channel's sample.
             let new = self.plugins.sampler_path(row).as_deref() != Some(path.as_str());
             if !self.plugins.set_sampler(row, new.then_some(path.as_str()), &set) {
-                self.state.message = Some(format!("Mango Sampler did not take {path}"));
+                self.state.message = Some(format!("Orange Sampler did not take {path}"));
                 self.invalidate();
             }
         }
@@ -4653,7 +4653,7 @@ impl App {
             self.load_theme_file(&path);
             return;
         }
-        // A sample dropped on a plugin window that takes files (Mango Slicex) goes into it.
+        // A sample dropped on a plugin window that takes files (Orange Slicex) goes into it.
         #[cfg(any(windows, target_os = "macos", target_os = "linux"))]
         if matches!(ext.as_str(), "wav" | "mp3" | "flac" | "ogg" | "aif" | "aiff" | "m4a" | "aac") && self.sample_to_plugin_window(&path.to_string_lossy()) {
             return;
@@ -4728,7 +4728,7 @@ impl App {
         s.selected_channel = row;
         s.rack.select_only(row);
         s.piano.dirty = true;
-        s.message = Some(format!("{} loaded in Mango Sampler", stem.unwrap_or_default()));
+        s.message = Some(format!("{} loaded in Orange Sampler", stem.unwrap_or_default()));
         self.invalidate();
     }
 
@@ -8217,7 +8217,7 @@ impl App {
         let message = if !hosted {
             Some("The channel has no instrument yet: add one in the channel rack (the plus), or load the plugin")
         } else if ch.kind == os_model::ChannelKind::Sampler && ch.sample_path.is_none() {
-            Some("Mango Sampler has no sample to play: drop one from the browser, or add an instrument (the plus)")
+            Some("Orange Sampler has no sample to play: drop one from the browser, or add an instrument (the plus)")
         } else {
             None
         };
@@ -9475,7 +9475,7 @@ impl App {
             (HELP_MENU, HELP_ABOUT) => {
                 // The Windows build includes the ASIO SDK, which is under version 3 only (THIRD-PARTY-NOTICES.txt §9).
                 let licence = if cfg!(windows) { "the GNU GPL v3" } else { "the GNU GPL v3 or later" };
-                self.state.message = Some(format!("Mango Studio {} (pre-alpha), free software under {licence}", env!("CARGO_PKG_VERSION")));
+                self.state.message = Some(format!("Orange Studio {} (pre-alpha), free software under {licence}", env!("CARGO_PKG_VERSION")));
             }
             (ADD_MENU | TOOLS_MENU, i) if item_at(menu, i).is_some_and(|it| it.label == "Pattern") => {
                 let at = crate::patterns::box_at_mouse(self.mouse);
@@ -9753,7 +9753,7 @@ impl App {
         let _ = std::fs::create_dir_all(&dir);
         let start = self.state.bar.user_current().map_or_else(|| "My toolbar".to_string(), |p| p.name.clone());
         let dlg = FileDlg::new(Mode::Save, "Save toolbar preset as", "toolbar preset", crate::dialog::Then::SaveToolbarPreset)
-            .filter("Mango Studio toolbar preset", &[EXT])
+            .filter("Orange Studio toolbar preset", &[EXT])
             .start(Some(&dir))
             .name(&format!("{start}.{EXT}"));
         self.file_dialog(dlg);
@@ -9970,11 +9970,11 @@ pub fn default_project() -> Project {
     template_project(&[crate::plugins::LEMON_SAMPLER])
 }
 
-/// The starter kit's sample file names, as `Sounds/Mango Kit` of the user folder holds them (`mobile::run` copies
+/// The starter kit's sample file names, as `Sounds/Orange Kit` of the user folder holds them (`mobile::run` copies
 /// them out of the APK's assets on the first run). `starter_project`'s channels play them, and the browser lists the
 /// folder as any other.
 pub const STARTER_KIT: [&str; 6] =
-    ["Mango Kick.wav", "Mango Snare.wav", "Mango Hat.wav", "Mango Clap.wav", "Mango Pluck C.wav", "Mango Pluck G.wav"];
+    ["Orange Kick.wav", "Orange Snare.wav", "Orange Hat.wav", "Orange Clap.wav", "Orange Pluck C.wav", "Orange Pluck G.wav"];
 
 pub fn starter_kit() -> &'static [&'static str] {
     &STARTER_KIT
@@ -9986,12 +9986,12 @@ pub fn starter_kit() -> &'static [&'static str] {
 /// template then, whose empty sampler plays the built-in tone.
 #[cfg(target_os = "android")]
 fn mobile_starter_project() -> Option<Project> {
-    let dir = os_paths::user_dir()?.join("Sounds").join("Mango Kit");
+    let dir = os_paths::user_dir()?.join("Sounds").join("Orange Kit");
     let kit: Vec<String> = STARTER_KIT.iter().map(|n| dir.join(n).to_string_lossy().into_owned()).collect();
     if !kit.iter().all(|p| std::path::Path::new(p).is_file()) {
         return None;
     }
-    let names = ["Mango Kick", "Mango Snare", "Mango Hat", "Mango Clap", "Mango Pluck C", "Mango Pluck G"];
+    let names = ["Orange Kick", "Orange Snare", "Orange Hat", "Orange Clap", "Orange Pluck C", "Orange Pluck G"];
     let mut p = template_project(&names);
     for (ch, path) in p.channels.iter_mut().zip(&kit) {
         ch.sample_path = Some(path.clone());
@@ -10416,7 +10416,7 @@ fn load_theme() -> Theme {
 /// user folder (`os_paths::user_dir`, e.g. `%APPDATA%/Lemon Studio`) once, at start, so dropped browser folders, presets,
 /// the design and the theme carry over (spec: ui/lemon-design.md §12).
 ///
-/// Lemon Studio's folder (`os_paths::lemon_dir`), which Mango Studio was forked from, is copied the same once instead,
+/// Lemon Studio's folder (`os_paths::lemon_dir`), which Orange Studio was forked from, is copied the same once instead,
 /// so Lemon Studio keeps its own.
 pub fn move_old_settings() {
     if cfg!(test) {
@@ -10426,10 +10426,34 @@ pub fn move_old_settings() {
     if new.exists() {
         return;
     }
-    if let Some(lemon) = os_paths::lemon_dir().filter(|d| d.is_dir()) {
-        let _ = copy_dir(&lemon, &new);
+    // Mango Studio's folder (the app's name before Orange Studio) first, then Lemon Studio's.
+    if let Some(from) = os_paths::mango_dir().filter(|d| d.is_dir()).or_else(|| os_paths::lemon_dir().filter(|d| d.is_dir())) {
+        let _ = copy_dir(&from, &new);
+        rename_mango_sounds(&from, &new);
     } else if let Some(old) = os_paths::legacy_dir().filter(|d| d.is_dir()) {
         let _ = std::fs::rename(&old, &new);
+    }
+}
+
+/// After a copy from Mango Studio's folder `from` into `new`: its sound kit and sample pack take their Orange names, and
+/// the Browser's folders that pointed into the old folder point into the new one.
+fn rename_mango_sounds(from: &std::path::Path, new: &std::path::Path) {
+    const RENAMED: [(&str, &str); 2] = [("Mango Kit", "Orange Kit"), ("Mango Pack", "Orange Pack")];
+    let sounds = new.join("Sounds");
+    for (old, now) in RENAMED {
+        if sounds.join(old).is_dir() && !sounds.join(now).exists() {
+            let _ = std::fs::rename(sounds.join(old), sounds.join(now));
+        }
+    }
+    let list = new.join("browser_folders.txt");
+    let Ok(text) = std::fs::read_to_string(&list) else { return };
+    let (from, new) = (from.to_string_lossy(), new.to_string_lossy());
+    let mut out = text.replace(from.as_ref(), new.as_ref());
+    for (old, now) in RENAMED {
+        out = out.replace(old, now);
+    }
+    if out != text {
+        let _ = std::fs::write(&list, out);
     }
 }
 
@@ -10827,7 +10851,7 @@ mod tests {
         let mut chorus = lemon_small_fx::params::default_state(lemon_small_fx::chorus::SPEC);
         let d = lemon_small_fx::params::field(&chorus, 1);
         lemon_small_fx::params::set_field(&mut chorus, 1, d + 1);
-        let cases = [(1u16, 0u8, "Fruity Reeverb 2", "Mango Reverb", reverb), (2, 1, "Fruity Balance", "Mango Balance", balance), (3, 2, "Fruity Chorus", "Mango Chorus", chorus)];
+        let cases = [(1u16, 0u8, "Fruity Reeverb 2", "Orange Reverb", reverb), (2, 1, "Fruity Balance", "Orange Balance", balance), (3, 2, "Fruity Chorus", "Orange Chorus", chorus)];
         let mut a = App::new(None);
         a.state.project = test_project();
         a.state.file = None;
@@ -10869,7 +10893,7 @@ mod tests {
         lemon_small_fx::params::set_field(&mut flanger, 1, 700);
         let mut phaser = lemon_small_fx::params::default_state(lemon_small_fx::phaser::SPEC);
         lemon_small_fx::params::set_field(&mut phaser, 6, 15);
-        let cases = [(1u16, 0u8, "Fruity Flanger", "Mango Flanger", flanger), (2, 1, "Fruity Phaser", "Mango Phaser", phaser)];
+        let cases = [(1u16, 0u8, "Fruity Flanger", "Orange Flanger", flanger), (2, 1, "Fruity Phaser", "Orange Phaser", phaser)];
         let mut a = App::new(None);
         a.state.project = test_project();
         a.state.file = None;
@@ -11109,7 +11133,7 @@ mod tests {
         let p = default_project();
         assert_eq!(p.channels.len(), 1);
         let c = &p.channels[0];
-        assert_eq!((c.kind, c.name.as_deref(), c.sample_path.as_deref(), c.mixer_track), (ChannelKind::Sampler, Some("Mango Sampler"), None, 1));
+        assert_eq!((c.kind, c.name.as_deref(), c.sample_path.as_deref(), c.mixer_track), (ChannelKind::Sampler, Some("Orange Sampler"), None, 1));
         // Its starting Lemon Sampler state names no sample and carries the channel's envelope records.
         let st = crate::plugins::sampler_state(c);
         let json = String::from_utf8_lossy(&st[8..]).to_string();
@@ -11450,7 +11474,7 @@ mod tests {
         app.open_settings(THEME);
         let st = &app.state.settings;
         assert_eq!((st.skin_previews.len(), st.theme_previews.len()), (2, PRESETS.len() + 2));
-        assert_eq!(st.themes[..2].iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>(), ["Mango", "Citrus"]);
+        assert_eq!(st.themes[..2].iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>(), ["Orange", "Citrus"]);
         assert_eq!((st.skin, st.preset), (1, 1), "Citrus skin, no theme: the Citrus theme's tile");
         // A theme in Citrus, then the Lemon skin keeps it.
         let (name, text) = PRESETS[2];
@@ -11552,11 +11576,11 @@ mod tests {
         app.state.playlist.popup = None;
         // Duplicate, rename, delete.
         app.theme_cmd(ThemeCmd::Duplicate(0));
-        assert_eq!(std::fs::read_to_string(themes.join("Mango copy.flstheme")).ok().as_deref(), Some(app.state.settings.themes[0].1.as_str()));
+        assert_eq!(std::fs::read_to_string(themes.join("Orange copy.flstheme")).ok().as_deref(), Some(app.state.settings.themes[0].1.as_str()));
         let mine = app.state.settings.themes.iter().position(|(n, _)| n == "Mine").unwrap();
         app.theme_cmd(ThemeCmd::Rename(mine));
         assert_eq!(name(&app).as_deref(), Some("Mine"));
-        app.state.settings.name_edit.as_mut().unwrap().text.set("Mango copy");
+        app.state.settings.name_edit.as_mut().unwrap().text.set("Orange copy");
         app.key(&Key::Named(NamedKey::Enter), false, false);
         assert!(app.state.settings.name_edit.is_some(), "a clash with another of the user's themes is refused");
         app.key(&Key::Named(NamedKey::Escape), false, false);
@@ -13644,8 +13668,8 @@ mod tests {
         let r = hit_rect(&app, &Action::Settings(SAct::Check("Pickup (takeover mode)")));
         click(&mut app, &mut c, r);
         assert_eq!(app.state.message.as_deref(), Some("Pickup (takeover mode): on"));
-        assert!(app.hits.iter().any(|h| h.action == Action::Settings(SAct::Body) && h.hint == "Mango Studio has no MIDI scripts"));
-        assert!(app.hits.iter().any(|h| h.action == Action::Settings(SAct::Body) && h.hint == "Mango Studio has no playlist performance mode"));
+        assert!(app.hits.iter().any(|h| h.action == Action::Settings(SAct::Body) && h.hint == "Orange Studio has no MIDI scripts"));
+        assert!(app.hits.iter().any(|h| h.action == Action::Settings(SAct::Body) && h.hint == "Orange Studio has no playlist performance mode"));
         let r = hit_rect(&app, &Action::Settings(SAct::Tab(PROJECT)));
         click(&mut app, &mut c, r);
         assert!(app.hits.iter().any(|h| matches!(h.action, Action::Settings(SAct::Combo("Ask for data folder", ..)))), "Ask for data folder works");
@@ -14035,7 +14059,7 @@ mod tests {
                 (Kind::Question, "Confirm", spans(&["Save the changes to ", "Demo.flp", " before closing?"]), &[Answer::Yes, Answer::No, Answer::Cancel][..], "question"),
                 (Kind::Warning, "Confirm save as", spans(&["", "Demo.flp", " already exists.\nDo you want to replace it?"]), &[Answer::Yes, Answer::No][..], "warning"),
                 (Kind::Error, "Error", spans(&["The file doesn't exist or has been moved."]), &[Answer::Ok][..], "error"),
-                (Kind::Info, "Project not supported yet", spans(&["Mango Studio cannot open ", "Old.flp", " yet.\n\nIt was saved by version 12.3. Mango Studio reads projects saved by version 20 or later."]), &[Answer::Ok][..], "info"),
+                (Kind::Info, "Project not supported yet", spans(&["Orange Studio cannot open ", "Old.flp", " yet.\n\nIt was saved by version 12.3. Orange Studio reads projects saved by version 20 or later."]), &[Answer::Ok][..], "info"),
             ] {
                 let mut m = Msg::new(kind, title, text, buttons, Then::Nothing);
                 // As in the app, the replace question starts on No.
@@ -14682,7 +14706,7 @@ mod tests {
         assert!(app.state.shown(Win::Perf) && app.state.in_front(Win::Perf));
         let p = &app.state.perf;
         assert_eq!(p.rows.len(), 1);
-        assert_eq!((p.rows[0].name.as_str(), p.rows[0].synth, p.rows[0].voices), ("Mango Trio", true, Some(0)));
+        assert_eq!((p.rows[0].name.as_str(), p.rows[0].synth, p.rows[0].voices), ("Orange Trio", true, Some(0)));
         assert!(app.hits.iter().any(|h| h.action == Action::Perf(PerfAct::Row(0))));
         // Sorting by a header; a second click reverses.
         let h = hit_rect(&app, &Action::Perf(PerfAct::Sort(Col::Plugin)));
@@ -14951,11 +14975,11 @@ mod tests {
         if let Some(n) = song.strip_prefix("trio:") {
             // A heavy pattern instead of a song: `n` Lemon Trio channels, each playing four-note chords on every step,
             // a beat long.
-            let index = app.plugins.index_of(crate::osc3::LEMON_TRIO).expect("Mango Trio");
+            let index = app.plugins.index_of(crate::osc3::LEMON_TRIO).expect("Orange Trio");
             let mut notes = Vec::new();
             for c in 0..n.parse::<u16>().unwrap_or(8) {
                 let row = add_plugin_channel(&mut app.state.project, crate::osc3::LEMON_TRIO);
-                app.plugins.create(row, index).expect("a Mango Trio instance");
+                app.plugins.create(row, index).expect("a Orange Trio instance");
                 app.state.hosted_rows.push(row);
                 let ch = app.state.project.channels[row].index;
                 for i in 0..16 {
@@ -15431,11 +15455,11 @@ mod tests {
         let row = app.state.project.channels.len() - 1;
         assert_eq!(app.state.project.channels[row].kind, ChannelKind::AudioClip);
         app.plugin_tick();
-        assert!(app.state.hosted_rows.contains(&row), "Mango Sampler hosts the audio clip channel");
+        assert!(app.state.hosted_rows.contains(&row), "Orange Sampler hosts the audio clip channel");
         assert_eq!(app.plugins.sampler_path(row).as_deref(), Some(path.as_str()));
         app.toggle_channel_window(row);
         assert!(!app.state.shown(Win::Plugin), "no information window");
-        assert_eq!(app.state.pending_open, Some(row), "Mango Sampler's window opens");
+        assert_eq!(app.state.pending_open, Some(row), "Orange Sampler's window opens");
     }
 
     /// A minute-long audio clip whose file has a `smpl` loop (as FL's exports write), exported as the whole song: the
@@ -15522,7 +15546,7 @@ mod tests {
             crate::playlist::add_audio_clip(&mut a.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
             let row = a.state.project.channels.len() - 1;
             a.plugin_tick();
-            assert!(a.state.hosted_rows.contains(&row), "Mango Sampler hosts the audio clip channel");
+            assert!(a.state.hosted_rows.contains(&row), "Orange Sampler hosts the audio clip channel");
             let st = crate::plugins::with_params(&a.plugins.state(row).unwrap(), &[("keep_disk", json!({ "bool": keep }))]).unwrap();
             assert!(a.plugins.set_state(row, &st));
             if keep {
@@ -15581,7 +15605,7 @@ mod tests {
         crate::playlist::add_audio_clip(&mut a.state, &wav.to_string_lossy(), 0, 0).expect("audio clip added");
         let row = a.state.project.channels.len() - 1;
         a.plugin_tick();
-        assert!(a.state.hosted_rows.contains(&row), "Mango Sampler hosts the audio clip channel");
+        assert!(a.state.hosted_rows.contains(&row), "Orange Sampler hosts the audio clip channel");
         a.transport.set_instruments(a.plugins.instruments());
         let first = *crate::playlist::arr_mut(&mut a.state).clips.last().unwrap();
         let second = os_model::Clip { position: first.position + first.length / 2, ..first };
@@ -15719,7 +15743,7 @@ mod tests {
         assert_eq!((reopened.envelopes, reopened.sound), (saved.envelopes, saved.sound));
         let (m, n) = (reopened.misc, saved.misc);
         assert_eq!((m.root, m.fine, m.main_pitch, m.add_key, m.key_range), (n.root, n.fine, n.main_pitch, n.add_key, n.key_range));
-        let st = b.plugins.state(row).expect("Mango Sampler hosted again");
+        let st = b.plugins.state(row).expect("Orange Sampler hosted again");
         let v: serde_json::Value = serde_json::from_slice(&st[8..]).unwrap();
         for (id, want) in &edits {
             let got = &v["params"][*id];
@@ -15825,7 +15849,7 @@ mod tests {
         }
         assert!(!app.loading(), "loading ends");
         for &r in &rows {
-            assert!(app.state.hosted_rows.contains(&r), "row {r} has its Mango Sampler");
+            assert!(app.state.hosted_rows.contains(&r), "row {r} has its Orange Sampler");
             assert_eq!(app.plugins.sampler_path(r).as_deref(), Some(wav.as_str()));
         }
         let _ = std::fs::remove_file(&wav);
@@ -16556,7 +16580,7 @@ mod tests {
             let hr = hit_rect(&app, &Action::RackAdd);
             click(&mut app, &mut a, hr);
             assert_eq!(app.state.picker.as_ref().map(|p| p.target), Some(crate::plugin_menu::Target::Gen(None)), "the generator picker");
-            for ch in "mango sampler".chars() {
+            for ch in "orange sampler".chars() {
                 app.key(&winit::keyboard::Key::Character(ch.to_string().into()), false, false);
             }
             app.key(&winit::keyboard::Key::Named(winit::keyboard::NamedKey::Enter), false, false);
@@ -20623,7 +20647,7 @@ mod tests {
         c.pixmap.save_png(dir.join("mx_slot_menu.png")).unwrap();
     }
 
-    /// Mango skin: the pan bar follows the mouse across it (left end hard left, right end hard right, the middle centre).
+    /// Orange skin: the pan bar follows the mouse across it (left end hard left, right end hard right, the middle centre).
     #[test]
     fn mixer_pan_bar_follows_the_mouse() {
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
@@ -20737,7 +20761,7 @@ mod tests {
         app.plugins.available = crate::plugins::builtin();
         app.sync_samplers(None);
         app.mark_saved();
-        assert!(app.state.hosted_rows.contains(&1), "Mango Sampler plays the sampler channels");
+        assert!(app.state.hosted_rows.contains(&1), "Orange Sampler plays the sampler channels");
         app.state.rack.sel = [1, 3].into();
         let entry = views::menus::MENUS[TOOLS_MENU].cols.iter().flat_map(|(_, items)| items.iter()).position(|it| it.label == DECLICK_LABEL).unwrap();
         frame(&mut app, &mut c, None);
@@ -21040,7 +21064,7 @@ mod tests {
         right(&mut app, &mut c, help, (help.cx() + 40.0, help.cy()));
         assert!(app.state.message.is_none());
         right(&mut app, &mut c, help, (help.cx(), help.cy()));
-        assert!(app.state.message.as_deref().is_some_and(|m| m.starts_with("Mango Studio ")), "{:?}", app.state.message);
+        assert!(app.state.message.as_deref().is_some_and(|m| m.starts_with("Orange Studio ")), "{:?}", app.state.message);
         // Undo: EDIT > Undo; its right click does nothing yet.
         let undo = hit_rect(&app, &Action::Util(Util::Undo));
         app.state.message = None;
@@ -21188,7 +21212,7 @@ mod tests {
         let empty = left(&mut app, &mut c, "");
         assert_eq!(left(&mut app, &mut c, "P1"), empty, "a short name is right-aligned");
         // The first letter shows: names differing only there draw differently.
-        let (a, b) = (left(&mut app, &mut c, "Mango Sampler and more"), left(&mut app, &mut c, "Wemon Sampler and more"));
+        let (a, b) = (left(&mut app, &mut c, "Orange Sampler and more"), left(&mut app, &mut c, "Wemon Sampler and more"));
         assert!(a != empty && a != b, "a long name shows its start");
     }
 
@@ -21686,7 +21710,7 @@ mod tests {
         let s = &app.state;
         assert_eq!(s.rack.groups[1].members.iter().copied().collect::<Vec<_>>(), [5]);
         assert_eq!((s.playlist.source, s.playlist.picker, pl::clips(s).len()), (Some(ClipSource::Channel(5)), PickKind::Audio, clips));
-        assert_eq!(s.pending_open, Some(5), "its settings (Mango Sampler's window) open");
+        assert_eq!(s.pending_open, Some(5), "its settings (Orange Sampler's window) open");
         assert!(app.unsaved());
         // Automation clip.
         app.state.pending_open = None;
@@ -21874,7 +21898,7 @@ mod tests {
         app.plugins.available = crate::plugins::builtin();
         app.sync_samplers(None);
         app.mark_saved();
-        assert!(app.state.hosted_rows.contains(&a) && app.state.hosted_rows.contains(&b), "Mango Sampler plays the audio clips");
+        assert!(app.state.hosted_rows.contains(&a) && app.state.hosted_rows.contains(&b), "Orange Sampler plays the audio clips");
         let sampler = |app: &App, row: usize| {
             let p = app.plugins.hosted[&row].plugin.lock().unwrap();
             let mut st = [0u32; 4];
@@ -21927,7 +21951,7 @@ mod tests {
         assert_eq!(methods(&app), [0, 0, 0, 0, 0, sm::STRETCH_PRO, sm::STRETCH_PRO]);
         assert_eq!(app.state.project.channels[a].sound.stretch[..3], kept);
         assert!(app.unsaved() && app.state.piano.dirty, "a change to the project, played at once");
-        assert_eq!((sampler(&app, a), sampler(&app, b), sampler(&app, 0)), (sm::STRETCH_PRO, sm::STRETCH_PRO, 0), "Mango Sampler follows");
+        assert_eq!((sampler(&app, a), sampler(&app, b), sampler(&app, 0)), (sm::STRETCH_PRO, sm::STRETCH_PRO, 0), "Orange Sampler follows");
         // The rack's options menu: Switch selected... > e2 speech, on the selected audio clip channel only (Enter = Ok).
         app.state.rack.sel = [0, b].into();
         let rack = crate::rack::options_menu(&app.state, 0.0, 0.0);
@@ -23259,7 +23283,7 @@ mod tests {
         assert!(app.state.piano.scale_highlight.enabled);
     }
 
-    /// A project's Vocodex slot opens as Mango Vocoder with its state (the parts it does not play included), its
+    /// A project's Vocodex slot opens as Orange Vocoder with its state (the parts it does not play included), its
     /// sidechain bus takes the input the carrier selector names, and a save writes the same bytes back.
     #[test]
     fn vocodex_slots_open_as_mango_vocoder() {
@@ -23268,7 +23292,7 @@ mod tests {
         let mut fl = dsp::default_state();
         let at = dsp::settings_at(&fl).unwrap();
         // The bands at 20, the carrier on the track's second input, the modulator on its own audio; one byte of a
-        // curve Mango Vocoder does not play changed so the save must keep it.
+        // curve Orange Vocoder does not play changed so the save must keep it.
         fl[at + 4 * dsp::BANDS..at + 4 * dsp::BANDS + 4].copy_from_slice(&20i32.to_le_bytes());
         fl[at + 4 * dsp::MOD_INPUT..at + 4 * dsp::MOD_INPUT + 4].copy_from_slice(&0i32.to_le_bytes());
         fl[at + 4 * dsp::CAR_INPUT..at + 4 * dsp::CAR_INPUT + 4].copy_from_slice(&2i32.to_le_bytes());

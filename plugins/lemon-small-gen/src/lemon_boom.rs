@@ -198,9 +198,9 @@ const CONTROLS: [Control; 9] = [
 ];
 
 pub const SPEC: &GenSpec = &GenSpec {
-    name: "Mango Boom",
+    name: "Orange Boom",
     word: "BOOM",
-    about: "Mango Studio's bass drum",
+    about: "Orange Studio's bass drum",
     settings: &SETTINGS,
     version: None,
     any_version: false,
@@ -452,7 +452,7 @@ pub struct BoomKind;
 impl Kind for BoomKind {
     const SPEC: &'static GenSpec = SPEC;
     const CLAP_ID: &'static str = "org.openstudio.lemon-boom";
-    const CLAP_DESCRIPTION: &'static str = "Mango Studio's bass drum";
+    const CLAP_DESCRIPTION: &'static str = "Orange Studio's bass drum";
     const CLAP_FEATURES: &'static [ClapFeature] = &[
         ClapFeature::Instrument,
         ClapFeature::Synthesizer,

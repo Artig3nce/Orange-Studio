@@ -1,6 +1,6 @@
 [package]
 name = "lemon-pluck"
-description = "Mango Pluck: Mango Studio's plucked string as a VST3 / CLAP plugin"
+description = "Orange Pluck: Orange Studio's plucked string as a VST3 / CLAP plugin"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,7 +9,7 @@ license.workspace = true
 crate-type = ["cdylib", "lib"]
 
 [features]
-# Compiled into Mango Studio: no exported plugin entry points (they would clash with the other built-in plugins).
+# Compiled into Orange Studio: no exported plugin entry points (they would clash with the other built-in plugins).
 linked = []
 
 [dependencies]

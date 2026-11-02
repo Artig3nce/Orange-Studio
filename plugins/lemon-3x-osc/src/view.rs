@@ -488,13 +488,13 @@ fn osc_page(ui: &mut Ui) {
     wordmark(ui.c, 552.5, y(BAND_Y - 20.0));
 }
 
-/// "MANGO" over a large "TRIO" right-aligned at `right`, `top` = top of the small line. "MANGO"
+/// "ORANGE" over a large "TRIO" right-aligned at `right`, `top` = top of the small line. "ORANGE"
 /// starts over the name's left edge, close above it (concept A "Pith"): TRIO's capitals start 3 px under LEMON's
 /// (they start 8 px into the big cell; LEMON's end 9 px into the small one), not over them.
 fn wordmark(c: &mut Canvas, right: f32, top: f32) {
     let (big, small) = (Font::condensed(38, 16).bold(), Font::condensed(11, 0));
     let x0 = right - lemon::spaced_width(c, big, "TRIO", 3.0);
-    lemon::spaced(c, small, x0, top, brand::MAIN, "MANGO", 3.0);
+    lemon::spaced(c, small, x0, top, brand::MAIN, "ORANGE", 3.0);
     lemon::spaced(c, big, x0, top + 5.0, plug::WORDMARK, "TRIO", 3.0);
 }
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango BeepMap: Mango Studio's image synthesizer (a recreation of FL's BeepMap) as a VST3 / CLAP plugin
+//! Orange BeepMap: Orange Studio's image synthesizer (a recreation of FL's BeepMap) as a VST3 / CLAP plugin
 //! (nih-plug). A loaded PNG sings: its columns are time, its rows are partials, a pixel's brightness is loudness,
 //! and the played key carries the bottom edge's pitch.
 //!
@@ -125,8 +125,8 @@ impl MangoBeepMap {
 }
 
 impl Plugin for MangoBeepMap {
-    const NAME: &'static str = "Mango BeepMap";
-    const VENDOR: &'static str = "Mango Studio";
+    const NAME: &'static str = "Orange BeepMap";
+    const VENDOR: &'static str = "Orange Studio";
     const URL: &'static str = "";
     const EMAIL: &'static str = "";
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -158,13 +158,13 @@ impl Plugin for MangoBeepMap {
         let path = match self.params.path.read() {
             Ok(path) => path.clone(),
             Err(_) => {
-                nih_log!("Mango BeepMap: saved image path is unavailable.");
+                nih_log!("Orange BeepMap: saved image path is unavailable.");
                 return true;
             }
         };
         if !path.is_empty() && let Err(e) = self.shared.load(&path, &self.params) {
             self.shared.set_status(e.clone());
-            nih_log!("Mango BeepMap: {e}");
+            nih_log!("Orange BeepMap: {e}");
         }
         true
     }
@@ -239,7 +239,7 @@ impl Plugin for MangoBeepMap {
 
 impl ClapPlugin for MangoBeepMap {
     const CLAP_ID: &'static str = "com.mangostudio.beepmap";
-    const CLAP_DESCRIPTION: Option<&'static str> = Some("Mango BeepMap, Mango Studio's image synthesizer");
+    const CLAP_DESCRIPTION: Option<&'static str> = Some("Orange BeepMap, Orange Studio's image synthesizer");
     const CLAP_MANUAL_URL: Option<&'static str> = None;
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::Instrument, ClapFeature::Synthesizer, ClapFeature::Stereo];

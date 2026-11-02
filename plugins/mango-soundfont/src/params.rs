@@ -159,9 +159,9 @@ unsafe impl Params for SoundFontParams {
             match serde_json::from_str::<String>(raw) {
                 Ok(path) => match self.path.write() {
                     Ok(mut saved) => *saved = path,
-                    Err(_) => eprintln!("Mango Font: saved SoundFont path lock is poisoned."),
+                    Err(_) => eprintln!("Orange Font: saved SoundFont path lock is poisoned."),
                 },
-                Err(e) => eprintln!("Mango Font: could not read saved SoundFont path: {e}"),
+                Err(e) => eprintln!("Orange Font: could not read saved SoundFont path: {e}"),
             }
         }
     }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango DirectWave's program: the master's settings and the eight zones (a saved state, JSON). A zone holds one
+//! Orange DirectWave's program: the master's settings and the eight zones (a saved state, JSON). A zone holds one
 //! sample and where it plays: its key range and the key it is tuned to, its velocity range, and its gain, pan, tune
 //! and loop switch. The master holds the amp envelope and the filter every zone plays through.
 //!

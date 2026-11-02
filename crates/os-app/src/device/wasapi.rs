@@ -549,7 +549,7 @@ fn exclusive(
         // A rate the device does not run at itself: its own.
         None => match pick(m.rate)? {
             Some(f) => (m.rate, f),
-            None => return Err(Refused::Other("it takes none of the sample formats Mango Studio writes".into())),
+            None => return Err(Refused::Other("it takes none of the sample formats Orange Studio writes".into())),
         },
     };
     let w = wave(format, rate, m.channels, m.mask);
@@ -588,7 +588,7 @@ fn small(d: &IMMDevice, m: &MixFormat, rate: Option<u32>, buffer: Option<u32>) -
         if rate.is_some_and(|r| r != m.rate) {
             return Err(Refused::OwnRate(m.rate));
         }
-        let format = m.format.ok_or_else(|| Refused::Other("the system mixer's sample format is not one Mango Studio writes".into()))?;
+        let format = m.format.ok_or_else(|| Refused::Other("the system mixer's sample format is not one Orange Studio writes".into()))?;
         c3.InitializeSharedAudioStream(AUDCLNT_STREAMFLAGS_EVENTCALLBACK, period, &m.wave.Format, None).map_err(|e| Refused::of(&e))?;
         let client: IAudioClient = c3.cast().map_err(|e| Refused::Other(text(&e)))?;
         Ok((client, format, m.rate, (min, def)))

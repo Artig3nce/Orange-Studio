@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Studio logo, generated from `assets/logo/logo-colored-mango.svg` and `logo-greyscale-mango.svg` by
+//! Orange Studio logo, generated from `assets/logo/logo-colored-mango.svg` and `logo-greyscale-mango.svg` by
 //! `tools/logo/gen.py`: do not edit. Absolute M/L/Q/C/Z path data in viewBox units.
 
 pub const VIEW_W: f32 = 982.257;

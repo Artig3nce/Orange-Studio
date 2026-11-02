@@ -144,13 +144,13 @@ impl Logic {
     fn select(&mut self, step: isize) {
         let Ok(presets) = self.shared.presets() else {
             if let Err(e) = self.shared.set_status("Could not read the SoundFont preset list.".into()) {
-                eprintln!("Mango Font: {e}");
+                eprintln!("Orange Font: {e}");
             }
             return;
         };
         if presets.is_empty() {
             if let Err(e) = self.shared.set_status("Load an SF2 file before selecting a preset.".into()) {
-                eprintln!("Mango Font: {e}");
+                eprintln!("Orange Font: {e}");
             }
             return;
         }
@@ -189,7 +189,7 @@ impl Logic {
             Ok(()) => {}
             Err(e) => {
                 if let Err(status_error) = self.shared.set_status(e.clone()) {
-                    eprintln!("Mango Font: {e}; {status_error}");
+                    eprintln!("Orange Font: {e}; {status_error}");
                 }
             }
         }
@@ -390,7 +390,7 @@ mod win32 {
                 logic: Logic::new(params, shared, context),
                 slot: slot.clone(),
             });
-            let title = pw::wide("Mango Font");
+            let title = pw::wide("Orange Font");
             let hwnd = CreateWindowExW(
                 0,
                 class.as_ptr(),

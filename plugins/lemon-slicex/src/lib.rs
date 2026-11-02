@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Slicex: Lemon Studio's recreation of Slicex as a VST3 / CLAP plugin (nih-plug). A loop cut into
+//! Orange Slicex: Lemon Studio's recreation of Slicex as a VST3 / CLAP plugin (nih-plug). A loop cut into
 //! slices; slice n plays on key C5 + n; the editor dumps the slices to the piano roll (host link).
 //!
 // spec: plugins/lemon-slicex.md, plugins/fruity-slicer.md, plugins/plugin-formats.md
@@ -14,7 +14,7 @@ pub mod edit;
 pub mod editor;
 pub mod ext;
 pub mod extctl;
-/// Mango Studio's logo as paths, generated for the app (`tools/logo/gen.py`) and shared from there.
+/// Orange Studio's logo as paths, generated for the app (`tools/logo/gen.py`) and shared from there.
 #[path = "../../../crates/os-app/src/logo.rs"]
 pub mod logo;
 pub mod params;
@@ -242,7 +242,7 @@ impl LemonSlicex {
 }
 
 impl Plugin for LemonSlicex {
-    const NAME: &'static str = "Mango Slicex";
+    const NAME: &'static str = "Orange Slicex";
     const VENDOR: &'static str = "Lemon Studio";
     const URL: &'static str = "";
     const EMAIL: &'static str = "";
@@ -273,7 +273,7 @@ impl Plugin for LemonSlicex {
         let path = sample_file(&self.params);
         if path != self.shared.loaded_path() {
             if let Err(e) = self.shared.open(&path, &self.params) {
-                nih_log!("Mango Slicex: {e}");
+                nih_log!("Orange Slicex: {e}");
             }
         } else {
             self.shared.rebuild(&self.params);
@@ -281,7 +281,7 @@ impl Plugin for LemonSlicex {
         if State::parse(&self.params.ext().deck_b).map(|s| s.path()).unwrap_or_default() != self.shared.loaded_b()
             && let Err(e) = self.shared.open_b(&self.params)
         {
-            nih_log!("Mango Slicex: {e}");
+            nih_log!("Orange Slicex: {e}");
         }
         self.take_kit();
         true

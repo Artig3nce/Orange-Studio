@@ -88,7 +88,7 @@ impl LemonFormulaController {
 
 impl Plugin for LemonFormulaController {
     const NAME: &'static str = SPEC.name;
-    const VENDOR: &'static str = "Mango Studio";
+    const VENDOR: &'static str = "Orange Studio";
     const URL: &'static str = "";
     const EMAIL: &'static str = "";
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -157,7 +157,7 @@ impl Plugin for LemonFormulaController {
 
 impl ClapPlugin for LemonFormulaController {
     const CLAP_ID: &'static str = "org.openstudio.lemon-formula-controller";
-    const CLAP_DESCRIPTION: Option<&'static str> = Some("Mango Studio's formula controller");
+    const CLAP_DESCRIPTION: Option<&'static str> = Some("Orange Studio's formula controller");
     const CLAP_MANUAL_URL: Option<&'static str> = None;
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::AudioEffect, ClapFeature::Utility, ClapFeature::Stereo];
@@ -185,7 +185,7 @@ mod tests {
         let p = LemonFormulaController::default();
         assert_eq!(p.core.s, os_engine::effects::formula_ctrl::Settings::default());
         assert_eq!(p.core.output(), Some(0.0), "no formula: 0");
-        assert_eq!(<LemonFormulaController as Plugin>::NAME, "Mango Formula Controller");
+        assert_eq!(<LemonFormulaController as Plugin>::NAME, "Orange Formula Controller");
         assert_ne!(<LemonFormulaController as Vst3Plugin>::VST3_CLASS_ID, *b"LemonStudioPeakC");
     }
 }

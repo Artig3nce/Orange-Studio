@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Sfxr's editor picture: sfxr's own layout, drawn the Mango way — the waveform buttons and
+//! Orange Sfxr's editor picture: sfxr's own layout, drawn the Orange way — the waveform buttons and
 //! the seven generators down the left edge, and the sliders grouped into section cards on the right
 //! (Envelope, Tone, Vibrato, Change, Square, Repeat, Phaser, Filter). All painting, and the
 //! geometry the editor's hit tests ask for.
@@ -193,8 +193,8 @@ pub fn paint(c: &mut Canvas, d: &Display) {
     c.clear(plug::BG);
     plug_panel(c, Rect::new(12.0, 12.0, 696.0, 476.0));
 
-    c.text(TITLE, 28.0, 22.0, brand::MAIN, "MANGO SFXR");
-    let title_w = c.text_width(TITLE, "MANGO SFXR");
+    c.text(TITLE, 28.0, 22.0, brand::MAIN, "ORANGE SFXR");
+    let title_w = c.text_width(TITLE, "ORANGE SFXR");
     c.text(SMALL, 30.0 + title_w, 28.0, plug::DIM, "RETRO SFX GENERATOR");
 
     // The waveform buttons: the current one lit.

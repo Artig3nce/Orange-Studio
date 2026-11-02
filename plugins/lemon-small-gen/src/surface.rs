@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Surface: Mango Studio's control surface (a recreation of FL's Control Surface) as a plugin. Eight faders
+//! Orange Surface: Orange Studio's control surface (a recreation of FL's Control Surface) as a plugin. Eight faders
 //! that sound nothing: a performance links them to anything (the app's Multilink, the automation clips), records and
 //! draws their moves, and the channel rack holds the silence a voice would fill.
 //!
@@ -43,9 +43,9 @@ const CONTROLS: [Control; 8] = [
 ];
 
 pub const SPEC: &GenSpec = &GenSpec {
-    name: "Mango Surface",
+    name: "Orange Surface",
     word: "SURFACE",
-    about: "Mango Studio's control surface",
+    about: "Orange Studio's control surface",
     settings: &SETTINGS,
     version: None,
     any_version: false,
@@ -124,7 +124,7 @@ pub struct SurfaceKind;
 impl Kind for SurfaceKind {
     const SPEC: &'static GenSpec = SPEC;
     const CLAP_ID: &'static str = "org.openstudio.mango-surface";
-    const CLAP_DESCRIPTION: &'static str = "Mango Studio's control surface";
+    const CLAP_DESCRIPTION: &'static str = "Orange Studio's control surface";
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::Instrument, ClapFeature::Stereo];
     const VST3_CLASS_ID: [u8; 16] = *b"MangoStudioSurfa";
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Instrument];

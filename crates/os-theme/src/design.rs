@@ -35,17 +35,18 @@ impl Design {
     pub fn name(self) -> &'static str {
         match self {
             Design::Citrus => "Citrus",
-            Design::Lemon => "Mango",
+            Design::Lemon => "Orange",
         }
     }
 
     /// A skin by name; `Classic` (Citrus's old name, still in older `design.txt` files) is Citrus, and `Lemon` (this
-    /// skin's name before Mango Studio, in Lemon Studio's `design.txt`) is Mango.
+    /// skin's name before Orange Studio, in Lemon Studio's `design.txt`) is Orange.
     pub fn parse(s: &str) -> Option<Design> {
         if s.trim().eq_ignore_ascii_case("classic") {
             return Some(Design::Citrus);
         }
-        if s.trim().eq_ignore_ascii_case("lemon") {
+        // "Mango": its name before the rename to Orange Studio.
+        if s.trim().eq_ignore_ascii_case("lemon") || s.trim().eq_ignore_ascii_case("mango") {
             return Some(Design::Lemon);
         }
         Design::ALL.into_iter().find(|d| d.name().eq_ignore_ascii_case(s.trim()))
@@ -184,7 +185,7 @@ pub fn classic_keys() -> Keys {
     }
 }
 
-/// The Mango brand palette (Mango Studio's colours, 2026-10-28, after Lemon Studio's 2026-10-12 lemon palette) and
+/// The Orange brand palette (Orange Studio's colours, 2026-10-28, after Lemon Studio's 2026-10-12 lemon palette) and
 /// the in-between shades derived from it. The module keeps its name: the skin is the same design in other colours.
 pub mod lemon {
     use crate::Color;
@@ -204,7 +205,7 @@ pub mod lemon {
     pub const TEXT: Color = Color::rgb(0xececec);
 }
 
-/// Mango: Classic lightness -> Mango lightness, black (2026-10-28): Classic's black stays black, its toolbar (0.19) lands
+/// Orange: Classic lightness -> Orange lightness, black (2026-10-28): Classic's black stays black, its toolbar (0.19) lands
 /// near DARK (#181818), and the raised greys (0.33) on about #363636, so the parts still stand apart.
 const LEMON_RAMP: &[(f32, f32)] = &[
     (0.0, 0.0),
@@ -626,7 +627,7 @@ mod tests {
         assert_eq!(p.toolbar, lemon::DARK);
         assert_eq!(p.pill, lemon::MAIN);
         assert_eq!(p.on_glyph, lemon::COLORED_DARK);
-        // Role-mapped literals follow the design: Classic's raised grey lands on a dark grey (the black Mango greys),
+        // Role-mapped literals follow the design: Classic's raised grey lands on a dark grey (the black Orange greys),
         // orange highlights on mango.
         let g = p.s(0x505355);
         assert!(g.r.abs_diff(0x34) <= 6 && g.r == g.g && g.g == g.b, "{g}");

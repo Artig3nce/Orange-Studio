@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Beat editor: painting and hit regions (platform independent). Two beat grids — TIME over VOLUME — drawn
+//! Orange Beat editor: painting and hit regions (platform independent). Two beat grids — TIME over VOLUME — drawn
 //! like the playlist draws automation (a filled curve over ruled quarters, points and tension handles), with the
 //! sections' slot buttons and mix dials in the rail at the left, the hint well and the wordmark along the foot.
 //!
@@ -362,16 +362,16 @@ fn knob(ui: &mut Ui, id: &str, cx: f32, cy: f32, r: f32, cap: &str, bipolar: boo
     ui.hit(hr, target);
 }
 
-/// The wordmark on the foot's line: "MANGO" in mango beside a large grey "BEAT"; returns its
+/// The wordmark on the foot's line: "ORANGE" in mango beside a large grey "BEAT"; returns its
 /// left edge.
 fn logo(ui: &mut Ui) -> f32 {
     let wb = lemon::spaced_width(ui.c, MARK_BIG, "BEAT", 2.0);
-    let ws = lemon::spaced_width(ui.c, MARK_SMALL, "MANGO", 2.5);
+    let ws = lemon::spaced_width(ui.c, MARK_SMALL, "ORANGE", 2.5);
     let (lh_b, lh_s) = (ui.c.line_height(MARK_BIG), ui.c.line_height(MARK_SMALL));
     let bx = (RIGHT - wb).round();
     lemon::spaced(ui.c, MARK_BIG, bx, (FOOT - lh_b / 2.0).round(), plug::WORDMARK, "BEAT", 2.0);
     let sx = (bx - 8.0 - ws).round();
-    lemon::spaced(ui.c, MARK_SMALL, sx, (FOOT - lh_s / 2.0).round() + 1.0, brand::MAIN, "MANGO", 2.5);
+    lemon::spaced(ui.c, MARK_SMALL, sx, (FOOT - lh_s / 2.0).round() + 1.0, brand::MAIN, "ORANGE", 2.5);
     let left = sx;
     ui.hit(Rect::span(left - 2.0, RIGHT, FOOT - 12.0, FOOT + 12.0), Target::Logo);
     left
@@ -383,7 +383,7 @@ fn logo(ui: &mut Ui) -> f32 {
 /// The hint line for a target; `grids` give the envelope texts.
 pub fn hint(t: &Target, m: &dyn Model, grids: &GridState) -> String {
     match t {
-        Target::Logo => "Mango Beat".into(),
+        Target::Logo => "Orange Beat".into(),
         Target::Knob(id) => match params_of(id) {
             Some(k) => format!("{}: {}", crate::params::DEFS[k].name, m.text(id)),
             None => format!("{}: {}", id, m.text(id)),

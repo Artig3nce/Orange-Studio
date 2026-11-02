@@ -209,7 +209,7 @@ impl Shared {
             return Err("The SoundFont contains no presets.".into());
         }
         if presets.len() > 65_536 {
-            return Err("This SoundFont has more than 65,536 presets, which Mango Font cannot address.".into());
+            return Err("This SoundFont has more than 65,536 presets, which Orange Font cannot address.".into());
         }
         let presets: Arc<[PresetInfo]> = presets.into();
         let settings = SynthesizerSettings::new(rate.clamp(16_000, 192_000) as i32);
@@ -324,8 +324,8 @@ impl Default for MangoSoundFont {
 }
 
 impl Plugin for MangoSoundFont {
-    const NAME: &'static str = "Mango Font";
-    const VENDOR: &'static str = "Mango Studio";
+    const NAME: &'static str = "Orange Font";
+    const VENDOR: &'static str = "Orange Studio";
     const URL: &'static str = "";
     const EMAIL: &'static str = "";
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -366,12 +366,12 @@ impl Plugin for MangoSoundFont {
         let path = match self.params.path.read() {
             Ok(path) => path.clone(),
             Err(_) => {
-                nih_log!("Mango Font: saved SoundFont path is unavailable.");
+                nih_log!("Orange Font: saved SoundFont path is unavailable.");
                 return true;
             }
         };
         if let Err(e) = self.shared.prepare_for_initialize(&path) {
-            nih_log!("Mango Font: {e}");
+            nih_log!("Orange Font: {e}");
             return true;
         }
         if !path.is_empty() {
@@ -382,14 +382,14 @@ impl Plugin for MangoSoundFont {
                         self.presets = prepared.presets;
                         self.selected = usize::MAX;
                     }
-                    Ok(None) => nih_log!("Mango Font: SoundFont load completed without a synth."),
-                    Err(e) => nih_log!("Mango Font: {e}"),
+                    Ok(None) => nih_log!("Orange Font: SoundFont load completed without a synth."),
+                    Err(e) => nih_log!("Orange Font: {e}"),
                 },
                 Err(e) => {
                     if let Err(status_error) = self.shared.set_status(e.clone()) {
-                        nih_log!("Mango Font: {e}; {status_error}");
+                        nih_log!("Orange Font: {e}; {status_error}");
                     }
-                    nih_log!("Mango Font: {e}");
+                    nih_log!("Orange Font: {e}");
                 }
             }
         }
@@ -429,7 +429,7 @@ impl Plugin for MangoSoundFont {
             }
             Ok(None) => {}
             Err(e) if !self.handoff_error_logged => {
-                nih_log!("Mango Font: {e}");
+                nih_log!("Orange Font: {e}");
                 self.handoff_error_logged = true;
             }
             Err(_) => {}
@@ -595,7 +595,7 @@ fn render(
 
 impl ClapPlugin for MangoSoundFont {
     const CLAP_ID: &'static str = "com.mangostudio.soundfont";
-    const CLAP_DESCRIPTION: Option<&'static str> = Some("Mango Font, Mango Studio's SF2 player");
+    const CLAP_DESCRIPTION: Option<&'static str> = Some("Orange Font, Orange Studio's SF2 player");
     const CLAP_MANUAL_URL: Option<&'static str> = None;
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::Instrument, ClapFeature::Synthesizer, ClapFeature::Sampler, ClapFeature::Stereo];

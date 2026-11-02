@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Crusher: battlemountain2's distortion (from their fork's "Dariacore" effects) as a small effect. One sound,
+//! Orange Crusher: battlemountain2's distortion (from their fork's "Dariacore" effects) as a small effect. One sound,
 //! four modes: Drive (soft overdrive), Clip (hard clipping), Fold (a wavefolder) and Crush (fewer bits and a lower
 //! sample rate). Drive pushes the signal into the shape, Bits and Rate are the crusher's depth and decimation, then
 //! the mix with the dry signal and the output level. Not a recreation of an FL plugin: its state is its own.
@@ -54,9 +54,9 @@ const CONTROLS: [Control; 6] = [
 ];
 
 pub const SPEC: &Spec = &Spec {
-    name: "Mango Crusher",
+    name: "Orange Crusher",
     word: "CRUSHER",
-    about: "Mango Studio's crusher",
+    about: "Orange Studio's crusher",
     settings: &SETTINGS,
     version: None,
     any_version: false,
@@ -199,7 +199,7 @@ pub struct CrusherKind;
 impl Kind for CrusherKind {
     const SPEC: &'static Spec = SPEC;
     const CLAP_ID: &'static str = "org.openstudio.mango-crusher";
-    const CLAP_DESCRIPTION: &'static str = "Mango Studio's crusher";
+    const CLAP_DESCRIPTION: &'static str = "Orange Studio's crusher";
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::AudioEffect, ClapFeature::Distortion, ClapFeature::Stereo];
     const VST3_CLASS_ID: [u8; 16] = *b"MangoStudioCrush";
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Fx, Vst3SubCategory::Distortion];

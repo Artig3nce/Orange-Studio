@@ -3,12 +3,12 @@
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
 //! Lemon Studio's small generators as VST3 / CLAP plugins (nih-plug): Lemon Kick, Lemon Boom, Lemon Bass, Lemon
-//! Acid, Mango Pluck, Mango Mini, Mango DX, Mango Autogun, Mango Drums, Mango Keys, Mango Slayer and Mango Dashboard. Each is a
+//! Acid, Orange Pluck, Orange Mini, Orange DX, Orange Autogun, Orange Drums, Orange Keys, Orange Slayer and Orange Dashboard. Each is a
 //! handful of settings over a small synthesizer, so they share everything but their description: the plugin, its
 //! parameters and saved state ([`params`]), the Pith editor ([`editor`], [`view`]). A description ([`GenSpec`])
 //! gives the settings, their value texts, the editor's cards and controls, and the sound. The plugin modules
-//! (`plugins/lemon-kick` and the others) export one each, the way the small effects do. Mango Surface is here too:
-//! eight faders that sound nothing, a performance links them to anything. And Mango Flex: two hundred fifty-six
+//! (`plugins/lemon-kick` and the others) export one each, the way the small effects do. Orange Surface is here too:
+//! eight faders that sound nothing, a performance links them to anything. And Orange Flex: two hundred fifty-six
 //! named presets with four macros over each, and the echo and space of the preset behind them.
 //!
 // spec: plugins/lemon-small-generators.md, plugins/plugin-formats.md
@@ -295,7 +295,7 @@ impl<K: Kind> SmallGen<K> {
 
 impl<K: Kind> Plugin for SmallGen<K> {
     const NAME: &'static str = K::SPEC.name;
-    const VENDOR: &'static str = "Mango Studio";
+    const VENDOR: &'static str = "Orange Studio";
     const URL: &'static str = "";
     const EMAIL: &'static str = "";
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -487,7 +487,7 @@ mod tests {
                     assert_eq!((s.text)(k, back), t, "{} {} {v}", s.name, set.id);
                 }
             }
-            assert!(s.name.starts_with("Mango "), "{}", s.name);
+            assert!(s.name.starts_with("Orange "), "{}", s.name);
             // The instrument starts and renders silence at rest.
             let mut d = (s.make)(44100, &s.start());
             let mut l = vec![0.0f32; 480];
@@ -542,13 +542,13 @@ mod tests {
                 assert_ne!(classes[i], classes[j]);
             }
         }
-        assert_eq!(<fruit_kick::LemonKick as Plugin>::NAME, "Mango Kick");
-        assert_eq!(<pluck::MangoPluck as Plugin>::NAME, "Mango Pluck");
-        assert_eq!(<mini::MangoMini as Plugin>::NAME, "Mango Mini");
-        assert_eq!(<dx::MangoDx as Plugin>::NAME, "Mango DX");
-        assert_eq!(<autogun::MangoAutogun as Plugin>::NAME, "Mango Autogun");
-        assert_eq!(<drums::MangoDrums as Plugin>::NAME, "Mango Drums");
-        assert_eq!(<keys::MangoKeys as Plugin>::NAME, "Mango Keys");
+        assert_eq!(<fruit_kick::LemonKick as Plugin>::NAME, "Orange Kick");
+        assert_eq!(<pluck::MangoPluck as Plugin>::NAME, "Orange Pluck");
+        assert_eq!(<mini::MangoMini as Plugin>::NAME, "Orange Mini");
+        assert_eq!(<dx::MangoDx as Plugin>::NAME, "Orange DX");
+        assert_eq!(<autogun::MangoAutogun as Plugin>::NAME, "Orange Autogun");
+        assert_eq!(<drums::MangoDrums as Plugin>::NAME, "Orange Drums");
+        assert_eq!(<keys::MangoKeys as Plugin>::NAME, "Orange Keys");
     }
 
     /// The saved state round-trips through the plugin state, and the editor's live edits reach the sound.

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Beat's envelope grids: the four time slots and the four volume slots, their points and FL's thirteen
+//! Orange Beat's envelope grids: the four time slots and the four volume slots, their points and FL's thirteen
 //! segment shapes (ported from the automation curve, `os-model::curve`), and the shared state the editor writes and
 //! the sound reads.
 //!
@@ -109,7 +109,7 @@ fn count(t: f32) -> f64 {
 
 /// The shape of one segment: `progress(x)` maps the position 0..1 along it to 0..1 between its two levels. Its
 /// coefficients are worked out once, from the point the segment ends on (and for the smooth mode its neighbours).
-/// Ported from the automation curve so a Mango Beat envelope reads like one drawn in the playlist.
+/// Ported from the automation curve so a Orange Beat envelope reads like one drawn in the playlist.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Segment {
     mode: Mode,

@@ -34,9 +34,9 @@ const CONTROLS: [Control; 2] = [
 ];
 
 pub const SPEC: &Spec = &Spec {
-    name: "Mango Balance",
+    name: "Orange Balance",
     word: "BALANCE",
-    about: "Mango Studio's balance",
+    about: "Orange Studio's balance",
     settings: &SETTINGS,
     version: None,
     any_version: false,
@@ -130,7 +130,7 @@ pub struct BalanceKind;
 impl Kind for BalanceKind {
     const SPEC: &'static Spec = SPEC;
     const CLAP_ID: &'static str = "org.openstudio.lemon-balance";
-    const CLAP_DESCRIPTION: &'static str = "Mango Studio's balance";
+    const CLAP_DESCRIPTION: &'static str = "Orange Studio's balance";
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::AudioEffect, ClapFeature::Utility, ClapFeature::Mixing, ClapFeature::Stereo];
     const VST3_CLASS_ID: [u8; 16] = *b"LemonStudioBalnc";
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Fx, Vst3SubCategory::Spatial];

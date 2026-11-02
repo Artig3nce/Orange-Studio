@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Flex: Mango Studio's preset synthesizer (a recreation of FL's FLEX) as a plugin. Two hundred fifty-six
+//! Orange Flex: Orange Studio's preset synthesizer (a recreation of FL's FLEX) as a plugin. Two hundred fifty-six
 //! named presets — a two-oscillator voice with a sub and a whiff of noise, a state-variable filter under its own
 //! envelope, and the echo and space of the preset — and four macros over it, each one landing where the preset
 //! says (a cutoff here, a detune there), the way FLEX's macros do.
@@ -55,9 +55,9 @@ const CONTROLS: [Control; 6] = [
 ];
 
 pub const SPEC: &GenSpec = &GenSpec {
-    name: "Mango Flex",
+    name: "Orange Flex",
     word: "FLEX",
-    about: "Mango Studio's preset synthesizer",
+    about: "Orange Studio's preset synthesizer",
     settings: &SETTINGS,
     version: None,
     any_version: false,
@@ -201,7 +201,7 @@ fn percent_parse(s: &str) -> Option<i32> {
     nearest(SETTINGS[MACRO1].range, x, |v| Some(f64::from(v) / 128.0 * 100.0))
 }
 
-/// A preset's number as the count names it: "1 Mango Lead".
+/// A preset's number as the count names it: "1 Orange Lead".
 fn preset_text(v: i32) -> String {
     let n = v.clamp(0, COUNT - 1);
     format!("{} {}", n + 1, patch(n).name)
@@ -641,7 +641,7 @@ pub struct FlexKind;
 impl Kind for FlexKind {
     const SPEC: &'static GenSpec = SPEC;
     const CLAP_ID: &'static str = "org.openstudio.mango-flex";
-    const CLAP_DESCRIPTION: &'static str = "Mango Studio's preset synthesizer";
+    const CLAP_DESCRIPTION: &'static str = "Orange Studio's preset synthesizer";
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::Instrument, ClapFeature::Synthesizer, ClapFeature::Stereo];
     const VST3_CLASS_ID: [u8; 16] = *b"MangoStudioFlex1";
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Instrument, Vst3SubCategory::Synth];

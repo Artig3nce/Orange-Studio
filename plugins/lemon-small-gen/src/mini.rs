@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Mini: Mango Studio's small subtractive synthesizer (the roadmap's "Minisynth"). Two oscillators — each
+//! Orange Mini: Orange Studio's small subtractive synthesizer (the roadmap's "Minisynth"). Two oscillators — each
 //! its own wave and octave, the second detunable against the first — into a resonant lowpass that its contour
-//! sweeps, the amp envelope over it, up to eight notes at once. The smallest of the Mango synths, and the loudest
+//! sweeps, the amp envelope over it, up to eight notes at once. The smallest of the Orange synths, and the loudest
 //! for its size.
 //!
 // spec: plugins/lemon-small-generators.md
@@ -88,9 +88,9 @@ const CONTROLS: [Control; 16] = [
 ];
 
 pub const SPEC: &GenSpec = &GenSpec {
-    name: "Mango Mini",
+    name: "Orange Mini",
     word: "MINI",
-    about: "Mango Studio's small subtractive synthesizer",
+    about: "Orange Studio's small subtractive synthesizer",
     settings: &SETTINGS,
     version: None,
     any_version: false,
@@ -499,7 +499,7 @@ pub struct MiniKind;
 impl Kind for MiniKind {
     const SPEC: &'static GenSpec = SPEC;
     const CLAP_ID: &'static str = "org.openstudio.mango-mini";
-    const CLAP_DESCRIPTION: &'static str = "Mango Studio's small subtractive synthesizer";
+    const CLAP_DESCRIPTION: &'static str = "Orange Studio's small subtractive synthesizer";
     const CLAP_FEATURES: &'static [ClapFeature] =
         &[ClapFeature::Instrument, ClapFeature::Synthesizer, ClapFeature::Stereo];
     const VST3_CLASS_ID: [u8; 16] = *b"MangoStudioMini\0";

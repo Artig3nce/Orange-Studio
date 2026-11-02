@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango DX: Mango Studio's small FM synthesizer (the roadmap's "Fruity DX10"). A carrier sine played by a
+//! Orange DX: Orange Studio's small FM synthesizer (the roadmap's "Fruity DX10"). A carrier sine played by a
 //! modulator of its own wave — its pitch a ratio of the note's, its depth its own little contour — with the
 //! modulator's out feeding back into itself, and the amp envelope over it all. Four notes at once.
 //!
@@ -71,9 +71,9 @@ const CONTROLS: [Control; 12] = [
 ];
 
 pub const SPEC: &GenSpec = &GenSpec {
-    name: "Mango DX",
+    name: "Orange DX",
     word: "DX",
-    about: "Mango Studio's small FM synthesizer",
+    about: "Orange Studio's small FM synthesizer",
     settings: &SETTINGS,
     version: None,
     any_version: false,
@@ -464,7 +464,7 @@ pub struct DxKind;
 impl Kind for DxKind {
     const SPEC: &'static GenSpec = SPEC;
     const CLAP_ID: &'static str = "org.openstudio.mango-dx";
-    const CLAP_DESCRIPTION: &'static str = "Mango Studio's small FM synthesizer";
+    const CLAP_DESCRIPTION: &'static str = "Orange Studio's small FM synthesizer";
     const CLAP_FEATURES: &'static [ClapFeature] =
         &[ClapFeature::Instrument, ClapFeature::Synthesizer, ClapFeature::Stereo];
     const VST3_CLASS_ID: [u8; 16] = *b"MangoStudioDX10\0";

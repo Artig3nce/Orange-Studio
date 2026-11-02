@@ -34,7 +34,7 @@ fn main() {
     write_samples(&samples);
     let project = project(&samples);
     let bytes = create(&project).expect("build the project").to_bytes().expect("encode the project");
-    let out = dir.join("Mango Studio Demo.flp");
+    let out = dir.join("Orange Studio Demo.flp");
     std::fs::write(&out, bytes).expect("write the project");
     println!("{}", out.display());
 }
@@ -212,8 +212,8 @@ fn project(samples: &Path) -> Project {
         ppq: PPQ,
         tempo: Some(TEMPO),
         info: ProjectInfo {
-            title: Some("Mango Studio Demo".into()),
-            author: Some("Mango Studio".into()),
+            title: Some("Orange Studio Demo".into()),
+            author: Some("Orange Studio".into()),
             genre: Some("House".into()),
             ..Default::default()
         },

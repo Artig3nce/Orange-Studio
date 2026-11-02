@@ -870,7 +870,7 @@ That's all there is to it!
 12. MonkSynth (MIT)
 -------------------------------------------------------------------------------
 
-Mango Studio's Mango Monk generator is a port of MonkSynth by Jonathan Taylor
+Orange Studio's Orange Monk generator is a port of MonkSynth by Jonathan Taylor
 (https://github.com/JonET/monksynth), the FOF (formant-wave-function) vocal
 synthesizer and its stereo delay, translated from the project's dsp sources
 into Rust (plugins/lemon-small-gen/src/monk.rs). MonkSynth is MIT licensed:
@@ -901,8 +901,8 @@ SOFTWARE.
 13. Virtuosity Drums samples (Creative Commons Zero 1.0)
 -------------------------------------------------------------------------------
 
-The Mango Pack (crates/os-app/assets/samples/mango-pack), the thirty one-shots
-the Browser lists as "Sounds/Mango Pack", is curated from Virtuosity Drums by
+The Orange Pack (crates/os-app/assets/samples/mango-pack), the thirty one-shots
+the Browser lists as "Sounds/Orange Pack", is curated from Virtuosity Drums by
 Versilian Studios (with Karoryfer Samples), a contemporary jazz drum kit and
 percussion library recorded at Virtuosity Musical Instruments in Boston, MA.
 It was published at https://github.com/studiorack/virtuosity-drums and

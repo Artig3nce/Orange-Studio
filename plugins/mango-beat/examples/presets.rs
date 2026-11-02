@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Writes the factory presets (`crates/os-app/factory-presets/Mango Beat/*.ospreset`): one Mango Beat state each,
+//! Writes the factory presets (`crates/os-app/factory-presets/Orange Beat/*.ospreset`): one Orange Beat state each,
 //! the grids of a classic shape and the parameters at their defaults. Run from the repository root:
 //!
 //! ```text
@@ -81,10 +81,10 @@ fn state(grids: &GridState) -> Vec<u8> {
 }
 
 fn main() {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/os-app/factory-presets/Mango Beat");
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/os-app/factory-presets/Orange Beat");
     std::fs::create_dir_all(&dir).expect("preset folder");
     for (name, grids) in presets() {
-        let header = format!("plugin=Mango Beat\tid=clap:org.openstudio.mango-beat\tformat=clap\n");
+        let header = format!("plugin=Orange Beat\tid=clap:org.openstudio.mango-beat\tformat=clap\n");
         let mut file = b"OSPRESET 1\n".to_vec();
         file.extend_from_slice(header.as_bytes());
         file.extend_from_slice(&state(&grids));

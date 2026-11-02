@@ -59,8 +59,8 @@ fn terminated(timing: usize, identity: dsp::Ended) -> NoteEvent<()> {
 }
 
 impl Plugin for LemonWavetable {
-    const NAME: &'static str = "Mango Wavetable";
-    const VENDOR: &'static str = "Mango Studio";
+    const NAME: &'static str = "Orange Wavetable";
+    const VENDOR: &'static str = "Orange Studio";
     const URL: &'static str = "";
     const EMAIL: &'static str = "";
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -172,7 +172,7 @@ impl Plugin for LemonWavetable {
 impl ClapPlugin for LemonWavetable {
     const CLAP_ID: &'static str = CLAP_ID;
     const CLAP_DESCRIPTION: Option<&'static str> =
-        Some("Mango Studio's wavetable synthesizer");
+        Some("Orange Studio's wavetable synthesizer");
     const CLAP_MANUAL_URL: Option<&'static str> = None;
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
     const CLAP_FEATURES: &'static [ClapFeature] = &[

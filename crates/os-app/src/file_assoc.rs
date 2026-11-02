@@ -18,14 +18,14 @@ pub const PROG_ID: &str = "MangoStudio.Project";
 /// The extension it registers.
 pub const EXT: &str = ".flp";
 /// The type's description and the open verb's name (spec).
-const DESCRIPTION: &str = "Mango Studio project";
-const FRIENDLY_NAME: &str = "Mango Studio";
+const DESCRIPTION: &str = "Orange Studio project";
+const FRIENDLY_NAME: &str = "Orange Studio";
 /// The per-user classes, where every write goes (`Root::Classes`).
 const CLASSES: &str = r"Software\Classes";
 /// Windows' "Open with ▸ Always" choice for `.flp` (`Root::User`), value `ProgId`.
 const USER_CHOICE: &str = r"Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.flp\UserChoice";
 /// The hint bar's text when a `UserChoice` keeps another program after a tick (spec).
-pub const BLOCKED_HINT: &str = "Windows opens .flp files with another program: choose Mango Studio under Open with ▸ Choose another app";
+pub const BLOCKED_HINT: &str = "Windows opens .flp files with another program: choose Orange Studio under Open with ▸ Choose another app";
 
 /// Where a read looks.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -346,7 +346,7 @@ mod tests {
     use os_ui::{Canvas, Rect};
 
     /// The made-up program path `program` gives in tests.
-    pub const PROGRAM: &str = r"C:\Programs\Mango Studio\mangostudio.exe";
+    pub const PROGRAM: &str = r"C:\Programs\Orange Studio\mangostudio.exe";
     const OTHER: &str = r"C:\Program Files\Other DAW\other.exe";
     const FL_TYPE: &str = "Other.flp.1";
 
@@ -386,9 +386,9 @@ mod tests {
             ops,
             [
                 Op::DeleteValue { key: PROG_ID.into(), name: "Previous" },
-                set(PROG_ID, "", "Mango Studio project"),
+                set(PROG_ID, "", "Orange Studio project"),
                 set(r"MangoStudio.Project\DefaultIcon", "", &format!("\"{PROGRAM}\",0")),
-                set(r"MangoStudio.Project\shell\open", "FriendlyAppName", "Mango Studio"),
+                set(r"MangoStudio.Project\shell\open", "FriendlyAppName", "Orange Studio"),
                 set(r"MangoStudio.Project\shell\open\command", "", &format!("\"{PROGRAM}\" \"%1\"")),
                 set(".flp", "", PROG_ID),
                 set(r".flp\OpenWithProgids", PROG_ID, ""),
@@ -452,7 +452,7 @@ mod tests {
         assert_eq!(seen().user_choice, Some((FL_TYPE.into(), Some(format!("\"{OTHER}\" \"%1\"")))));
         assert!(blocked(PROGRAM, &seen()) && !ticked(PROGRAM, &seen()));
         reg::put("HKCU", choice, "ProgId", "mangostudio.project");
-        assert!(ticked(PROGRAM, &seen()), "Mango Studio's own type, any case");
+        assert!(ticked(PROGRAM, &seen()), "Orange Studio's own type, any case");
         reg::put("HKCU", choice, "ProgId", r"Applications\mangostudio.exe");
         reg::put("HKCU", r"Software\Classes\Applications\mangostudio.exe\shell\open\command", "", &format!("\"{PROGRAM}\" \"%1\""));
         assert!(ticked(PROGRAM, &seen()), "a type that runs this program");

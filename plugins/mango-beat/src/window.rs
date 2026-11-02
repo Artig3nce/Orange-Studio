@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! The Mango Beat editor's child windows: Win32 on Windows, X11 on Linux and an NSView on macOS (the os-plugkit
+//! The Orange Beat editor's child windows: Win32 on Windows, X11 on Linux and an NSView on macOS (the os-plugkit
 //! window loops, as Lemon Delay's). The logic (`super::Logic`) is shared; these only move events in and blits out.
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -92,7 +92,7 @@ pub(crate) mod win32 {
                 lock: CursorLock::default(),
                 tracking: false,
             });
-            let title = pw::wide("Mango Beat");
+            let title = pw::wide("Orange Beat");
             let hwnd = CreateWindowExW(
                 0,
                 class.as_ptr(),

@@ -236,7 +236,7 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo, width: f32) {
     if !l.logo {
         return;
     }
-    // Logo spot (spans the rows): the Mango Studio mark, right of the last panel (x 1487 in the "Caption left" layout). It
+    // Logo spot (spans the rows): the Orange Studio mark, right of the last panel (x 1487 in the "Caption left" layout). It
     // keeps to the right edge, left of caption buttons in the corner, until the window is too narrow, then the edge
     // crops it (spec ui/main-window.md §12), or it goes when the caption buttons would cover it; the toolbar never
     // moves.
@@ -251,7 +251,7 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo, width: f32) {
         ui.hit(r, Action::Bar(BarHit::Logo), "Logo - drag onto the palette to take it off");
         frame(ui, r.inset(2.0));
     } else {
-        ui.hit(r, Action::MenuItem(menus::HELP_MENU, menus::HELP_ABOUT), "About Mango Studio");
+        ui.hit(r, Action::MenuItem(menus::HELP_MENU, menus::HELP_ABOUT), "About Orange Studio");
     }
     icons::logo(ui.c, lx, mid, 26.0 * h / 81.0, if lemon { t.toolbar_edge } else { t.toolbar_line });
 }
@@ -300,7 +300,7 @@ fn caption(ui: &mut Ui, c: &Ctx) {
     for (x, icon, action, hint) in [
         (4.0, Icon::Minimize, Action::Minimize, "Minimize"),
         (24.0, Icon::Restore, Action::Maximize, "Restore / maximize"),
-        (44.0, Icon::Close, Action::Close, "Exit Mango Studio"),
+        (44.0, Icon::Close, Action::Close, "Exit Orange Studio"),
     ] {
         let r = a.r(Rect::new(x, 11.0, 19.0, 19.0));
         let hov = ui.hit(r, action, hint);
@@ -429,7 +429,7 @@ fn transport(ui: &mut Ui, c: &Ctx) {
         ui.c.fill_rrect(tb.inset(1.0), 4.0, ui.t.s(0x5f6466));
     }
     super::display_edge(ui.c, t, tb, 5.0);
-    // Lemon displays showed their digits in the brand colour; Mango's tempo and time read white, as its text does.
+    // Lemon displays showed their digits in the brand colour; Orange's tempo and time read white, as its text does.
     let digits = if lemon { t.text } else { t.glyph };
     // While playing, the tempo playback is at: tempo automation moves it (spec: audio/timing.md "Tempo that changes").
     let whole = format!("{}", f.tempo.trunc() as i64);
@@ -729,7 +729,7 @@ fn volume(ui: &mut Ui, c: &Ctx) {
     let hr = if super::lemon(ui) { a.span(304.0, 336.0, 45.0, 77.0) } else { a.span(303.0, 337.0, 45.0, 77.0) };
     ui.hit(hr, Action::Knob(KnobId::MasterVol), s.knob_text(KnobId::MasterVol));
     if super::lemon(ui) {
-        // The Mango skin: a level bar like the mixer's.
+        // The Orange skin: a level bar like the mixer's.
         super::mixer::centre_bar(ui, a.x(320.0), a.y(61.0), 16.0, 10.0, s.knob(KnobId::MasterVol), super::mixer::Bar::Level);
         return;
     }
@@ -744,7 +744,7 @@ fn pitch(ui: &mut Ui, c: &Ctx) {
     ui.hit(hr, Action::Knob(KnobId::MasterPitch), s.knob_text(KnobId::MasterPitch));
     let (cx, cy) = (a.x(358.0), a.y(61.0));
     if super::lemon(ui) {
-        // The Mango skin: a bar from its centre, like the mixer's pan.
+        // The Orange skin: a bar from its centre, like the mixer's pan.
         super::mixer::centre_bar(ui, cx, cy, 16.0, 10.0, s.knob(KnobId::MasterPitch), super::mixer::Bar::Centre);
         return;
     }
@@ -1308,7 +1308,7 @@ mod tests {
         app.paint(&mut c, None);
         assert_eq!(more(&app), None);
         assert!(has(&app, &Action::Monitor) && has(&app, &Action::CpuPanel) && has(&app, &Action::PatternPrev));
-        assert!(app.hits.iter().any(|h| h.hint == "About Mango Studio"));
+        assert!(app.hits.iter().any(|h| h.hint == "About Orange Studio"));
         // No news panel: Lemon Studio has no online service.
         assert!(!app.hits.iter().any(|h| h.action == Action::Placeholder("News")));
 
@@ -1320,7 +1320,7 @@ mod tests {
         assert_eq!((r, action), (Rect::new(1920.0 - 2.0 * MORE_W, 0.0, 2.0 * MORE_W, 162.0), Action::Swallow));
         assert!(has(&app, &Action::Clock) && has(&app, &Action::GlobalSnap));
         assert!(!has(&app, &Action::Monitor) && !has(&app, &Action::CpuPanel) && !has(&app, &Action::PatternPrev));
-        assert!(!app.hits.iter().any(|h| h.hint == "About Mango Studio"));
+        assert!(!app.hits.iter().any(|h| h.hint == "About Orange Studio"));
         app.mouse_move(r.cx(), r.cy());
         assert_eq!(app.hint, MORE_HINT);
         let before = (app.state.message.clone(), app.state.menu_open, app.state.settings.open);
@@ -1343,6 +1343,6 @@ mod tests {
         let (r, _) = more(&app).expect("the arrow");
         assert_eq!(r, Rect::new(600.0 - MORE_W / 2.0, 0.0, MORE_W / 2.0, 81.0 * 0.5));
         assert!(has(&app, &Action::Monitor) && has(&app, &Action::PatternPrev));
-        assert!(!has(&app, &Action::CpuPanel) && !app.hits.iter().any(|h| h.hint == "About Mango Studio"));
+        assert!(!has(&app, &Action::CpuPanel) && !app.hits.iter().any(|h| h.hint == "About Orange Studio"));
     }
 }

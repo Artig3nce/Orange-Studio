@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Flex: Mango Studio's preset synthesizer (a recreation of FL's FLEX) as a VST3 / CLAP plugin module. The
+//! Orange Flex: Orange Studio's preset synthesizer (a recreation of FL's FLEX) as a VST3 / CLAP plugin module. The
 //! plugin, its parameters and its editor are `lemon_small_gen::flex` (shared with the other small generators); this
 //! crate gives it its own module file.
 //!
@@ -14,8 +14,8 @@ use nih_plug::prelude::*;
 
 pub use lemon_small_gen::flex::MangoFlex;
 
-// Built as a plugin module: the C entry points hosts look for. Linked into Mango Studio (`linked`
-// feature): only the symbol-free table, so several Mango plugins fit in one program (spec:
+// Built as a plugin module: the C entry points hosts look for. Linked into Orange Studio (`linked`
+// feature): only the symbol-free table, so several Orange plugins fit in one program (spec:
 // plugins/plugin-formats.md).
 #[cfg(not(feature = "linked"))]
 nih_export_clap!(MangoFlex);

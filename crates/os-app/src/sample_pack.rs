@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! The Mango Pack as files: thirty one-shots from Versilian Studios' Virtuosity Drums, recorded at Virtuosity Musical
+//! The Orange Pack as files: thirty one-shots from Versilian Studios' Virtuosity Drums, recorded at Virtuosity Musical
 //! Instruments and given to everyone under CC0 (`assets/samples/mango-pack/PROVENANCE.md` says which file is which).
-//! Written once into `Sounds/Mango Pack` of the user folder and shown in the Browser as the folder "Mango Pack" — a
-//! real drum kit and a shelf of percussion beside the Mango Kit's maths-made sounds, so a new session has something to
+//! Written once into `Sounds/Orange Pack` of the user folder and shown in the Browser as the folder "Orange Pack" — a
+//! real drum kit and a shelf of percussion beside the Orange Kit's maths-made sounds, so a new session has something to
 //! drag in before any sample of one's own exists. Made once: a pack the user deleted, or took out of the Browser, stays
 //! gone.
 
@@ -17,9 +17,9 @@ use crate::prefs;
 static PACK: &[(&str, &[u8])] = include!(concat!(env!("OUT_DIR"), "/sample_pack.rs"));
 
 /// Where the pack is, under the user folder.
-const FOLDER: [&str; 2] = ["Sounds", "Mango Pack"];
+const FOLDER: [&str; 2] = ["Sounds", "Orange Pack"];
 /// The name the Browser shows the folder under.
-pub const BROWSER_NAME: &str = "Mango Pack";
+pub const BROWSER_NAME: &str = "Orange Pack";
 /// Set once the pack was made.
 const KEY: &str = "mango_pack_made";
 
@@ -39,7 +39,7 @@ pub fn ensure(root: &Path) -> Result<Option<PathBuf>, String> {
 }
 
 /// Starts with the pack in the Browser: written now (`ensure`), its folder is added to the Browser's folders under its
-/// name and the list is kept. The list's order is the user's: the pack goes after the Mango Kit.
+/// name and the list is kept. The list's order is the user's: the pack goes after the Orange Kit.
 pub fn offer(s: &mut crate::app::State, root: &Path) -> Result<(), String> {
     if let Some(dir) = ensure(root)? {
         if !s.browser_folders.contains(&dir) {
@@ -62,8 +62,8 @@ mod tests {
         d
     }
 
-    /// The pack is written once: thirty WAVs that read back as audio, in `Sounds/Mango Pack`, listed in the Browser as
-    /// "Mango Pack" (once); a second call does nothing, and a folder the user deleted is not written again.
+    /// The pack is written once: thirty WAVs that read back as audio, in `Sounds/Orange Pack`, listed in the Browser as
+    /// "Orange Pack" (once); a second call does nothing, and a folder the user deleted is not written again.
     #[test]
     fn the_pack_is_written_once_and_the_browser_lists_it() {
         let root = temp("once");
@@ -71,11 +71,11 @@ mod tests {
         prefs::set_text(KEY, "");
         let mut app = crate::app::App::new(None);
         offer(&mut app.state, &root).unwrap();
-        let dir = root.join("Sounds").join("Mango Pack");
+        let dir = root.join("Sounds").join("Orange Pack");
         let mut names: Vec<String> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
         names.sort();
         assert_eq!(names.len(), PACK.len());
-        assert!(names.contains(&"Mango Kick.wav".to_string()) && names.contains(&"Mango Bell Tree.wav".to_string()));
+        assert!(names.contains(&"Orange Kick.wav".to_string()) && names.contains(&"Orange Bell Tree.wav".to_string()));
         assert_eq!(names.len(), 30);
         for n in &names {
             let s = os_engine::sample::load(&dir.join(n)).unwrap_or_else(|e| panic!("{n}: {e}"));

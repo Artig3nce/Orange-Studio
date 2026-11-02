@@ -339,7 +339,7 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) {
         }
         // Pan and volume knobs (§11).
         if lemon {
-            // The Mango skin: two bars like the mixer's, panning over volume.
+            // The Orange skin: two bars like the mixer's, panning over volume.
             let bx = x + 43.0;
             ui.hit(Rect::new(bx - 16.0, ry + 1.0, 32.0, 12.0), Action::Knob(KnobId::ChanPan(i)), s.knob_text(KnobId::ChanPan(i)));
             super::mixer::centre_bar(ui, bx, ry + 6.5, 15.0, 8.0, s.knob(KnobId::ChanPan(i)), super::mixer::Bar::Centre);

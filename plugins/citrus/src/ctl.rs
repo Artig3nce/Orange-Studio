@@ -324,7 +324,7 @@ const FILTER_NAMES: [&str; 13] = [
     "Vanilla low shelf",
     "Vanilla peaking",
     "Vanilla high shelf",
-    "Mango low pass",
+    "Orange low pass",
     "Cherry phaser",
 ];
 /// The stages column's positions; FL's hint read "dual" for x2, the others are Lemon names.

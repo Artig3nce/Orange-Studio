@@ -1,6 +1,6 @@
 [package]
 name = "lemon-wavetable"
-description = "Mango Wavetable: Mango Studio's wavetable synthesizer as a VST3 / CLAP plugin"
+description = "Orange Wavetable: Orange Studio's wavetable synthesizer as a VST3 / CLAP plugin"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

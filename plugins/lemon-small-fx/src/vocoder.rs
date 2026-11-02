@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Vocoder's settings and editor (a recreation of FL's Vocodex): the mixer's levels and filters, the envelope
+//! Orange Vocoder's settings and editor (a recreation of FL's Vocodex): the mixer's levels and filters, the envelope
 //! follower, the bands and the inputs. The plugin itself (`plugins/lemon-vocoder`) is not a [`crate::SmallFx`]: it has
 //! a sidechain input bus for the carrier, so it only borrows the description, the parameters and the editor from here.
 //!
@@ -162,9 +162,9 @@ const CONTROLS: [Control; 17] = [
 ];
 
 pub const SPEC: &Spec = &Spec {
-    name: "Mango Vocoder",
+    name: "Orange Vocoder",
     word: "VOCODER",
-    about: "Mango Studio's vocoder",
+    about: "Orange Studio's vocoder",
     settings: &SETTINGS,
     version: None,
     any_version: false,

@@ -89,11 +89,11 @@ impl App {
         self.file_dialog(dlg.start(downloads.as_deref()));
     }
 
-    /// The installer chosen: it runs in Wine (its own windows); when it ends, Mango looks for plugins.
+    /// The installer chosen: it runs in Wine (its own windows); when it ends, Orange looks for plugins.
     pub(crate) fn run_windows_installer(&mut self, path: std::path::PathBuf) {
         let name = path.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned());
         let msi = path.extension().is_some_and(|e| e.eq_ignore_ascii_case("msi"));
-        self.windows_job(&format!("Running {name} in Wine: finish the installer, then Mango Studio looks for the new plugins"), move || {
+        self.windows_job(&format!("Running {name} in Wine: finish the installer, then Orange Studio looks for the new plugins"), move || {
             let mut cmd = std::process::Command::new("wine");
             if msi {
                 cmd.args(["msiexec", "/i"]);

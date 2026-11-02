@@ -1,6 +1,6 @@
 [package]
 name = "lemon-vocoder"
-description = "Mango Vocoder: Lemon Studio's vocoder as a VST3 / CLAP plugin"
+description = "Orange Vocoder: Lemon Studio's vocoder as a VST3 / CLAP plugin"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

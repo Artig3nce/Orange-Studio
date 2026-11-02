@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! The Mango Kit as files: the eighteen drum sounds of `os_engine::kit`, written once as WAVs into `Sounds/Mango Kit` of
+//! The Orange Kit as files: the eighteen drum sounds of `os_engine::kit`, written once as WAVs into `Sounds/Orange Kit` of
 //! the user folder (the folder the Android build keeps its starter kit in too) and shown in the Browser as the folder
-//! "Mango Kit". Made from maths alone, so they are free to ship with the app (GPL 3.0 or later). Made once: a kit the
+//! "Orange Kit". Made from maths alone, so they are free to ship with the app (GPL 3.0 or later). Made once: a kit the
 //! user deleted, or took out of the Browser, stays gone.
 
 use std::path::{Path, PathBuf};
@@ -12,9 +12,9 @@ use std::path::{Path, PathBuf};
 use crate::prefs;
 
 /// Where the kit is, under the user folder.
-const FOLDER: [&str; 2] = ["Sounds", "Mango Kit"];
+const FOLDER: [&str; 2] = ["Sounds", "Orange Kit"];
 /// The name the Browser shows the folder under.
-pub const BROWSER_NAME: &str = "Mango Kit";
+pub const BROWSER_NAME: &str = "Orange Kit";
 /// Set once the kit was made.
 const KEY: &str = "mango_kit_made";
 /// The rate the kit is made at.
@@ -63,8 +63,8 @@ mod tests {
         d
     }
 
-    /// The kit is made once: eighteen WAVs that read back as audio, in `Sounds/Mango Kit`, listed in the Browser as
-    /// "Mango Kit" (once); a second call does nothing, and a folder the user deleted is not made again.
+    /// The kit is made once: eighteen WAVs that read back as audio, in `Sounds/Orange Kit`, listed in the Browser as
+    /// "Orange Kit" (once); a second call does nothing, and a folder the user deleted is not made again.
     #[test]
     fn the_kit_is_made_once_and_the_browser_lists_it() {
         let root = temp("once");
@@ -72,11 +72,11 @@ mod tests {
         prefs::set_text(KEY, "");
         let mut app = crate::app::App::new(None);
         offer(&mut app.state, &root).unwrap();
-        let dir = root.join("Sounds").join("Mango Kit");
+        let dir = root.join("Sounds").join("Orange Kit");
         let mut names: Vec<String> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
         names.sort();
         assert_eq!(names.len(), 18);
-        assert!(names.contains(&"Mango Kick Deep.wav".to_string()) && names.contains(&"Mango Crash.wav".to_string()));
+        assert!(names.contains(&"Orange Kick Deep.wav".to_string()) && names.contains(&"Orange Crash.wav".to_string()));
         for n in &names {
             let s = os_engine::sample::load(&dir.join(n)).unwrap_or_else(|e| panic!("{n}: {e}"));
             assert!(s.left.len() > 4000 && s.left.iter().any(|v| v.abs() > 0.5), "{n} holds audio");

@@ -371,25 +371,25 @@ pub fn builtin() -> Vec<Available> {
     v.extend(linked(&OSC3, &lemon_3x_osc::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, crate::osc3::LEMON_TRIO));
     v.extend(linked(&CITRUS, &citrus::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, crate::citrus::CITRUS));
     // The small generators (spec: plugins/lemon-small-generators.md): Lemon Kick, Lemon Boom, Lemon Bass and Lemon Acid.
-    v.extend(linked(&KICK, &lemon_kick::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Mango Kick"));
-    v.extend(linked(&BOOM, &lemon_boom::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Mango Boom"));
-    v.extend(linked(&BASS, &lemon_bass::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Mango Bass"));
-    v.extend(linked(&ACID, &lemon_acid::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Mango Acid"));
+    v.extend(linked(&KICK, &lemon_kick::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Orange Kick"));
+    v.extend(linked(&BOOM, &lemon_boom::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Orange Boom"));
+    v.extend(linked(&BASS, &lemon_bass::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Orange Bass"));
+    v.extend(linked(&ACID, &lemon_acid::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Orange Acid"));
     // The rest of the small generators (spec: plugins/lemon-small-generators.md).
-    v.extend(linked(&PLUCK, &lemon_pluck::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Mango Pluck"));
-    v.extend(linked(&MINI, &lemon_mini::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Mango Mini"));
-    v.extend(linked(&DX, &lemon_dx::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Mango DX"));
-    v.extend(linked(&AUTOGUN, &lemon_autogun::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Mango Autogun"));
-    v.extend(linked(&DRUMS, &lemon_drums::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Mango Drums"));
-    v.extend(linked(&KEYS, &lemon_keys::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Mango Keys"));
+    v.extend(linked(&PLUCK, &lemon_pluck::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Orange Pluck"));
+    v.extend(linked(&MINI, &lemon_mini::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Orange Mini"));
+    v.extend(linked(&DX, &lemon_dx::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Orange DX"));
+    v.extend(linked(&AUTOGUN, &lemon_autogun::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Orange Autogun"));
+    v.extend(linked(&DRUMS, &lemon_drums::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Orange Drums"));
+    v.extend(linked(&KEYS, &lemon_keys::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Orange Keys"));
     // The electric guitar (a recreation of FL's Slayer): strings a pickup reads, an amp behind them.
-    v.extend(linked(&SLAYER, &mango_slayer::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Mango Slayer"));
+    v.extend(linked(&SLAYER, &mango_slayer::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Orange Slayer"));
     // The hardware panel (a recreation of FL's Dashboard): knobs and faders a performance links to anything.
-    v.extend(linked(&DASHBOARD, &mango_dashboard::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Mango Dashboard"));
+    v.extend(linked(&DASHBOARD, &mango_dashboard::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Orange Dashboard"));
     // The retro sound effect generator (a port of sfxr): seven generators roll the classic presets, a note
     // plays a fresh take of the sliders.
-    v.extend(linked(&SFXR, &mango_sfxr::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Mango Sfxr"));
-    // Mango Wavetable, from battlemountain2's fork (spec: docs/lemon-wavetable.md).
+    v.extend(linked(&SFXR, &mango_sfxr::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Orange Sfxr"));
+    // Orange Wavetable, from battlemountain2's fork (spec: docs/lemon-wavetable.md).
     v.extend(linked(&WAVETABLE, &lemon_wavetable::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, MANGO_WAVETABLE));
     v.extend(linked(&SOUNDFONT, &mango_soundfont::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, MANGO_SOUNDFONT));
     // The chanting monk (a port of MonkSynth, MIT; the third-party notices carry its notice).
@@ -401,14 +401,14 @@ pub fn builtin() -> Vec<Available> {
     // The preset synthesizer (a recreation of FL's FLEX): named presets and the macros over them.
     v.extend(linked(&FLEX, &mango_flex::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, MANGO_FLEX));
     // The sampler (a recreation of FL's DirectWave): a program of zones, each one sample and where it plays.
-    v.extend(linked(&DIRECTWAVE, &mango_directwave::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Mango DirectWave"));
+    v.extend(linked(&DIRECTWAVE, &mango_directwave::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Orange DirectWave"));
     // The sliced-loop sampler (a recreation of FL's Slicex): articulators, two decks, a sample editor.
-    v.extend(linked(&SLICEX, &lemon_slicex::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Mango Slicex"));
+    v.extend(linked(&SLICEX, &lemon_slicex::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Orange Slicex"));
     // The pad drum sampler (a recreation of FL's FPC): sixteen pads in two banks, each one or more velocity
     // layers of samples, each on its own key.
-    v.extend(linked(&DRUMSAMPLER, &lemon_drum_sampler::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Mango Drum Sampler"));
+    v.extend(linked(&DRUMSAMPLER, &lemon_drum_sampler::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Orange Drum Sampler"));
     // The loop slicer (a recreation of FL's Fruity Slicer): a loop cut into slices, slice n plays on key C5 + n.
-    v.extend(linked(&SLICER, &lemon_slicer::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Mango Slicer"));
+    v.extend(linked(&SLICER, &lemon_slicer::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void, "Orange Slicer"));
     v
 }
 
@@ -970,7 +970,7 @@ impl Plugins {
         self.hosted.iter().find(|(_, h)| h.window.as_ref().and_then(|f| f.screen_rect()).is_some_and(|[l, t, r, b]| x >= l && x < r && y >= t && y < b)).map(|(&r, _)| r)
     }
 
-    /// Hands file `path` to row `row`'s plugin through the host link, when that plugin takes dropped files (Mango Slicex
+    /// Hands file `path` to row `row`'s plugin through the host link, when that plugin takes dropped files (Orange Slicex
     /// does). False when it does not.
     #[cfg(all(not(windows), plugin_windows))]
     pub fn drop_on_link(&self, row: usize, path: &str) -> bool {
@@ -1466,7 +1466,7 @@ impl Plugins {
 /// What the user is told when instance `name` stopped after exception `code`.
 fn stopped_message(name: &str, code: u32, effect: bool) -> String {
     let now = if effect { "its slot passes the sound through" } else { "its channel is silent" };
-    format!("{}: {now}. Save your project and restart Mango Studio to use it again", os_host::guard::stopped_text(name, code))
+    format!("{}: {now}. Save your project and restart Orange Studio to use it again", os_host::guard::stopped_text(name, code))
 }
 
 /// How long a Windows plugin may take to start (create, take its state, activate) before the app gives up on it.
@@ -1513,7 +1513,7 @@ fn start_plugin(lib: Arc<dyn os_host::Library>, desc: &os_host::Descriptor, stat
     match rx.recv_timeout(START_WITHIN) {
         Ok(made) => made,
         Err(_) => Err(format!(
-            "{name} did not start within {} s: its Windows side stopped answering. The plugin was not added; the rest of Mango Studio keeps working",
+            "{name} did not start within {} s: its Windows side stopped answering. The plugin was not added; the rest of Orange Studio keeps working",
             START_WITHIN.as_secs()
         )),
     }
@@ -1556,7 +1556,7 @@ fn editor_joined(row: usize, h: &mut Hosted, close: &mut Vec<usize>) -> Option<S
             }
             o.told = true;
             return Some(format!(
-                "{}'s window is not responding: its Windows side stopped answering. Close the window; the rest of Mango Studio keeps working",
+                "{}'s window is not responding: its Windows side stopped answering. Close the window; the rest of Orange Studio keeps working",
                 h.name
             ));
         }
@@ -1656,50 +1656,50 @@ pub fn retired_count() -> usize {
 }
 
 /// Name of Lemon Studio's sampler plugin: it plays and edits every sampler channel (spec: plugins/lemon-sampler.md §7).
-pub const LEMON_SAMPLER: &str = "Mango Sampler";
-/// Name of Mango Studio's wavetable synth, from battlemountain2's fork.
-pub const MANGO_WAVETABLE: &str = "Mango Wavetable";
-pub const MANGO_SOUNDFONT: &str = "Mango Font";
-/// Name of Mango Vocoder, a band vocoder (a recreation of FL's Vocodex; spec: plugins/lemon-vocoder.md).
-pub const MANGO_VOCODER: &str = "Mango Vocoder";
+pub const LEMON_SAMPLER: &str = "Orange Sampler";
+/// Name of Orange Studio's wavetable synth, from battlemountain2's fork.
+pub const MANGO_WAVETABLE: &str = "Orange Wavetable";
+pub const MANGO_SOUNDFONT: &str = "Orange Font";
+/// Name of Orange Vocoder, a band vocoder (a recreation of FL's Vocodex; spec: plugins/lemon-vocoder.md).
+pub const MANGO_VOCODER: &str = "Orange Vocoder";
 /// The plugin name a project file stores for Vocodex (file-format identifier, kept for interop): slots with it are
-/// played and edited by Mango Vocoder (spec: plugins/lemon-vocoder.md §6).
+/// played and edited by Orange Vocoder (spec: plugins/lemon-vocoder.md §6).
 pub const VOCODEX_FILE_NAME: &str = "Vocodex";
 /// Name of the chanting monk (a port of MonkSynth), which a MIDI file imported with the monk as its channel type plays.
-pub const MANGO_MONK: &str = "Mango Monk";
+pub const MANGO_MONK: &str = "Orange Monk";
 /// Name of the control surface (a recreation of FL's Control Surface): eight faders that sound nothing, linked to
 /// anything (spec: plugins/lemon-small-generators.md).
-pub const MANGO_SURFACE: &str = "Mango Surface";
+pub const MANGO_SURFACE: &str = "Orange Surface";
 /// Name of the image synthesizer (a recreation of FL's BeepMap): a loaded picture sings (spec:
 /// plugins/lemon-beepmap.md).
-pub const MANGO_BEEPMAP: &str = "Mango BeepMap";
+pub const MANGO_BEEPMAP: &str = "Orange BeepMap";
 /// Name of the preset synthesizer (a recreation of FL's FLEX): named presets, four macros over each (spec:
 /// plugins/lemon-small-generators.md).
-pub const MANGO_FLEX: &str = "Mango Flex";
+pub const MANGO_FLEX: &str = "Orange Flex";
 /// Name of Lemon Studio's parametric EQ plugin.
-pub const LEMON_EQ: &str = "Mango Parametric EQ";
+pub const LEMON_EQ: &str = "Orange Parametric EQ";
 /// Lemon Studio's effects compiled in besides the EQ (`builtin_effects`, in this order). They have no file plugin of
 /// their own to be stored as, so a project stores them wrapped, as it stored their plugin files
 /// (`project_plugins::is_wrapped`).
 pub const LINKED_EFFECTS: [&str; 20] = [
-    "Mango Limiter",
-    "Mango Reverb",
-    "Mango Delay",
-    "Mango Soft Clipper",
-    "Mango Fast Distortion",
-    "Mango Balance",
-    "Mango Stereo Enhancer",
-    "Mango Transient Processor",
-    "Mango Chorus",
-    "Mango Stereo Shaper",
-    "Mango Filter",
+    "Orange Limiter",
+    "Orange Reverb",
+    "Orange Delay",
+    "Orange Soft Clipper",
+    "Orange Fast Distortion",
+    "Orange Balance",
+    "Orange Stereo Enhancer",
+    "Orange Transient Processor",
+    "Orange Chorus",
+    "Orange Stereo Shaper",
+    "Orange Filter",
     TESLA,
-    "Mango Beat",
-    "Mango Flanger",
-    "Mango Phaser",
-    "Mango Crusher",
+    "Orange Beat",
+    "Orange Flanger",
+    "Orange Phaser",
+    "Orange Crusher",
     MANGO_VOCODER,
-    "Mango 12",
+    "Orange 12",
     LEMON_PEAK_CONTROLLER,
     LEMON_FORMULA_CONTROLLER,
 ];
@@ -1708,10 +1708,10 @@ pub const LINKED_EFFECTS: [&str; 20] = [
 pub const FILE_MAPPED: [&str; 3] = [LEMON_EQ, PULP_FILTER, PRESS];
 /// Name of Lemon Peak Controller, Lemon Studio's peak follower and LFO controller: its outputs drive the project's links
 /// (spec: plugins/lemon-peak-controller.md).
-pub const LEMON_PEAK_CONTROLLER: &str = "Mango Peak Controller";
+pub const LEMON_PEAK_CONTROLLER: &str = "Orange Peak Controller";
 /// Name of Lemon Formula Controller, Lemon Studio's formula controller: its output drives the project's links (spec:
 /// plugins/lemon-formula-controller.md).
-pub const LEMON_FORMULA_CONTROLLER: &str = "Mango Formula Controller";
+pub const LEMON_FORMULA_CONTROLLER: &str = "Orange Formula Controller";
 /// Name of Tesla, Lemon Studio's audio editor and recorder (spec: plugins/tesla/README.md).
 pub const TESLA: &str = "Tesla";
 /// Name of Pulp Filter, Lemon Studio's pattern-controlled multi-filter (spec: plugins/lemon-pulp-filter.md).
@@ -1731,27 +1731,27 @@ pub const EDISON_FILE_NAME: &str = "Edison";
 /// with it are played by Lemon Parametric EQ (spec: plugins/lemon-parametric-eq-2.md §8).
 pub const EQ_FILE_NAME: &str = "Fruity Parametric EQ 2";
 /// The built-in plugins' earlier names, newest first, with their names now: the "Lemon" names before the fork was renamed
-/// Mango Studio (2026-10-28), "Lemon Parametric EQ 2" and "Lemon 3x Osc"
+/// Orange Studio (2026-10-28), "Lemon Parametric EQ 2" and "Lemon 3x Osc"
 /// (2026-10-13 to 2026-10-14), and the "Open" names before the line was renamed "Lemon". Plugin files and preset
 /// folders made earlier still carry them (spec: plugins/plugin-formats.md, identity).
 pub const OLD_NAMES: [(&str, &str); 22] = [
-    ("Lemon Sampler", "Mango Sampler"),
-    ("Lemon Parametric EQ", "Mango Parametric EQ"),
-    ("Lemon Trio", "Mango Trio"),
-    ("Lemon Limiter", "Mango Limiter"),
-    ("Lemon Reverb", "Mango Reverb"),
-    ("Lemon Delay", "Mango Delay"),
-    ("Lemon Soft Clipper", "Mango Soft Clipper"),
-    ("Lemon Fast Distortion", "Mango Fast Distortion"),
-    ("Lemon Balance", "Mango Balance"),
-    ("Lemon Stereo Enhancer", "Mango Stereo Enhancer"),
-    ("Lemon Transient Processor", "Mango Transient Processor"),
-    ("Lemon Chorus", "Mango Chorus"),
-    ("Lemon Stereo Shaper", "Mango Stereo Shaper"),
-    ("Lemon Kick", "Mango Kick"),
-    ("Lemon Boom", "Mango Boom"),
-    ("Lemon Bass", "Mango Bass"),
-    ("Lemon Acid", "Mango Acid"),
+    ("Lemon Sampler", "Orange Sampler"),
+    ("Lemon Parametric EQ", "Orange Parametric EQ"),
+    ("Lemon Trio", "Orange Trio"),
+    ("Lemon Limiter", "Orange Limiter"),
+    ("Lemon Reverb", "Orange Reverb"),
+    ("Lemon Delay", "Orange Delay"),
+    ("Lemon Soft Clipper", "Orange Soft Clipper"),
+    ("Lemon Fast Distortion", "Orange Fast Distortion"),
+    ("Lemon Balance", "Orange Balance"),
+    ("Lemon Stereo Enhancer", "Orange Stereo Enhancer"),
+    ("Lemon Transient Processor", "Orange Transient Processor"),
+    ("Lemon Chorus", "Orange Chorus"),
+    ("Lemon Stereo Shaper", "Orange Stereo Shaper"),
+    ("Lemon Kick", "Orange Kick"),
+    ("Lemon Boom", "Orange Boom"),
+    ("Lemon Bass", "Orange Bass"),
+    ("Lemon Acid", "Orange Acid"),
     ("Lemon Parametric EQ 2", LEMON_EQ),
     ("Lemon 3x Osc", crate::osc3::LEMON_TRIO),
     ("Open Sampler", LEMON_SAMPLER),
@@ -1759,10 +1759,22 @@ pub const OLD_NAMES: [(&str, &str); 22] = [
     ("Open 3x Osc", crate::osc3::LEMON_TRIO),
 ];
 
-/// A built-in plugin's name now for `name` when it is an earlier name of one (`OLD_NAMES`), else `name`: projects and
-/// presets saved before a rename find the plugin.
-pub fn current_name(name: &str) -> &str {
-    OLD_NAMES.iter().find(|(old, _)| *old == name).map_or(name, |&(_, now)| now)
+/// A built-in plugin's name now for `name` when it is an earlier name of one (`OLD_NAMES`, or a "Mango" name from
+/// before the rename to Orange Studio on 2026-11-02), else `name`: projects and presets saved before a rename find the
+/// plugin.
+pub fn current_name(name: &str) -> std::borrow::Cow<'_, str> {
+    if let Some(&(_, now)) = OLD_NAMES.iter().find(|(old, _)| *old == name) {
+        return now.into();
+    }
+    match name.strip_prefix("Mango ") {
+        Some(rest) => format!("Orange {rest}").into(),
+        None => name.into(),
+    }
+}
+
+/// The name a built-in plugin had before the rename to Orange Studio ("Orange Reverb" was "Mango Reverb").
+pub fn mango_name(name: &str) -> Option<String> {
+    name.strip_prefix("Orange ").map(|rest| format!("Mango {rest}"))
 }
 
 /// The Lemon effects compiled in (`LINKED_EFFECTS`) that recreate an FL mixer effect, by the plugin name a project file
@@ -1772,18 +1784,18 @@ pub fn current_name(name: &str) -> &str {
 /// Not Lemon Stereo Shaper: the difference output is the mixer slot's alone (spec: plugins/lemon-stereo-shaper.md §5),
 /// so the engine's own Stereo Shaper keeps playing those slots.
 pub const FL_RECREATIONS: [(&str, &str); 15] = [
-    ("Fruity Limiter", "Mango Limiter"),
-    ("Fruity Reeverb 2", "Mango Reverb"),
-    ("Fruity Delay 3", "Mango Delay"),
-    ("Fruity Soft Clipper", "Mango Soft Clipper"),
-    ("Fruity Fast Dist", "Mango Fast Distortion"),
-    ("Fruity Balance", "Mango Balance"),
-    ("Fruity Stereo Enhancer", "Mango Stereo Enhancer"),
-    ("Transient Processor", "Mango Transient Processor"),
-    ("Fruity Chorus", "Mango Chorus"),
-    ("Fruity Filter", "Mango Filter"),
-    ("Fruity Flanger", "Mango Flanger"),
-    ("Fruity Phaser", "Mango Phaser"),
+    ("Fruity Limiter", "Orange Limiter"),
+    ("Fruity Reeverb 2", "Orange Reverb"),
+    ("Fruity Delay 3", "Orange Delay"),
+    ("Fruity Soft Clipper", "Orange Soft Clipper"),
+    ("Fruity Fast Dist", "Orange Fast Distortion"),
+    ("Fruity Balance", "Orange Balance"),
+    ("Fruity Stereo Enhancer", "Orange Stereo Enhancer"),
+    ("Transient Processor", "Orange Transient Processor"),
+    ("Fruity Chorus", "Orange Chorus"),
+    ("Fruity Filter", "Orange Filter"),
+    ("Fruity Flanger", "Orange Flanger"),
+    ("Fruity Phaser", "Orange Phaser"),
     (VOCODEX_FILE_NAME, MANGO_VOCODER),
     ("Fruity Peak Controller", LEMON_PEAK_CONTROLLER),
     ("Fruity Formula Controller", LEMON_FORMULA_CONTROLLER),
@@ -1799,18 +1811,18 @@ pub fn recreation_of(file: &str) -> Option<&'static str> {
 pub fn recreation_state_from_fl(lemon: &str, fl: &[u8]) -> Option<Vec<u8>> {
     use lemon_small_fx::params::plugin_state_from_fl as small;
     Some(match lemon {
-        "Mango Limiter" => lemon_limiter::params::plugin_state_from_fl(fl),
-        "Mango Reverb" => lemon_reverb::params::plugin_state_from_fl(fl),
-        "Mango Delay" => lemon_delay::params::plugin_state_from_fl(fl),
-        "Mango Soft Clipper" => small(lemon_small_fx::soft_clipper::SPEC, fl),
-        "Mango Fast Distortion" => small(lemon_small_fx::fast_distortion::SPEC, fl),
-        "Mango Balance" => small(lemon_small_fx::balance::SPEC, fl),
-        "Mango Stereo Enhancer" => small(lemon_small_fx::stereo_enhancer::SPEC, fl),
-        "Mango Transient Processor" => small(lemon_small_fx::transient_processor::SPEC, fl),
-        "Mango Chorus" => small(lemon_small_fx::chorus::SPEC, fl),
-        "Mango Filter" => small(lemon_small_fx::filter::SPEC, fl),
-        "Mango Flanger" => small(lemon_small_fx::flanger::SPEC, fl),
-        "Mango Phaser" => small(lemon_small_fx::phaser::SPEC, fl),
+        "Orange Limiter" => lemon_limiter::params::plugin_state_from_fl(fl),
+        "Orange Reverb" => lemon_reverb::params::plugin_state_from_fl(fl),
+        "Orange Delay" => lemon_delay::params::plugin_state_from_fl(fl),
+        "Orange Soft Clipper" => small(lemon_small_fx::soft_clipper::SPEC, fl),
+        "Orange Fast Distortion" => small(lemon_small_fx::fast_distortion::SPEC, fl),
+        "Orange Balance" => small(lemon_small_fx::balance::SPEC, fl),
+        "Orange Stereo Enhancer" => small(lemon_small_fx::stereo_enhancer::SPEC, fl),
+        "Orange Transient Processor" => small(lemon_small_fx::transient_processor::SPEC, fl),
+        "Orange Chorus" => small(lemon_small_fx::chorus::SPEC, fl),
+        "Orange Filter" => small(lemon_small_fx::filter::SPEC, fl),
+        "Orange Flanger" => small(lemon_small_fx::flanger::SPEC, fl),
+        "Orange Phaser" => small(lemon_small_fx::phaser::SPEC, fl),
         MANGO_VOCODER => small(lemon_small_fx::vocoder::SPEC, fl),
         LEMON_PEAK_CONTROLLER => small(lemon_small_fx::peak_controller::SPEC, fl),
         LEMON_FORMULA_CONTROLLER => small(lemon_small_fx::formula_controller::SPEC, fl),
@@ -1823,18 +1835,18 @@ pub fn recreation_state_from_fl(lemon: &str, fl: &[u8]) -> Option<Vec<u8>> {
 pub fn fl_from_recreation_state(lemon: &str, blob: &[u8]) -> Option<Vec<u8>> {
     use lemon_small_fx::params::fl_from_plugin_state as small;
     match lemon {
-        "Mango Limiter" => lemon_limiter::params::fl_from_plugin_state(blob),
-        "Mango Reverb" => lemon_reverb::params::fl_from_plugin_state(blob),
-        "Mango Delay" => lemon_delay::params::fl_from_plugin_state(blob),
-        "Mango Soft Clipper" => small(lemon_small_fx::soft_clipper::SPEC, blob),
-        "Mango Fast Distortion" => small(lemon_small_fx::fast_distortion::SPEC, blob),
-        "Mango Balance" => small(lemon_small_fx::balance::SPEC, blob),
-        "Mango Stereo Enhancer" => small(lemon_small_fx::stereo_enhancer::SPEC, blob),
-        "Mango Transient Processor" => small(lemon_small_fx::transient_processor::SPEC, blob),
-        "Mango Chorus" => small(lemon_small_fx::chorus::SPEC, blob),
-        "Mango Filter" => small(lemon_small_fx::filter::SPEC, blob),
-        "Mango Flanger" => small(lemon_small_fx::flanger::SPEC, blob),
-        "Mango Phaser" => small(lemon_small_fx::phaser::SPEC, blob),
+        "Orange Limiter" => lemon_limiter::params::fl_from_plugin_state(blob),
+        "Orange Reverb" => lemon_reverb::params::fl_from_plugin_state(blob),
+        "Orange Delay" => lemon_delay::params::fl_from_plugin_state(blob),
+        "Orange Soft Clipper" => small(lemon_small_fx::soft_clipper::SPEC, blob),
+        "Orange Fast Distortion" => small(lemon_small_fx::fast_distortion::SPEC, blob),
+        "Orange Balance" => small(lemon_small_fx::balance::SPEC, blob),
+        "Orange Stereo Enhancer" => small(lemon_small_fx::stereo_enhancer::SPEC, blob),
+        "Orange Transient Processor" => small(lemon_small_fx::transient_processor::SPEC, blob),
+        "Orange Chorus" => small(lemon_small_fx::chorus::SPEC, blob),
+        "Orange Filter" => small(lemon_small_fx::filter::SPEC, blob),
+        "Orange Flanger" => small(lemon_small_fx::flanger::SPEC, blob),
+        "Orange Phaser" => small(lemon_small_fx::phaser::SPEC, blob),
         MANGO_VOCODER => small(lemon_small_fx::vocoder::SPEC, blob),
         LEMON_PEAK_CONTROLLER => small(lemon_small_fx::peak_controller::SPEC, blob),
         LEMON_FORMULA_CONTROLLER => small(lemon_small_fx::formula_controller::SPEC, blob),
@@ -2698,7 +2710,7 @@ mod tests {
             (r.right - r.left, r.bottom - r.top)
         };
         let mut pl = Plugins { available: builtin(), scale: 1.5, rate: 48000, ..Plugins::default() };
-        let index = pl.index_of(LEMON_SAMPLER).expect("built-in Mango Sampler");
+        let index = pl.index_of(LEMON_SAMPLER).expect("built-in Orange Sampler");
         pl.create_with(0, index, None).unwrap();
         let info = ChannelInfo { name: LEMON_SAMPLER.into(), target: "Insert 1".into(), enabled: true, volume: 0.78, pan: 0.0, pitch_cents: 0, range: 2, track: 1, max_track: 125, misc: None };
         pl.open_window(0, info).unwrap();
@@ -2732,11 +2744,11 @@ mod tests {
         let desc = lib.plugins[0].clone();
         let mut pl = Plugins { available: vec![Available { lib, desc }], scale: 1.0, ..Plugins::default() };
         pl.create(0, 0).unwrap();
-        let info = ChannelInfo { name: "Mango Sampler".into(), target: "Insert 1".into(), enabled: true, volume: 0.78, pan: 0.0, pitch_cents: 0, range: 2, track: 1, max_track: 125, misc: None };
+        let info = ChannelInfo { name: "Orange Sampler".into(), target: "Insert 1".into(), enabled: true, volume: 0.78, pan: 0.0, pitch_cents: 0, range: 2, track: 1, max_track: 125, misc: None };
         pl.open_window(0, info).unwrap();
         pump(&mut pl, 400);
         let hwnd = pl.hosted[&0].window.as_ref().unwrap().hwnd();
-        assert!(pl.hosted[&0].link.is_some(), "Mango Sampler should join the strip");
+        assert!(pl.hosted[&0].link.is_some(), "Orange Sampler should join the strip");
         capture(hwnd, &dir.join("win_sample.bmp"));
         click(hwnd, 68, 47); // second page tab
         pump(&mut pl, 300);
@@ -2785,7 +2797,7 @@ mod tests {
         let Some(dir) = std::env::var_os("OS_SHOT_DIR") else { return };
         let dir = std::path::PathBuf::from(dir);
         let mut pl = Plugins { available: builtin(), scale: 1.0, rate: 48000, ..Plugins::default() };
-        let index = pl.index_of(crate::osc3::LEMON_TRIO).expect("built-in Mango Trio");
+        let index = pl.index_of(crate::osc3::LEMON_TRIO).expect("built-in Orange Trio");
         pl.create_with(0, index, None).unwrap();
         let info = ChannelInfo { name: crate::osc3::LEMON_TRIO.into(), target: "Insert 1".into(), enabled: true, volume: 0.78, pan: 0.0, pitch_cents: 0, range: 2, track: 1, max_track: 125, misc: None };
         pl.open_window(0, info).unwrap();
@@ -2880,7 +2892,7 @@ mod tests {
         let desc = lib.plugins[0].clone();
         let mut pl = Plugins { available: vec![Available { lib, desc }], scale: 1.0, ..Plugins::default() };
         pl.create(0, 0).unwrap();
-        let info = ChannelInfo { name: "Mango Sampler".into(), target: "Insert 1".into(), enabled: true, volume: 0.78, pan: 0.0, pitch_cents: 0, range: 2, track: 1, max_track: 125, misc: None };
+        let info = ChannelInfo { name: "Orange Sampler".into(), target: "Insert 1".into(), enabled: true, volume: 0.78, pan: 0.0, pitch_cents: 0, range: 2, track: 1, max_track: 125, misc: None };
         pl.open_window(0, info).unwrap();
         pump(&mut pl, 300);
         let frame = pl.hosted[&0].window.as_ref().unwrap().hwnd();
@@ -2971,7 +2983,7 @@ mod tests {
         let desc = lib.plugins[0].clone();
         let mut pl = Plugins { available: vec![Available { lib, desc }], scale: 1.0, ..Plugins::default() };
         pl.create(0, 0).unwrap();
-        let info = ChannelInfo { name: "Mango Sampler".into(), target: "Insert 1".into(), enabled: true, volume: 0.78, pan: 0.0, pitch_cents: 0, range: 2, track: 1, max_track: 125, misc: None };
+        let info = ChannelInfo { name: "Orange Sampler".into(), target: "Insert 1".into(), enabled: true, volume: 0.78, pan: 0.0, pitch_cents: 0, range: 2, track: 1, max_track: 125, misc: None };
         pl.open_window(0, info).unwrap();
         pump(&mut pl, 300);
         let frame = pl.hosted[&0].window.as_ref().unwrap().hwnd();
@@ -3045,7 +3057,7 @@ mod tests {
         let desc = lib.plugins[0].clone();
         let mut pl = Plugins { available: vec![Available { lib, desc }], scale: 1.0, ..Plugins::default() };
         pl.create(0, 0).unwrap();
-        let info = ChannelInfo { name: "Mango Sampler".into(), target: "Insert 1".into(), enabled: true, volume: 0.78, pan: 0.0, pitch_cents: 0, range: 2, track: 1, max_track: 125, misc: None };
+        let info = ChannelInfo { name: "Orange Sampler".into(), target: "Insert 1".into(), enabled: true, volume: 0.78, pan: 0.0, pitch_cents: 0, range: 2, track: 1, max_track: 125, misc: None };
         pl.open_window(0, info).unwrap();
         pump(&mut pl, 300);
         // A bright 2 s saw so a low-pass is audible.
@@ -3128,7 +3140,7 @@ mod tests {
         let desc = lib.plugins[0].clone();
         let mut pl = Plugins { available: vec![Available { lib, desc }], scale: 1.0, ..Plugins::default() };
         pl.create(0, 0).unwrap();
-        let info = ChannelInfo { name: "Mango Sampler".into(), target: "Insert 1".into(), enabled: true, volume: 0.78, pan: 0.0, pitch_cents: 0, range: 2, track: 1, max_track: 125, misc: None };
+        let info = ChannelInfo { name: "Orange Sampler".into(), target: "Insert 1".into(), enabled: true, volume: 0.78, pan: 0.0, pitch_cents: 0, range: 2, track: 1, max_track: 125, misc: None };
         pl.open_window(0, info).unwrap();
         pump(&mut pl, 300);
         // A bright 2 s saw so a low-pass is audible.
@@ -3144,7 +3156,7 @@ mod tests {
         pump(&mut pl, 300);
         let mut project = crate::app::test_project();
         project.channels.clear();
-        let row = crate::app::add_plugin_channel(&mut project, "Mango Sampler");
+        let row = crate::app::add_plugin_channel(&mut project, "Orange Sampler");
         assert_eq!(row, 0);
         let transport = crate::transport::Transport::new(None);
         transport.update(&project);
@@ -3395,7 +3407,7 @@ mod tests {
     #[test]
     fn builtin_lemon_sampler_takes_a_sample() {
         let mut pl = Plugins { available: builtin(), scale: 1.0, rate: 48000, ..Plugins::default() };
-        let index = pl.index_of(LEMON_SAMPLER).expect("built-in Mango Sampler");
+        let index = pl.index_of(LEMON_SAMPLER).expect("built-in Orange Sampler");
         let mut ch = crate::app::test_project().channels.remove(0);
         ch.envelopes[1].enabled = true;
         ch.envelopes[1].attack = 65536 / 2;
@@ -3553,7 +3565,7 @@ mod tests {
     #[test]
     fn builtin_lemon_sampler_takes_the_stretch_settings() {
         let mut pl = Plugins { available: builtin(), scale: 1.0, rate: 48000, ..Plugins::default() };
-        let index = pl.index_of(LEMON_SAMPLER).expect("built-in Mango Sampler");
+        let index = pl.index_of(LEMON_SAMPLER).expect("built-in Orange Sampler");
         let wav = std::env::temp_dir().join(format!("os-app-sampler-stretch-{}.wav", std::process::id()));
         let tone: Vec<f32> = (0..48000)
             .flat_map(|i| {
@@ -3612,7 +3624,7 @@ mod tests {
         use lemon_sampler::params::fx_from_text;
         use os_model::SampleFx;
         let mut pl = Plugins { available: builtin(), scale: 1.0, rate: 48000, ..Plugins::default() };
-        let index = pl.index_of(LEMON_SAMPLER).expect("built-in Mango Sampler");
+        let index = pl.index_of(LEMON_SAMPLER).expect("built-in Orange Sampler");
         let saved = |pl: &Plugins, row| {
             let st = pl.hosted[&row].plugin.lock().unwrap().save_state().unwrap();
             serde_json::from_slice::<serde_json::Value>(&st[8..]).unwrap()
@@ -3690,7 +3702,7 @@ mod tests {
     #[test]
     fn lemon_sampler_state_without_a_sample_plays_nothing() {
         let mut pl = Plugins { available: builtin(), scale: 1.0, rate: 48000, ..Plugins::default() };
-        let index = pl.index_of(LEMON_SAMPLER).expect("built-in Mango Sampler");
+        let index = pl.index_of(LEMON_SAMPLER).expect("built-in Orange Sampler");
         let wav = std::env::temp_dir().join(format!("os-app-sampler-cleared-{}.wav", std::process::id()));
         let tone: Vec<f32> = (0..9600).flat_map(|i| [((i as f32) * 0.0576).sin() * 0.5; 2]).collect();
         os_engine::wav::write_f32_stereo(&mut std::fs::File::create(&wav).unwrap(), 48000, &tone).unwrap();
@@ -3721,7 +3733,7 @@ mod tests {
     #[test]
     fn lemon_sampler_stretch_parameters_give_the_channel_settings() {
         let mut pl = Plugins { available: builtin(), scale: 1.0, rate: 48000, ..Plugins::default() };
-        let index = pl.index_of(LEMON_SAMPLER).expect("built-in Mango Sampler");
+        let index = pl.index_of(LEMON_SAMPLER).expect("built-in Orange Sampler");
         let mut ch = crate::app::test_project().channels.remove(0);
         let read = |pl: &Plugins| {
             let p = pl.hosted[&0].plugin.lock().unwrap();
@@ -3825,7 +3837,7 @@ mod tests {
         use windows_sys::Win32::Foundation::RECT;
         let mut pl = Plugins { available: builtin(), scale: 1.0, rate: 48000, ..Plugins::default() };
         pl.create(0, pl.index_of(LEMON_SAMPLER).unwrap()).unwrap();
-        let info = ChannelInfo { name: "Mango Sampler".into(), target: "Insert 1".into(), enabled: true, volume: 0.78, pan: 0.0, pitch_cents: 0, range: 2, track: 1, max_track: 125, misc: None };
+        let info = ChannelInfo { name: "Orange Sampler".into(), target: "Insert 1".into(), enabled: true, volume: 0.78, pan: 0.0, pitch_cents: 0, range: 2, track: 1, max_track: 125, misc: None };
         pl.open_window(0, info).unwrap();
         pump(&mut pl, 300);
         let frame = pl.hosted[&0].window.as_ref().unwrap().hwnd();
@@ -3860,7 +3872,7 @@ mod tests {
     /// the same plugin in both formats gets format labels in the picker and each label finds its own entry.
     #[test]
     fn vst3_plugins_host_like_clap_ones() {
-        let (Some(clap), Some(vst3)) = (bundled("Mango Sampler.clap"), bundled("Mango Sampler.vst3")) else { return };
+        let (Some(clap), Some(vst3)) = (bundled("Orange Sampler.clap"), bundled("Orange Sampler.vst3")) else { return };
         let available = |p: &std::path::Path, load: fn(&std::path::Path) -> Result<Arc<dyn Library>, String>| {
             let lib = load(p).unwrap();
             Available { desc: lib.plugins()[0].clone(), lib }
@@ -3874,7 +3886,7 @@ mod tests {
             rate: 48000,
             ..Plugins::default()
         };
-        assert_eq!(pl.index_of("Mango Sampler"), Some(0), "a name finds the first");
+        assert_eq!(pl.index_of("Orange Sampler"), Some(0), "a name finds the first");
         pl.create(0, 1).unwrap();
         let d = pl.descriptor(0).unwrap();
         assert_eq!(d.format, os_host::Format::Vst3);
@@ -3900,7 +3912,7 @@ mod tests {
     /// flp/events/plugins.md §4).
     #[test]
     fn vst3_plugins_save_and_reopen() {
-        let (Some(smp), Some(eq)) = (bundled("Mango Sampler.vst3"), bundled("Mango Parametric EQ.vst3")) else { return };
+        let (Some(smp), Some(eq)) = (bundled("Orange Sampler.vst3"), bundled("Orange Parametric EQ.vst3")) else { return };
         let load = |p: &std::path::Path| {
             let lib = os_vst3::Module::load(p).map(|l| l as Arc<dyn Library>).unwrap();
             Available { desc: lib.plugins()[0].clone(), lib }
@@ -3914,12 +3926,12 @@ mod tests {
         a.state.path = None;
         a.plugins.available = vec![load(&smp)];
         a.plugins.effects = vec![load(&eq)];
-        let row = crate::app::add_plugin_channel(&mut a.state.project, "Mango Sampler");
+        let row = crate::app::add_plugin_channel(&mut a.state.project, "Orange Sampler");
         a.plugins.create(row, 0).unwrap();
         a.state.hosted_rows.push(row);
         let json = format!("{{\"version\":\"0.0.1\",\"params\":{{}},\"fields\":{{\"sample-path\":{}}}}}", json_string(&json_string(&wav.to_string_lossy())));
         assert!(a.plugins.set_state(row, json.as_bytes()));
-        a.state.project.mixer[3].slots[2] = Some(os_model::SlotPlugin { name: "Mango Parametric EQ".into(), state: Vec::new() });
+        a.state.project.mixer[3].slots[2] = Some(os_model::SlotPlugin { name: "Orange Parametric EQ".into(), state: Vec::new() });
         a.plugins.create_effect(3, 2, 0, None).unwrap();
         // An edit of the effect, through the hosting layer, flushed into its processor.
         {
@@ -3940,7 +3952,7 @@ mod tests {
         // The file names each class by its id.
         let saved = os_flp::project::load(&os_flp::FlpFile::parse(&std::fs::read(&path).unwrap()).unwrap()).unwrap();
         let r = crate::project_plugins::wrapped_channel(&saved.channels[row]).unwrap();
-        assert_eq!((r.format.as_str(), r.id.as_str(), r.name.as_str()), ("vst3", a.plugins.available[0].desc.id.as_str(), "Mango Sampler"));
+        assert_eq!((r.format.as_str(), r.id.as_str(), r.name.as_str()), ("vst3", a.plugins.available[0].desc.id.as_str(), "Orange Sampler"));
         assert_eq!(r.state, ch_state);
         let s = crate::project_plugins::wrapped_slot(saved.mixer[3].slots[2].as_ref().unwrap()).unwrap();
         assert_eq!((s.format.as_str(), s.id.as_str()), ("vst3", a.plugins.effects[0].desc.id.as_str()));
@@ -3960,7 +3972,7 @@ mod tests {
         assert_eq!(b.plugins.descriptor(row).unwrap().format, os_host::Format::Vst3);
         assert_eq!(b.plugins.state(row).as_deref(), Some(&ch_state[..]));
         assert_eq!(b.plugins.state(fx_key(3, 2)).as_deref(), Some(&fx_state[..]));
-        assert_eq!(crate::mixer::slot_name(&b.state, 3, 2).as_deref(), Some("Mango Parametric EQ"));
+        assert_eq!(crate::mixer::slot_name(&b.state, 3, 2).as_deref(), Some("Orange Parametric EQ"));
     }
 
     /// VST3 editors inside Lemon Studio's plugin frame, moved off every screen and captured with PrintWindow:
@@ -3970,7 +3982,7 @@ mod tests {
     fn vst3_window_shots() {
         let Some(dir) = std::env::var_os("OS_SHOT_DIR") else { return };
         let dir = std::path::PathBuf::from(dir);
-        for (file, effect) in [("Mango Sampler.vst3", false), ("Mango Parametric EQ.vst3", true)] {
+        for (file, effect) in [("Orange Sampler.vst3", false), ("Orange Parametric EQ.vst3", true)] {
             let Some(path) = bundled(file) else { continue };
             let lib = os_vst3::Module::load(&path).unwrap();
             let a = Available { desc: lib.plugins()[0].clone(), lib };
@@ -4476,7 +4488,7 @@ mod tests {
         let engine = fx.clone();
         std::thread::spawn(move || engine.lock().unwrap().process_fx(48000, &mut [0.5; 8], &mut [0.5; 8])).join().unwrap();
         let told: Vec<String> = pl.idle(|_| None).into_iter().filter_map(|r| if let Request::Stopped(k, t) = r { Some(format!("{k}: {t}")) } else { None }).collect();
-        assert_eq!(told, [format!("{key}: Faulty stopped after a memory error: its slot passes the sound through. Save your project and restart Mango Studio to use it again")]);
+        assert_eq!(told, [format!("{key}: Faulty stopped after a memory error: its slot passes the sound through. Save your project and restart Orange Studio to use it again")]);
         assert!(!pl.idle(|_| None).iter().any(|r| matches!(r, Request::Stopped(..))), "told once");
         let (mut l, mut r) = ([0.5f32; 8], [0.5f32; 8]);
         fx.lock().unwrap().process_fx(48000, &mut l, &mut r);

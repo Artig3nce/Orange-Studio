@@ -390,7 +390,7 @@ mod win32 {
                 logic: Logic::new(params, shared, Some(context)),
                 slot: slot.clone(),
             });
-            let title = pw::wide("Mango Sfxr");
+            let title = pw::wide("Orange Sfxr");
             let hwnd = CreateWindowExW(
                 0,
                 class.as_ptr(),

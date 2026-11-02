@@ -1420,7 +1420,7 @@ mod tests {
         }
     }
 
-    /// The SVF shows its L / B / H sliders; the shelves and peaking a GAIN knob; Mango a DRIVE knob.
+    /// The SVF shows its L / B / H sliders; the shelves and peaking a GAIN knob; Orange a DRIVE knob.
     #[test]
     fn type_controls() {
         let mut l = logic();

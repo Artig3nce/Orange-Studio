@@ -51,7 +51,7 @@ pub fn run(app: AndroidApp) {
     if let Ok(vm) = (unsafe { JavaVM::from_raw(app.vm_as_ptr().cast()) }) {
         let _ = JAVA_VM.set(vm);
     }
-    // The user folder wants to be in the public Documents (`Documents/Mango Studio`): a file
+    // The user folder wants to be in the public Documents (`Documents/Orange Studio`): a file
     // manager reaches it on every device, where the install's private /data folder many devices
     // hide does not — the project saves, the samples and the logs all land somewhere the user can
     // open. It needs the All-files-access grant (Android 11+; `MainActivity` asks for it once per
@@ -70,7 +70,7 @@ pub fn run(app: AndroidApp) {
     // project's channels play them from: a phone has no other samples to load, and Play with no
     // notes or samples is silent (the metronome would be the only sound).
     if let Some(user) = os_paths::user_dir() {
-        extract_kit(&app, &user.join("Sounds").join("Mango Kit"));
+        extract_kit(&app, &user.join("Sounds").join("Orange Kit"));
     }
     crate::log_panics();
     // The back button's last step (`App::key`'s Escape arm) asks the activity to finish: keep its
@@ -99,7 +99,7 @@ pub fn finish_activity() {
 }
 
 /// Copies the starter kit's WAVs out of the APK's assets into `dir` (the user folder's
-/// `Sounds/Mango Kit`), keeping the ones already there: a reinstall's fresh user folder gets the
+/// `Sounds/Orange Kit`), keeping the ones already there: a reinstall's fresh user folder gets the
 /// kit, an update's does not (its files, if the user changed them, stay). The names the starter
 /// project plays are `crate::app::starter_kit`'s.
 #[cfg(target_os = "android")]
@@ -122,7 +122,7 @@ fn extract_kit(app: &AndroidApp, dir: &std::path::Path) {
     }
 }
 
-/// The public folder the app saves into: `Documents/Mango Studio` on the shared storage — a file
+/// The public folder the app saves into: `Documents/Orange Studio` on the shared storage — a file
 /// manager reaches it on every device, where the install's private `/data` folder many devices
 /// hide does not. `None` (keep the private folder) until the All-files-access grant is on: it is
 /// Android 11's runtime switch for direct writes to the shared storage, `MainActivity` opens its
@@ -168,7 +168,7 @@ fn public_dir() -> Option<std::path::PathBuf> {
     if text.is_empty() {
         return None;
     }
-    let dir = std::path::PathBuf::from(text.into_owned()).join("Documents").join("Mango Studio");
+    let dir = std::path::PathBuf::from(text.into_owned()).join("Documents").join("Orange Studio");
     // The grant is on, but a probe settles it: a device (or its mount) can still refuse the write,
     // and then the app stays on the private folder instead of saving into a folder it cannot read.
     if std::fs::create_dir_all(&dir).is_err() {
@@ -181,7 +181,7 @@ fn public_dir() -> Option<std::path::PathBuf> {
 }
 
 /// The one-time move of the user's files to the public folder: everything the private folder holds
-/// that `Documents/Mango Studio` does not yet is copied (projects, settings, the kit's samples), a
+/// that `Documents/Orange Studio` does not yet is copied (projects, settings, the kit's samples), a
 /// marker keeps it from ever running twice — deletions in Documents afterwards stay deleted — and
 /// the private copy stays as the fallback the app runs on when the grant is off again.
 #[cfg(target_os = "android")]

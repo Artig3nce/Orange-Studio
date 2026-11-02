@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Slayer: Mango Studio's electric guitar (a recreation of FL's Slayer) as a plugin. Six Karplus-Strong
+//! Orange Slayer: Orange Studio's electric guitar (a recreation of FL's Slayer) as a plugin. Six Karplus-Strong
 //! strings a pick plucks where it sits; a pickup reads each string back along it, and the amp drives them, shapes
 //! them and boxes them. The pick, tone, sustain, pickup, tilt, body, drive, bass, treble, cab, chorus and volume on
 //! the knobs. A seventh steals the oldest string.
@@ -165,9 +165,9 @@ const CONTROLS: [Control; 12] = [
 ];
 
 pub const SPEC: &GenSpec = &GenSpec {
-    name: "Mango Slayer",
+    name: "Orange Slayer",
     word: "SLAYER",
-    about: "Mango Studio's electric guitar",
+    about: "Orange Studio's electric guitar",
     settings: &SETTINGS,
     version: None,
     any_version: false,
@@ -626,7 +626,7 @@ pub struct SlayerKind;
 impl Kind for SlayerKind {
     const SPEC: &'static GenSpec = SPEC;
     const CLAP_ID: &'static str = "org.openstudio.mango-slayer";
-    const CLAP_DESCRIPTION: &'static str = "Mango Studio's electric guitar";
+    const CLAP_DESCRIPTION: &'static str = "Orange Studio's electric guitar";
     const CLAP_FEATURES: &'static [ClapFeature] = &[
         ClapFeature::Instrument,
         ClapFeature::Synthesizer,

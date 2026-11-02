@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Slicer: Lemon Studio's recreation of Fruity Slicer as a VST3 / CLAP plugin (nih-plug). A loop cut into
+//! Orange Slicer: Lemon Studio's recreation of Fruity Slicer as a VST3 / CLAP plugin (nih-plug). A loop cut into
 //! slices; slice n plays on key C5 + n; the editor dumps the slices to the piano roll (host link).
 //!
 // spec: plugins/lemon-slicer.md, plugins/fruity-slicer.md, plugins/plugin-formats.md
@@ -171,7 +171,7 @@ impl LemonSlicer {
 }
 
 impl Plugin for LemonSlicer {
-    const NAME: &'static str = "Mango Slicer";
+    const NAME: &'static str = "Orange Slicer";
     const VENDOR: &'static str = "Lemon Studio";
     const URL: &'static str = "";
     const EMAIL: &'static str = "";
@@ -202,7 +202,7 @@ impl Plugin for LemonSlicer {
         let path = sample_file(&self.params);
         if path != self.shared.loaded_path() {
             if let Err(e) = self.shared.open(&path, &self.params) {
-                nih_log!("Mango Slicer: {e}");
+                nih_log!("Orange Slicer: {e}");
             }
         } else {
             self.shared.rebuild(&self.params);

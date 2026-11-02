@@ -75,7 +75,7 @@ pub struct FrameInfo {
     pub sounding: Vec<(u16, u16)>,
     /// The song position slider's handle is being dragged (it shows the dragged position, not the playhead).
     pub song_pos_drag: bool,
-    /// The mixer track whose fader is being dragged (the Mango skin lights its bar).
+    /// The mixer track whose fader is being dragged (the Orange skin lights its bar).
     pub fader_drag: Option<u16>,
     /// What the toolbar editor's drag carries (spec: ui/toolbar-menu.md §8).
     pub bar_drag: Option<crate::toolbar::BarDrag>,
@@ -221,7 +221,7 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) -> usize {
     if docked.is_none() && !crate::wallpaper::paint(ui, work) {
         let wm = ui.t.watermark;
         icons::logo(ui.c, work.cx(), work.cy() + 40.0, 170.0, wm);
-        let version = concat!("Mango Studio v", env!("CARGO_PKG_VERSION"), " - pre-alpha");
+        let version = concat!("Orange Studio v", env!("CARGO_PKG_VERSION"), " - pre-alpha");
         let vc = ui.t.version_text;
         let vw = ui.c.text_width(crate::views::fnt(16.0), version);
         ui.c.text(crate::views::fnt(16.0), work.cx() - vw / 2.0, h - 22.0, vc, version);

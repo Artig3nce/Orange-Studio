@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Monk: Lemon Studio's chanting monk, a port of Jonathan Taylor's MonkSynth (MIT, the
+//! Orange Monk: Lemon Studio's chanting monk, a port of Jonathan Taylor's MonkSynth (MIT, the
 //! third-party notices carry its notice): a FOF (formant-wave-function) voice that sings
 //! "a, e, i, o, u" — three damped formant sinusoids plus breath noise, grains overlap-added at the
 //! pitch period (the algorithm is Xavier Rodet's, IRCAM), with vibrato and jitter, portamento, an
@@ -197,9 +197,9 @@ fn parse(k: usize, s: &str) -> Option<i32> {
 }
 
 pub const SPEC: &GenSpec = &GenSpec {
-    name: "Mango Monk",
+    name: "Orange Monk",
     word: "MONK",
-    about: "Mango Studio's chanting monk (a port of MonkSynth)",
+    about: "Orange Studio's chanting monk (a port of MonkSynth)",
     settings: &SETTINGS,
     version: None,
     any_version: false,
@@ -1179,7 +1179,7 @@ pub struct MonkKind;
 impl Kind for MonkKind {
     const SPEC: &'static GenSpec = SPEC;
     const CLAP_ID: &'static str = "org.openstudio.mango-monk";
-    const CLAP_DESCRIPTION: &'static str = "Mango Studio's chanting monk (a port of MonkSynth)";
+    const CLAP_DESCRIPTION: &'static str = "Orange Studio's chanting monk (a port of MonkSynth)";
     const CLAP_FEATURES: &'static [ClapFeature] =
         &[ClapFeature::Instrument, ClapFeature::Synthesizer, ClapFeature::Stereo];
     const VST3_CLASS_ID: [u8; 16] = *b"MangoStudioMonk\0";

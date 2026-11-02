@@ -56,8 +56,8 @@ pub fn has_recreation(id: &str) -> bool {
         || crate::plugins::recreation_of(id).is_some()
 }
 
-/// Built-in plugins with no FL plugin of their own to be saved as: the effects (`plugins::LINKED_EFFECTS`) and Mango
-/// Wavetable and Mango Font. They are saved wrapped, as their built-in CLAP instrument.
+/// Built-in plugins with no FL plugin of their own to be saved as: the effects (`plugins::LINKED_EFFECTS`) and Orange
+/// Wavetable and Orange Font. They are saved wrapped, as their built-in CLAP instrument.
 fn wrapped_builtin(d: &Descriptor) -> bool {
     crate::plugins::LINKED_EFFECTS.contains(&d.name.as_str())
         || matches!(d.name.as_str(), crate::plugins::MANGO_WAVETABLE | crate::plugins::MANGO_SOUNDFONT)
@@ -214,7 +214,7 @@ pub fn slot_ports(project: &Project, track: usize, slot: usize) -> (usize, usize
     let Some(s) = project.mixer.iter().find(|m| usize::from(m.index) == track).and_then(|m| m.slots.get(slot)?.as_ref()) else {
         return (0, 0);
     };
-    // A Vocodex slot (played by Mango Vocoder) feeds its sidechain bus the input its carrier selector names.
+    // A Vocodex slot (played by Orange Vocoder) feeds its sidechain bus the input its carrier selector names.
     if s.name.eq_ignore_ascii_case(crate::plugins::VOCODEX_FILE_NAME) {
         let routing = os_engine::effects::vocoder::Settings::from_state(&s.state).unwrap_or_default().routing();
         return (0, routing.key_input());
@@ -294,9 +294,9 @@ pub fn find_native(list: &[Available], file_id: &str) -> Option<usize> {
 }
 
 /// The built-in generator of `list` that a plugin channel's file id names: a plugin compiled into this program that
-/// is saved by its own name (Mango Monk, Mango Kick, ... — the FL names "3x Osc" and "Sytrus" are the Lemon Trio's
+/// is saved by its own name (Orange Monk, Orange Kick, ... — the FL names "3x Osc" and "Sytrus" are the Lemon Trio's
 /// and Citrus's, and the wrapped ones are `sync_wrapped`'s, so neither is found here). An earlier name finds it
-/// ("Lemon Kick" as Mango Kick). These channels `sync_generators` hosts.
+/// ("Lemon Kick" as Orange Kick). These channels `sync_generators` hosts.
 pub fn builtin_generator_index(list: &[Available], file_id: &str) -> Option<usize> {
     let name = crate::plugins::current_name(file_id);
     list.iter().position(|a| is_builtin(&a.desc) && !wrapped_builtin(&a.desc) && a.desc.name == name)
@@ -564,8 +564,8 @@ impl crate::app::App {
         }
     }
 
-    /// Hosts the plugin channels whose file id names a built-in generator (Mango Monk and the other small generators,
-    /// `builtin_generator_index`) and have no instance yet: a channel the MIDI or audio import just made as Mango
+    /// Hosts the plugin channels whose file id names a built-in generator (Orange Monk and the other small generators,
+    /// `builtin_generator_index`) and have no instance yet: a channel the MIDI or audio import just made as Orange
     /// Monk, one a project was saved with, one pasted. Each starts from the channel's saved state, its defaults
     /// where it has none. A plugin that does not start is not tried again; the row the plugin menus are still
     /// creating is left to them.
@@ -677,32 +677,32 @@ mod tests {
         let plugin = crate::plugins::builtin()
             .into_iter()
             .find(|plugin| plugin.desc.name == crate::plugins::MANGO_SOUNDFONT)
-            .expect("built-in Mango Font");
+            .expect("built-in Orange Font");
 
         assert!(is_builtin(&plugin.desc));
         assert!(is_wrapped(&plugin.desc));
         assert_eq!(crate::plugin_db::category(&plugin.desc), "Sampler");
-        assert!(plugin_ref(&plugin.desc, Vec::new()).path.ends_with("Mango Font.clap"));
+        assert!(plugin_ref(&plugin.desc, Vec::new()).path.ends_with("Orange Font.clap"));
     }
 
-    /// The built-in generators a project names by their own name (Mango Monk and the other small generators) are
-    /// `sync_generators`'s; the FL ids the other hosts own (the Trio's 3x Osc, the wrapped Mango Wavetable and Mango
+    /// The built-in generators a project names by their own name (Orange Monk and the other small generators) are
+    /// `sync_generators`'s; the FL ids the other hosts own (the Trio's 3x Osc, the wrapped Orange Wavetable and Orange
     /// Font) and names nothing hosted are not.
     #[test]
     fn builtin_generators_are_found_by_name() {
         let list = crate::plugins::builtin();
         let of = |n: &str| builtin_generator_index(&list, n).map(|i| list[i].desc.name.as_str());
         assert_eq!(of(crate::plugins::MANGO_MONK), Some(crate::plugins::MANGO_MONK));
-        assert_eq!(of("Mango Kick"), Some("Mango Kick"));
-        assert_eq!(of("Lemon Kick"), Some("Mango Kick"), "an earlier name finds it");
+        assert_eq!(of("Orange Kick"), Some("Orange Kick"));
+        assert_eq!(of("Lemon Kick"), Some("Orange Kick"), "an earlier name finds it");
         assert_eq!(of("3x Osc"), None, "the Trio's channels are sync_osc3's");
-        assert_eq!(of("Mango Wavetable"), None, "wrapped plugins are sync_wrapped's");
+        assert_eq!(of("Orange Wavetable"), None, "wrapped plugins are sync_wrapped's");
         assert_eq!(of(crate::plugins::MANGO_SOUNDFONT), None);
         assert_eq!(of("Some VST"), None);
     }
 
     /// A plugin channel that names a built-in generator with no instance of its own — what the MIDI or audio import
-    /// makes as Mango Monk, or a project saved with Mango Kick holds — is hosted by `sync_generators` from the
+    /// makes as Orange Monk, or a project saved with Orange Kick holds — is hosted by `sync_generators` from the
     /// channel's state, and it plays.
     #[test]
     fn sync_generators_hosts_an_imported_monk_channel() {
@@ -727,7 +727,7 @@ mod tests {
     /// A hosted plugin channel and a mixer slot plugin are saved as wrapped plugins holding their identity and state,
     /// and the reopened project hosts them again with that state; a second save keeps working on the saved file
     /// (spec: flp/events/plugins.md). The built-in Lemon plugins stand in for third-party plugins.
-    /// Mango Wavetable (from battlemountain2's fork) plays a note, and a project keeps its sound: saved, reopened, the
+    /// Orange Wavetable (from battlemountain2's fork) plays a note, and a project keeps its sound: saved, reopened, the
     /// channel hosts it again with the same state and the same sound.
     #[test]
     fn mango_wavetable_plays_and_keeps_its_sound_through_a_save() {
@@ -1219,8 +1219,8 @@ mod tests {
             state: eq.clone(),
         };
         let slot = |r: &PluginRef| Some(SlotPlugin { name: WRAPPER.into(), state: wrapper::encode(None, r) });
-        a.state.project.mixer[2].slots[0] = slot(&saved_as("vst2", LEMON_EQ, "Mango EQ.dll"));
-        a.state.project.mixer[3].slots[0] = slot(&saved_as("clap", LEMON_EQ, "Mango EQ.clap"));
+        a.state.project.mixer[2].slots[0] = slot(&saved_as("vst2", LEMON_EQ, "Orange EQ.dll"));
+        a.state.project.mixer[3].slots[0] = slot(&saved_as("clap", LEMON_EQ, "Orange EQ.clap"));
         let row = crate::app::add_plugin_channel(&mut a.state.project, WRAPPER);
         a.state.project.channels[row].plugin_state = Some(wrapper::encode(None, &saved_as("vst2", "Nowhere", "Nowhere.dll")));
         a.sync_wrapped();

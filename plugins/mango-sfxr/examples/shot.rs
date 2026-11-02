@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Renders the Mango Sfxr editor offscreen:
+//! Renders the Orange Sfxr editor offscreen:
 //! `cargo run -p mango-sfxr --example shot -- out.png [roll] [x,y]`.
 //! `roll` rolls the Explosion preset onto the sliders first; `x,y` = mouse position (hover looks).
 

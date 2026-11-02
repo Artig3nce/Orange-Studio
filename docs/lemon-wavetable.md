@@ -1,4 +1,4 @@
-# Mango Wavetable Synthesizer ("Serum V2") — Architecture & Technical Specification
+# Orange Wavetable Synthesizer ("Serum V2") — Architecture & Technical Specification
 
 **Target Crate**: `plugins/lemon-wavetable`  
 **Built-in CLAP ID**: `org.lemonstudio.lemon-wavetable`  
@@ -10,14 +10,14 @@
 
 ## 1. Executive Summary & Design Philosophy
 
-`Mango Wavetable` is a next-generation polyphonic wavetable synthesizer for Mango Studio, engineered as an open, modern successor to industry standards like Serum and Vital.
+`Orange Wavetable` is a next-generation polyphonic wavetable synthesizer for Orange Studio, engineered as an open, modern successor to industry standards like Serum and Vital.
 
 ### Guiding Principles:
 1. **Pristine Anti-Aliasing with Bounded CPU**: Mipmapped octave wavetables precomputed at table-load via FFT; real-time oscillator playback is $O(1)$ sample-lookup with zero runtime FFT overhead and zero audible aliasing across the entire 20 Hz – 20 kHz spectrum.
 2. **Standard Serum Format Compatibility**: Direct import of 2,048-sample/frame single-cycle and multi-frame wavetables (`.wav`, 1 to 256 frames, float32/int24).
 3. **Deep Modulation Architecture**: 4 Envelopes with tension curves, 8 vector-drawable breakpoint LFOs, and a 64-slot unipolar/bipolar modulation matrix.
 4. **Zero Allocation in the Audio Thread**: All voice slots, phase accumulators, mipmap arrays, and modulation matrices are statically bounded or pre-allocated. No heap allocations, no locks, and no blocking I/O during DSP processing.
-5. **Native Mango Studio Canvas GUI**: High-frame-rate 2D/3D animated wavetable rendering, draggable LFO nodes, and real-time visual feedback conforming to Mango Studio's softbuffer/UI kit (`Style::LEMON` and `Style::CITRUS`).
+5. **Native Orange Studio Canvas GUI**: High-frame-rate 2D/3D animated wavetable rendering, draggable LFO nodes, and real-time visual feedback conforming to Orange Studio's softbuffer/UI kit (`Style::LEMON` and `Style::CITRUS`).
 
 ---
 
@@ -187,7 +187,7 @@ The output of the voice summing bus feeds a serial FX chain with user-reorderabl
 
 ## 6. Graphical User Interface (Lemon Canvas)
 
-The UI will be built natively on Mango Studio's softbuffer `Canvas` architecture:
+The UI will be built natively on Orange Studio's softbuffer `Canvas` architecture:
 
 ```
 +-----------------------------------------------------------------------------------+
@@ -231,7 +231,7 @@ The UI will be built natively on Mango Studio's softbuffer `Canvas` architecture
    - Plugin state serialized as compact binary chunks in CLAP format (`builtin/lemon-wavetable.clap`).
    - All parameters, wavetable embedded binary blobs (for user-imported tables), LFO node vectors, and matrix routes are versioned and stored losslessly.
 3. **Bundling**:
-   - Integrated directly into the main Mango Studio release binary as an instant built-in channel instrument.
+   - Integrated directly into the main Orange Studio release binary as an instant built-in channel instrument.
    - Also packaged as standalone `.clap` and `.vst3` bundles via `bundle-plugins`.
 
 ---

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Sfxr: Mango Studio's retro sound effect generator (a port of drPetter's sfxr, after LMMS's
+//! Orange Sfxr: Orange Studio's retro sound effect generator (a port of drPetter's sfxr, after LMMS's
 //! Sfxr instrument) as a VST3 / CLAP plugin (nih-plug). A key press rolls a fresh effect from the
 //! current sliders — every note sounds a new take, the way LMMS's Sfxr makes one per note — and the
 //! seven generator buttons roll the classic presets. The synthesis lives in `dsp`; the port's
@@ -49,8 +49,8 @@ impl MangoSfxr {
 }
 
 impl Plugin for MangoSfxr {
-    const NAME: &'static str = "Mango Sfxr";
-    const VENDOR: &'static str = "Mango Studio";
+    const NAME: &'static str = "Orange Sfxr";
+    const VENDOR: &'static str = "Orange Studio";
     const URL: &'static str = "";
     const EMAIL: &'static str = "";
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -131,7 +131,7 @@ impl Plugin for MangoSfxr {
 
 impl ClapPlugin for MangoSfxr {
     const CLAP_ID: &'static str = "com.mangostudio.sfxr";
-    const CLAP_DESCRIPTION: Option<&'static str> = Some("Mango Sfxr, Mango Studio's retro sound effect generator");
+    const CLAP_DESCRIPTION: Option<&'static str> = Some("Orange Sfxr, Orange Studio's retro sound effect generator");
     const CLAP_MANUAL_URL: Option<&'static str> = None;
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::Instrument, ClapFeature::Synthesizer, ClapFeature::Stereo];
@@ -142,8 +142,8 @@ impl Vst3Plugin for MangoSfxr {
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Instrument, Vst3SubCategory::Synth];
 }
 
-// Built as a plugin module: the C entry points hosts look for. Linked into Mango Studio (`linked`
-// feature): only the symbol-free table, so several Mango plugins fit in one program (spec:
+// Built as a plugin module: the C entry points hosts look for. Linked into Orange Studio (`linked`
+// feature): only the symbol-free table, so several Orange plugins fit in one program (spec:
 // plugins/plugin-formats.md).
 #[cfg(not(feature = "linked"))]
 nih_export_clap!(MangoSfxr);

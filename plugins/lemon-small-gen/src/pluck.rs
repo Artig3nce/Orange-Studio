@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Pluck: Mango Studio's plucked string (the roadmap's "Pluckdeli"), a clean-room Karplus-Strong string bank.
+//! Orange Pluck: Orange Studio's plucked string (the roadmap's "Pluckdeli"), a clean-room Karplus-Strong string bank.
 //! A burst of shaped noise fills a delay line one period long; a lowpass in the loop takes the highs away a little
 //! every round trip, so the string rings out with its own decay. Three string kinds change the burst and the loop's
 //! tone, the pick position combs the burst, the strings spread across the stereo field, a held note glides.
@@ -63,9 +63,9 @@ const CONTROLS: [Control; 9] = [
 ];
 
 pub const SPEC: &GenSpec = &GenSpec {
-    name: "Mango Pluck",
+    name: "Orange Pluck",
     word: "PLUCK",
-    about: "Mango Studio's plucked string",
+    about: "Orange Studio's plucked string",
     settings: &SETTINGS,
     version: None,
     any_version: false,
@@ -515,7 +515,7 @@ pub struct PluckKind;
 impl Kind for PluckKind {
     const SPEC: &'static GenSpec = SPEC;
     const CLAP_ID: &'static str = "org.openstudio.mango-pluck";
-    const CLAP_DESCRIPTION: &'static str = "Mango Studio's plucked string";
+    const CLAP_DESCRIPTION: &'static str = "Orange Studio's plucked string";
     const CLAP_FEATURES: &'static [ClapFeature] =
         &[ClapFeature::Instrument, ClapFeature::Synthesizer, ClapFeature::Stereo];
     const VST3_CLASS_ID: [u8; 16] = *b"MangoStudioPluck";

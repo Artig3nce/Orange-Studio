@@ -97,9 +97,9 @@ unsafe impl Params for BeepMapParams {
             match serde_json::from_str::<String>(raw) {
                 Ok(path) => match self.path.write() {
                     Ok(mut saved) => *saved = path,
-                    Err(_) => eprintln!("Mango BeepMap: saved image path lock is poisoned."),
+                    Err(_) => eprintln!("Orange BeepMap: saved image path lock is poisoned."),
                 },
-                Err(e) => eprintln!("Mango BeepMap: could not read saved image path: {e}"),
+                Err(e) => eprintln!("Orange BeepMap: could not read saved image path: {e}"),
             }
         }
     }

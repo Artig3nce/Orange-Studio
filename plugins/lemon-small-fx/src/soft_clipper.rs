@@ -32,9 +32,9 @@ const CONTROLS: [Control; 2] = [
 ];
 
 pub const SPEC: &Spec = &Spec {
-    name: "Mango Soft Clipper",
+    name: "Orange Soft Clipper",
     word: "SOFT CLIPPER",
-    about: "Mango Studio's soft clipper",
+    about: "Orange Studio's soft clipper",
     settings: &SETTINGS,
     version: None,
     any_version: false,
@@ -103,7 +103,7 @@ pub struct SoftClipperKind;
 impl Kind for SoftClipperKind {
     const SPEC: &'static Spec = SPEC;
     const CLAP_ID: &'static str = "org.openstudio.lemon-soft-clipper";
-    const CLAP_DESCRIPTION: &'static str = "Mango Studio's soft clipper";
+    const CLAP_DESCRIPTION: &'static str = "Orange Studio's soft clipper";
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::AudioEffect, ClapFeature::Distortion, ClapFeature::Stereo];
     const VST3_CLASS_ID: [u8; 16] = *b"LemonStudioClipr";
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Fx, Vst3SubCategory::Distortion];

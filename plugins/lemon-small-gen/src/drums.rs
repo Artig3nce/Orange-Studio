@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Drums: Mango Studio's synthesized drum voice (the roadmap's "Fruity DrumSynth"). One instrument, six
+//! Orange Drums: Orange Studio's synthesized drum voice (the roadmap's "Fruity DrumSynth"). One instrument, six
 //! drums: a kick and a tom swept down from their snap, a snare of two tones and a noise body, hats of six
 //! inharmonic squares through a highpass, a clap of three noise pulses — all built from knobs, no samples. Four
 //! hits can ring at once, so rolls play.
@@ -68,9 +68,9 @@ const CONTROLS: [Control; 9] = [
 ];
 
 pub const SPEC: &GenSpec = &GenSpec {
-    name: "Mango Drums",
+    name: "Orange Drums",
     word: "DRUMS",
-    about: "Mango Studio's synthesized drum voice",
+    about: "Orange Studio's synthesized drum voice",
     settings: &SETTINGS,
     version: None,
     any_version: false,
@@ -462,7 +462,7 @@ pub struct DrumsKind;
 impl Kind for DrumsKind {
     const SPEC: &'static GenSpec = SPEC;
     const CLAP_ID: &'static str = "org.openstudio.mango-drums";
-    const CLAP_DESCRIPTION: &'static str = "Mango Studio's synthesized drum voice";
+    const CLAP_DESCRIPTION: &'static str = "Orange Studio's synthesized drum voice";
     const CLAP_FEATURES: &'static [ClapFeature] =
         &[ClapFeature::Instrument, ClapFeature::Synthesizer, ClapFeature::Stereo];
     const VST3_CLASS_ID: [u8; 16] = *b"MangoStudioDrum\0";

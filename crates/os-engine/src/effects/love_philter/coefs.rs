@@ -20,7 +20,7 @@ pub struct Coef {
     pub q: f32,
     /// The biquads: a1, a2, b0, b1, b2.
     pub b: [f64; 5],
-    /// Mango: the coefficient `G'`, the resonance `q`, the output gain `K` and the drive factor `2 D` (0: no drive).
+    /// Orange: the coefficient `G'`, the resonance `q`, the output gain `K` and the drive factor `2 D` (0: no drive).
     pub g: f64,
     pub mq: f32,
     pub k: f32,
@@ -63,7 +63,7 @@ pub struct Input {
     pub res: f32,
     /// The shelves' and peaking type's gain `A` (control 3, not modulated).
     pub gain: f32,
-    /// The Mango type's drive input (control 3 / 128, not modulated).
+    /// The Orange type's drive input (control 3 / 128, not modulated).
     pub drive: f32,
     /// The filters' rate factor.
     pub rf: f32,
@@ -217,7 +217,7 @@ pub fn work_out(p: &Input) -> [Coef; 3] {
             }
         }
         _ => {
-            // Mango, without the "r follows" rule.
+            // Orange, without the "r follows" rule.
             let r = f64::from(p.res);
             let cp = per_stage(cut(&|| curve(c, 201.0, 0.014949999749660492).min(3.0)), p.order, n);
             let d = f64::from(s((f64::from(p.drive) * 251f64.ln()).exp() - 1.0)) * 0.12;

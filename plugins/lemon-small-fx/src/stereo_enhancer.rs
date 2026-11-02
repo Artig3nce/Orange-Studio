@@ -46,9 +46,9 @@ const CONTROLS: [Control; 6] = [
 ];
 
 pub const SPEC: &Spec = &Spec {
-    name: "Mango Stereo Enhancer",
+    name: "Orange Stereo Enhancer",
     word: "STEREO ENHANCER",
-    about: "Mango Studio's stereo enhancer",
+    about: "Orange Studio's stereo enhancer",
     settings: &SETTINGS,
     version: None,
     any_version: false,
@@ -161,7 +161,7 @@ pub struct StereoEnhancerKind;
 impl Kind for StereoEnhancerKind {
     const SPEC: &'static Spec = SPEC;
     const CLAP_ID: &'static str = "org.openstudio.lemon-stereo-enhancer";
-    const CLAP_DESCRIPTION: &'static str = "Mango Studio's stereo enhancer";
+    const CLAP_DESCRIPTION: &'static str = "Orange Studio's stereo enhancer";
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::AudioEffect, ClapFeature::Utility, ClapFeature::Mixing, ClapFeature::Stereo];
     const VST3_CLASS_ID: [u8; 16] = *b"LemonStudioStEnh";
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Fx, Vst3SubCategory::Spatial];

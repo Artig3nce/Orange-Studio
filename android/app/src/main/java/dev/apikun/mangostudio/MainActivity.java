@@ -64,7 +64,7 @@ public class MainActivity extends NativeActivity {
     }
 
     /**
-     * The app saves in the public Documents ({@code Documents/Mango Studio}), which a file manager
+     * The app saves in the public Documents ({@code Documents/Orange Studio}), which a file manager
      * reaches on every device — the install's private /data folder many devices hide does not.
      * Writing there on Android 11+ needs the All-files-access grant, a switch in the system's
      * settings: once per install this opens that page (one toggle) at the launch, and the native

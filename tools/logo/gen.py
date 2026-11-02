@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-"""Generate the Mango Studio logo data from crates/os-app/assets/logo/*-mango.svg.
+"""Generate the Orange Studio logo data from crates/os-app/assets/logo/*-mango.svg.
 
     python tools/logo/gen.py            (run from the repository root)
     python tools/logo/gen.py --rs       (logo.rs only: no Pillow needed)
@@ -69,7 +69,7 @@ def write_rs():
     shared = [d["CENTER"], d["RIND"]] + slices
     assert [d_string(cmds) for _, cmds in grey] == shared, "the greyscale and full-colour logos differ in shape"
     lines = tg.HEADER + [
-        "//! Mango Studio logo, generated from `assets/logo/logo-colored-mango.svg` and `logo-greyscale-mango.svg` by",
+        "//! Orange Studio logo, generated from `assets/logo/logo-colored-mango.svg` and `logo-greyscale-mango.svg` by",
         "//! `tools/logo/gen.py`: do not edit. Absolute M/L/Q/C/Z path data in viewBox units.",
         "",
         "pub const VIEW_W: f32 = %s;" % tg.fmt(vb[2]),

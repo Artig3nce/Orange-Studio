@@ -235,7 +235,7 @@ impl Logic {
             Some(Target::Loop) => "The sample's loop points play while the key is down".into(),
             Some(Target::Load) => "Load a sample into the zone".into(),
             Some(Target::Clear) => "Empty the zone".into(),
-            Some(Target::Logo) => "Mango DirectWave".into(),
+            Some(Target::Logo) => "Orange DirectWave".into(),
             None => String::new(),
         }
     }
@@ -376,9 +376,9 @@ impl Logic {
                 m.add(MenuItem::item("Clear zone").enabled(has), Cmd::Clear);
             }
             MenuReq::About => {
-                m.head("Mango DirectWave", Cmd::None);
+                m.head("Orange DirectWave", Cmd::None);
                 m.add(MenuItem::item(&format!("Version {}", env!("CARGO_PKG_VERSION"))).enabled(false), Cmd::None);
-                m.add(MenuItem::item("Mango Studio's sampler").enabled(false), Cmd::None);
+                m.add(MenuItem::item("Orange Studio's sampler").enabled(false), Cmd::None);
             }
         }
         m
@@ -564,7 +564,7 @@ mod win32 {
                 last_raw: u64::MAX,
                 last_kit: u64::MAX,
             });
-            let title = pw::wide("Mango DirectWave");
+            let title = pw::wide("Orange DirectWave");
             let hwnd = CreateWindowExW(
                 0,
                 class.as_ptr(),

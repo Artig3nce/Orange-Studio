@@ -87,7 +87,7 @@ pub const TYPE_NAMES: [&str; TYPES as usize] = [
     "Low shelf",
     "Peaking",
     "High shelf",
-    "Mango low pass",
+    "Orange low pass",
 ];
 /// The order radios: (order, x, y, label).
 pub const ORDERS: [(i32, f32, f32, &str); 6] = [
@@ -967,7 +967,7 @@ fn info(ui: &mut Ui) {
     let mid = emblem(ui, w / 2.0, h / 2.0 - 45.0, true, Font::condensed(32, 0).bold());
     let v = format!("Version {}", ui.m.version);
     ui.c.text_center(LABEL, Rect::new(0.0, mid.bottom() + 8.0, w, 16.0), DIM, &v);
-    ui.c.text_center(LABEL, Rect::new(0.0, mid.bottom() + 26.0, w, 16.0), DIM, "Mango Studio's pattern-controlled multi-filter");
+    ui.c.text_center(LABEL, Rect::new(0.0, mid.bottom() + 26.0, w, 16.0), DIM, "Orange Studio's pattern-controlled multi-filter");
     ui.c.text_center(SMALL, Rect::new(0.0, h - 30.0, w, 16.0), FAINT, "Click to return");
     ui.hit(Rect::new(0.0, 0.0, w, h), Target::Cover);
 }

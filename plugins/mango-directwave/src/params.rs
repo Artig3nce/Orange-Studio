@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango DirectWave's saved state: the program (the master and the zones) as a JSON string. No automatable
+//! Orange DirectWave's saved state: the program (the master and the zones) as a JSON string. No automatable
 //! parameters: the settings live in the program, the way the drum sampler's live in its state.
 //!
 // spec: plugins/mango-directwave.md

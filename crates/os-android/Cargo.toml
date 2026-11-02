@@ -1,6 +1,6 @@
 [package]
 name = "os-android"
-description = "Mango Studio Mobile: the Android entry (a NativeActivity cdylib)"
+description = "Orange Studio Mobile: the Android entry (a NativeActivity cdylib)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

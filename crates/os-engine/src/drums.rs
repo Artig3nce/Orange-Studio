@@ -5,7 +5,7 @@
 //! Procedural 808 drum synthesis: Kick, Clap, Hat, Snare.
 //!
 //! Synthesizes classic Roland TR-808 style analog drum sounds mathematically,
-//! providing zero-dependency built-in factory drums for Mango Studio.
+//! providing zero-dependency built-in factory drums for Orange Studio.
 
 use std::f64::consts::TAU;
 use std::sync::Arc;

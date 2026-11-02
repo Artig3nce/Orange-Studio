@@ -209,7 +209,7 @@ pub struct MidiIn {
 }
 
 /// The name Lemon Studio's connections show in the system's MIDI routing (ALSA / JACK clients).
-pub const CLIENT: &str = "Mango Studio";
+pub const CLIENT: &str = "Orange Studio";
 
 /// Whether `name` is one of Lemon Studio's own ports (ALSA lists the ports of its output connections as inputs too):
 /// read, it would hear everything Lemon Studio sends (its MIDI out, the clock) as if a device had played it.
@@ -367,7 +367,7 @@ mod tests {
         assert_eq!(parse(&[0xd2, 99]), Some(Msg::Pressure { ch: 2, v: 99 }));
         assert_eq!(parse(&[0xc0, 5]), Some(Msg::Program { ch: 0, p: 5 }));
         assert_eq!(parse(&[0xf2, 0x10, 0x01]), Some(Msg::Spp(144)));
-        assert!(own("Mango Studio:Mango Studio 131:0") && !own("Mango Studio test:out 130:0") && !own("Launchkey MK4 61:Launchkey MK4 61 MIDI In 24:0"));
+        assert!(own("Orange Studio:Orange Studio 131:0") && !own("Orange Studio test:out 130:0") && !own("Launchkey MK4 61:Launchkey MK4 61 MIDI In 24:0"));
         assert_eq!(parse(&[0xfa]), Some(Msg::Start));
         assert_eq!(parse(&[0xf8]), None, "the clock is not a message here");
         assert_eq!(Msg::Bend { ch: 4, v: 8192 }.bytes(), Some([0xe0, 0, 64]), "sent on channel 1");
@@ -414,7 +414,7 @@ mod tests {
         }
         let midi = MidiIn::open(wake);
         let names = midi.open_names();
-        let out = midir::MidiOutput::new("Mango Studio test").expect("MIDI output");
+        let out = midir::MidiOutput::new("Orange Studio test").expect("MIDI output");
         let port = out.ports().into_iter().find(|p| out.port_name(p).is_ok_and(|n| names.contains(&n)));
         let Some(port) = port else { panic!("no loopback port among the inputs {names:?}") };
         let mut conn = out.connect(&port, "loopback").expect("open the loopback output");

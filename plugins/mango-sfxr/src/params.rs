@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Sfxr's parameters: sfxr's full slider set (LMMS's models, one to one), plus the waveform
+//! Orange Sfxr's parameters: sfxr's full slider set (LMMS's models, one to one), plus the waveform
 //! and an output volume.
 
 use std::sync::Arc;
@@ -161,7 +161,7 @@ impl SfxrParams {
     }
 
     /// The patch the sound uses now: every parameter's newest value (the editor's pending edits win,
-    /// as elsewhere in Mango Studio's plugins).
+    /// as elsewhere in Orange Studio's plugins).
     pub fn patch(&self) -> dsp::Patch {
         dsp::Patch {
             wave: self.live.value(&self.wave).clamp(0, 3) as u8,

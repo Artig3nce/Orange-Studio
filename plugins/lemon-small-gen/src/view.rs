@@ -418,7 +418,7 @@ fn tile(ui: &mut Ui, id: &str, r: Rect, caption: &str) {
     ui.hit(hr, target);
 }
 
-/// The wordmark (as Lemon Delay's): "MANGO" in mango beside the effect's name in large grey
+/// The wordmark (as Lemon Delay's): "ORANGE" in mango beside the effect's name in large grey
 /// capitals, or MANGO over the name (`stacked`), placed by the spec's [`Mark`]; returns where it is.
 fn logo(ui: &mut Ui, spec: &GenSpec) -> Rect {
     let Mark {
@@ -427,7 +427,7 @@ fn logo(ui: &mut Ui, spec: &GenSpec) -> Rect {
         anchor,
         stacked,
     } = spec.mark;
-    let ws = lemon::spaced_width(ui.c, MARK_SMALL, "MANGO", 2.5);
+    let ws = lemon::spaced_width(ui.c, MARK_SMALL, "ORANGE", 2.5);
     let (lh_b, lh_s) = (ui.c.line_height(MARK_BIG), ui.c.line_height(MARK_SMALL));
     if stacked {
         // MANGO centred over the name.
@@ -438,7 +438,7 @@ fn logo(ui: &mut Ui, spec: &GenSpec) -> Rect {
         let w = wn.max(wl);
         let left = (x - w * anchor).round();
         let lx = (left + (w - wl) / 2.0).round();
-        lemon::spaced(ui.c, MARK_SMALL, lx, y, brand::MAIN, "MANGO", 2.5);
+        lemon::spaced(ui.c, MARK_SMALL, lx, y, brand::MAIN, "ORANGE", 2.5);
         lemon::spaced(
             ui.c,
             MARK_BIG,
@@ -473,7 +473,7 @@ fn logo(ui: &mut Ui, spec: &GenSpec) -> Rect {
         sx,
         (y - lh_s / 2.0).round() + 1.0,
         brand::MAIN,
-        "MANGO",
+        "ORANGE",
         2.5,
     );
     let r = Rect::span(left - 2.0, right, y - 12.0, y + 12.0);

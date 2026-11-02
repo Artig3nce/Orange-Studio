@@ -98,9 +98,9 @@ const CONTROLS: [Control; 12] = [
 ];
 
 pub const SPEC: &Spec = &Spec {
-    name: "Mango Peak Controller",
+    name: "Orange Peak Controller",
     word: "PEAK CONTROLLER",
-    about: "Mango Studio's peak controller",
+    about: "Orange Studio's peak controller",
     settings: &SETTINGS,
     version: None,
     any_version: false,

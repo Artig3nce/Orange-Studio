@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! The Mango Kit: eighteen drum sounds made from nothing but maths (oscillators, noise and filters), so no sample of
+//! The Orange Kit: eighteen drum sounds made from nothing but maths (oscillators, noise and filters), so no sample of
 //! anyone else is in them and they can ship with the app under its own licence. Every sound is deterministic: the same
 //! rate gives the same samples, bit for bit. The 808-style sounds' recipes follow `drums` (battlemountain2); these are
 //! further voices in the same spirit: three kicks, three snares and rims, two claps, three hats, three toms, a cowbell,
@@ -15,24 +15,24 @@ use crate::Sample;
 
 /// Every sound of the kit: its file name (without `.wav`) and how it is made.
 pub const SOUNDS: [(&str, fn(u32) -> Arc<Sample>); 18] = [
-    ("Mango Kick Deep", kick_deep),
-    ("Mango Kick Punch", kick_punch),
-    ("Mango Kick Boom", kick_boom),
-    ("Mango Snare Tight", snare_tight),
-    ("Mango Snare Fat", snare_fat),
-    ("Mango Rim", rim),
-    ("Mango Clap Room", clap_room),
-    ("Mango Clap Snap", clap_snap),
-    ("Mango Hat Closed", hat_closed),
-    ("Mango Hat Open", hat_open),
-    ("Mango Hat Pedal", hat_pedal),
-    ("Mango Tom Low", tom_low),
-    ("Mango Tom Mid", tom_mid),
-    ("Mango Tom High", tom_high),
-    ("Mango Cowbell", cowbell),
-    ("Mango Shaker", shaker),
-    ("Mango Clave", clave),
-    ("Mango Crash", crash),
+    ("Orange Kick Deep", kick_deep),
+    ("Orange Kick Punch", kick_punch),
+    ("Orange Kick Boom", kick_boom),
+    ("Orange Snare Tight", snare_tight),
+    ("Orange Snare Fat", snare_fat),
+    ("Orange Rim", rim),
+    ("Orange Clap Room", clap_room),
+    ("Orange Clap Snap", clap_snap),
+    ("Orange Hat Closed", hat_closed),
+    ("Orange Hat Open", hat_open),
+    ("Orange Hat Pedal", hat_pedal),
+    ("Orange Tom Low", tom_low),
+    ("Orange Tom Mid", tom_mid),
+    ("Orange Tom High", tom_high),
+    ("Orange Cowbell", cowbell),
+    ("Orange Shaker", shaker),
+    ("Orange Clave", clave),
+    ("Orange Crash", crash),
 ];
 
 /// The loudest sample of every sound, a little under full scale.

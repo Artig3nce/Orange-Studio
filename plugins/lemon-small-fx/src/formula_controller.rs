@@ -66,9 +66,9 @@ const CONTROLS: [Control; 4] = [
 ];
 
 pub const SPEC: &Spec = &Spec {
-    name: "Mango Formula Controller",
+    name: "Orange Formula Controller",
     word: "FORMULA CONTROLLER",
-    about: "Mango Studio's formula controller",
+    about: "Orange Studio's formula controller",
     settings: &SETTINGS,
     version: Some(VERSION),
     any_version: false,

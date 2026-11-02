@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Beat's sound: a tape-style time section and a gate, both driven by the envelope grids.
+//! Orange Beat's sound: a tape-style time section and a gate, both driven by the envelope grids.
 //!
 //! The time section writes the input into a ring and reads it back at the rate the time grid asks for: the read
 //! head falls behind at slow rates, catches up at fast ones and walks backwards under the grid's centre, so
 //! half-time, double-time, tape-stop, reverse and scratch are all one mechanism. The volume section multiplies the
 //! sound by the volume grid, smoothed a half millisecond so gates do not click. With no grid in a section the
-//! section is transparent, so a fresh Mango Beat passes the sound through untouched.
+//! section is transparent, so a fresh Orange Beat passes the sound through untouched.
 //!
 // spec: plugins/mango-beat.md (§3 sound)
 
@@ -48,7 +48,7 @@ impl Default for Settings {
     }
 }
 
-/// One Mango Beat voice of sound.
+/// One Orange Beat voice of sound.
 pub struct Beat {
     rate: u32,
     bpm: f64,
@@ -259,7 +259,7 @@ mod tests {
         b
     }
 
-    /// A fresh Mango Beat with no grids is the sound itself, sample for sample.
+    /// A fresh Orange Beat with no grids is the sound itself, sample for sample.
     #[test]
     fn empty_grids_pass_the_sound_through() {
         let mut b = beat();

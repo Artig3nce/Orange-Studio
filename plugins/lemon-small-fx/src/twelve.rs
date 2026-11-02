@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango 12: the colour of a classic 12-bit sampler as a small effect. One sound: the input is gained into a
+//! Orange 12: the colour of a classic 12-bit sampler as a small effect. One sound: the input is gained into a
 //! 26.04 kHz, 12-bit converter that samples it without an anti-alias filter (the aliasing is mandatory) and leaves
 //! through a soft-saturating output stage, with an optional sixth-order Butterworth low pass in front of the
 //! converter (`99` = off) for the filter-into-the-sampler workflow. The tune fader detunes the converter's clock the
@@ -102,9 +102,9 @@ const CONTROLS: [Control; 10] = [
 ];
 
 pub const SPEC: &Spec = &Spec {
-    name: "Mango 12",
+    name: "Orange 12",
     word: "12",
-    about: "Mango Studio's 12-bit sampler colour",
+    about: "Orange Studio's 12-bit sampler colour",
     settings: &SETTINGS,
     version: None,
     any_version: false,
@@ -499,7 +499,7 @@ pub struct TwelveKind;
 impl Kind for TwelveKind {
     const SPEC: &'static Spec = SPEC;
     const CLAP_ID: &'static str = "org.openstudio.mango-12";
-    const CLAP_DESCRIPTION: &'static str = "Mango Studio's 12-bit sampler colour";
+    const CLAP_DESCRIPTION: &'static str = "Orange Studio's 12-bit sampler colour";
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::AudioEffect, ClapFeature::Distortion, ClapFeature::Stereo];
     const VST3_CLASS_ID: [u8; 16] = *b"MangoStudio12   ";
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Fx, Vst3SubCategory::Distortion];

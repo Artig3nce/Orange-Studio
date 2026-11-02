@@ -295,7 +295,7 @@ fn configure_for_device(
                 .frames_per_data_callback(size.min(i32::MAX as FrameCount) as i32)
                 .buffer_capacity_in_frames(size.saturating_mul(2).min(i32::MAX as FrameCount) as i32);
         }
-        // Mango patch: Android asks for the capacity only, and leaves the data-callback size to AAudio (its
+        // Orange patch: Android asks for the capacity only, and leaves the data-callback size to AAudio (its
         // burst). Forcing the callback size too risks the open: a device's MMAP FIFO can be smaller than the
         // ask, AAudio refuses the stream, and the app opens again with no length at all — the two-burst budget
         // the length was meant to replace. The capacity alone is what buys the room.
@@ -305,7 +305,7 @@ fn configure_for_device(
         }
     }
 
-    // Mango patch (the tree's only change from cpal 0.18.2): Android asks for the low-latency
+    // Orange patch (the tree's only change from cpal 0.18.2): Android asks for the low-latency
     // performance mode too, not just the `realtime` feature. That feature brings alsa-sys and
     // audio_thread_priority, which are Linux/BSD/Windows crates and cannot build here, so Android
     // could never ask for the mode and its streams ran through the normal mixer path — every UI

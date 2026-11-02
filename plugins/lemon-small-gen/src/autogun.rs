@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Autogun: Mango Studio's endless patch synthesizer (the roadmap's "Autogun"). A preset number is a seed:
+//! Orange Autogun: Orange Studio's endless patch synthesizer (the roadmap's "Autogun"). A preset number is a seed:
 //! hashed, it grows a whole patch — two oscillators and their intervals, the filter and its contour, the amp
 //! envelope, the drive — so every number plays something of its own and no two need sound alike. The four macro
 //! knobs bend the grown patch as it plays: the brightness, the pace, the second oscillator and the bite.
@@ -52,9 +52,9 @@ const CONTROLS: [Control; 6] = [
 ];
 
 pub const SPEC: &GenSpec = &GenSpec {
-    name: "Mango Autogun",
+    name: "Orange Autogun",
     word: "AUTOGUN",
-    about: "Mango Studio's seed-grown patch synthesizer",
+    about: "Orange Studio's seed-grown patch synthesizer",
     settings: &SETTINGS,
     version: None,
     any_version: false,
@@ -421,7 +421,7 @@ pub struct AutogunKind;
 impl Kind for AutogunKind {
     const SPEC: &'static GenSpec = SPEC;
     const CLAP_ID: &'static str = "org.openstudio.mango-autogun";
-    const CLAP_DESCRIPTION: &'static str = "Mango Studio's seed-grown patch synthesizer";
+    const CLAP_DESCRIPTION: &'static str = "Orange Studio's seed-grown patch synthesizer";
     const CLAP_FEATURES: &'static [ClapFeature] =
         &[ClapFeature::Instrument, ClapFeature::Synthesizer, ClapFeature::Stereo];
     const VST3_CLASS_ID: [u8; 16] = *b"MangoStudioAuto\0";

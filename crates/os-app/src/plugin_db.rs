@@ -508,7 +508,9 @@ fn walk(dir: &Path, depth: u32, formats: Formats, walked: &mut HashSet<(PathBuf,
 fn builtin_file(p: &Path) -> bool {
     let builtin = [crate::plugins::LEMON_SAMPLER, crate::plugins::LEMON_EQ, crate::plugins::PULP_FILTER, crate::plugins::PRESS, crate::osc3::LEMON_TRIO, crate::citrus::CITRUS, crate::plugins::MANGO_WAVETABLE, crate::plugins::MANGO_SOUNDFONT];
     let old = crate::plugins::OLD_NAMES.map(|(old, _)| old);
-    p.file_stem().is_some_and(|s| builtin.iter().chain(&crate::plugins::LINKED_EFFECTS).chain(&old).any(|b| s.eq_ignore_ascii_case(b)))
+    let is = |s: &str| builtin.iter().chain(&crate::plugins::LINKED_EFFECTS).chain(&old).any(|b| s.eq_ignore_ascii_case(b));
+    // One named before the rename to Orange Studio ("Mango Reverb.clap") too.
+    p.file_stem().and_then(|s| s.to_str()).is_some_and(|s| is(s) || is(&crate::plugins::current_name(s)))
 }
 
 /// A file's size and modification time (§4): a bundle's module inside it (VST 3; CLAP and VST 2 on macOS), else the file
@@ -767,7 +769,7 @@ pub fn category(d: &Descriptor) -> &'static str {
 }
 
 /// The built-in plugins' vendor in the menus.
-pub const BUILTIN_VENDOR: &str = "Mango Studio";
+pub const BUILTIN_VENDOR: &str = "Orange Studio";
 pub const NO_VENDOR: &str = "(unknown vendor)";
 
 /// A plugin as the menus list it.
@@ -1234,7 +1236,7 @@ mod tests {
     /// Installed bundles of the built-in Lemon plugins are not scanned: the built-in copy is used.
     #[test]
     fn installed_copies_of_built_in_plugins_are_skipped() {
-        for name in ["Mango Sampler.clap", "Mango Parametric EQ.vst3", "Mango Limiter.clap", "Mango Chorus.vst3", "lemon stereo shaper.clap"] {
+        for name in ["Orange Sampler.clap", "Orange Parametric EQ.vst3", "Orange Limiter.clap", "Orange Chorus.vst3", "lemon stereo shaper.clap"] {
             assert!(builtin_file(Path::new(&format!("/Library/Audio/Plug-Ins/{name}"))), "{name}");
         }
         assert!(!builtin_file(Path::new("/Library/Audio/Plug-Ins/Surge XT.clap")));
@@ -1328,7 +1330,7 @@ mod tests {
         w("added/Vendor/Deep/Er/Fx.vst3");
         w("added/Bundle.vst3/Contents/x86_64-win/Bundle.vst3");
         w("added/Bundle.vst3/Contents/x86_64-win/Inner.clap");
-        w("added/Mango Sampler.clap");
+        w("added/Orange Sampler.clap");
         w("added/Open Parametric EQ 2.vst3/Contents/x86_64-win/Open Parametric EQ 2.vst3");
         w("added/readme.txt");
         // A macOS CLAP bundle: a plugin on macOS, a plain folder elsewhere.

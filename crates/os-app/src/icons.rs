@@ -175,7 +175,7 @@ pub fn logo(cv: &mut Canvas, cx: f32, cy: f32, r: f32, c: Color) {
     cv.glyph(c, &g);
 }
 
-/// The full-colour Mango Studio logo, as the app icon draws it, fitted into a circle of radius `r`: the badge with its
+/// The full-colour Orange Studio logo, as the app icon draws it, fitted into a circle of radius `r`: the badge with its
 /// grey rim, the stem, the mango's skin, the three bars and the leaf.
 pub fn logo_colour(cv: &mut Canvas, cx: f32, cy: f32, r: f32) {
     use crate::logo::{CENTER, RECORD, RIND, SLICES, VIEW_H, VIEW_W};

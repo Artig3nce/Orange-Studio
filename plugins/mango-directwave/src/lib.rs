@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango DirectWave: Mango Studio's sampler (a recreation of FL's DirectWave) as a VST3 / CLAP plugin (nih-plug).
+//! Orange DirectWave: Orange Studio's sampler (a recreation of FL's DirectWave) as a VST3 / CLAP plugin (nih-plug).
 //! Eight zones, each one sample and where it plays — its key range and the key it is tuned to, its velocity range,
 //! its gain, pan, tune and loop switch — through the master's envelope and filter. A folder of samples spread over
 //! the keyboard plays like a program; the editor loads, lays out and previews it.
@@ -135,8 +135,8 @@ impl MangoDirectWave {
 }
 
 impl Plugin for MangoDirectWave {
-    const NAME: &'static str = "Mango DirectWave";
-    const VENDOR: &'static str = "Mango Studio";
+    const NAME: &'static str = "Orange DirectWave";
+    const VENDOR: &'static str = "Orange Studio";
     const URL: &'static str = "";
     const EMAIL: &'static str = "";
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -222,7 +222,7 @@ impl Plugin for MangoDirectWave {
 
 impl ClapPlugin for MangoDirectWave {
     const CLAP_ID: &'static str = "org.openstudio.mango-directwave";
-    const CLAP_DESCRIPTION: Option<&'static str> = Some("Mango Studio's sampler");
+    const CLAP_DESCRIPTION: Option<&'static str> = Some("Orange Studio's sampler");
     const CLAP_MANUAL_URL: Option<&'static str> = None;
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::Instrument, ClapFeature::Sampler, ClapFeature::Stereo];
@@ -233,8 +233,8 @@ impl Vst3Plugin for MangoDirectWave {
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Instrument, Vst3SubCategory::Sampler];
 }
 
-// Built as a plugin module: the C entry points hosts look for. Linked into Mango Studio (`linked` feature): only the
-// symbol-free table, so several Mango plugins fit in one program (spec: plugins/plugin-formats.md).
+// Built as a plugin module: the C entry points hosts look for. Linked into Orange Studio (`linked` feature): only the
+// symbol-free table, so several Orange plugins fit in one program (spec: plugins/plugin-formats.md).
 #[cfg(not(feature = "linked"))]
 nih_export_clap!(MangoDirectWave);
 #[cfg(not(feature = "linked"))]

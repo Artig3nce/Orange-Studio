@@ -50,7 +50,7 @@ impl Model for os_plugkit::vals::Vals {
     }
 }
 
-/// The values the editor shows: the parameters, with the spec's shown values over them (Mango 12's out knob shows
+/// The values the editor shows: the parameters, with the spec's shown values over them (Orange 12's out knob shows
 /// the effective output gain while the gains are linked).
 pub struct Shown<'a> {
     pub spec: &'static Spec,
@@ -339,7 +339,7 @@ fn shape(ui: &mut Ui, id: &str, cx: f32, cy: f32, (lo, hi): (i32, i32)) {
     ui.hit(r, target);
 }
 
-/// A small switch box (Mango 12's crush): a raised box lit mango on the range's top with the value's name inside;
+/// A small switch box (Orange 12's crush): a raised box lit mango on the range's top with the value's name inside;
 /// a click steps between the two ends.
 fn switch_box(ui: &mut Ui, id: &str, cx: f32, cy: f32, (lo, hi): (i32, i32)) {
     let v = ui.m.plain(id).round() as i32;
@@ -388,11 +388,11 @@ fn text_field(ui: &mut Ui, id: &str, r: Rect, text: &str, status: &str) {
     ui.hit(r, target);
 }
 
-/// The wordmark (as Lemon Delay's): "MANGO" in mango beside the effect's name in large grey
+/// The wordmark (as Lemon Delay's): "ORANGE" in mango beside the effect's name in large grey
 /// capitals, or MANGO over the name (`stacked`), placed by the spec's [`Mark`]; returns where it is.
 fn logo(ui: &mut Ui, spec: &Spec) -> Rect {
     let Mark { x, y, anchor, stacked } = spec.mark;
-    let ws = lemon::spaced_width(ui.c, MARK_SMALL, "MANGO", 2.5);
+    let ws = lemon::spaced_width(ui.c, MARK_SMALL, "ORANGE", 2.5);
     let (lh_b, lh_s) = (ui.c.line_height(MARK_BIG), ui.c.line_height(MARK_SMALL));
     if stacked {
         // MANGO centred over the name.
@@ -400,7 +400,7 @@ fn logo(ui: &mut Ui, spec: &Spec) -> Rect {
         let w = wn.max(wl);
         let left = (x - w * anchor).round();
         let lx = (left + (w - wl) / 2.0).round();
-        lemon::spaced(ui.c, MARK_SMALL, lx, y, brand::MAIN, "MANGO", 2.5);
+        lemon::spaced(ui.c, MARK_SMALL, lx, y, brand::MAIN, "ORANGE", 2.5);
         lemon::spaced(ui.c, MARK_BIG, (left + (w - wn) / 2.0).round(), y + lh_s - 2.0, plug::WORDMARK, spec.word, 2.0);
         let r = Rect::span(left - 2.0, left + w + 2.0, y - 2.0, y + lh_s + lh_b - 2.0);
         ui.hit(r, Target::Logo);
@@ -413,7 +413,7 @@ fn logo(ui: &mut Ui, spec: &Spec) -> Rect {
     let bx = (right - wb).round();
     lemon::spaced(ui.c, MARK_BIG, bx, (y - lh_b / 2.0).round(), plug::WORDMARK, spec.word, 2.0);
     let sx = (bx - 8.0 - ws).round();
-    lemon::spaced(ui.c, MARK_SMALL, sx, (y - lh_s / 2.0).round() + 1.0, brand::MAIN, "MANGO", 2.5);
+    lemon::spaced(ui.c, MARK_SMALL, sx, (y - lh_s / 2.0).round() + 1.0, brand::MAIN, "ORANGE", 2.5);
     let r = Rect::span(left - 2.0, right, y - 12.0, y + 12.0);
     ui.hit(r, Target::Logo);
     r

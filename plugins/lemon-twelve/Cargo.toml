@@ -1,6 +1,6 @@
 [package]
 name = "lemon-twelve"
-description = "Mango 12: Mango Studio's 12-bit sampler colour (26.04 kHz converter, tune, filter, drive) as a VST3 / CLAP plugin"
+description = "Orange 12: Orange Studio's 12-bit sampler colour (26.04 kHz converter, tune, filter, drive) as a VST3 / CLAP plugin"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,7 +9,7 @@ license.workspace = true
 crate-type = ["cdylib", "lib"]
 
 [features]
-# Compiled into Mango Studio: no exported plugin entry points (they would clash with the other built-in plugins).
+# Compiled into Orange Studio: no exported plugin entry points (they would clash with the other built-in plugins).
 linked = []
 
 [dependencies]

@@ -16,7 +16,7 @@ use os_model::{Channel, ChannelKind, Project};
 use crate::plugins::{Plugins, FX_KEY};
 
 /// The built-in plugin's name (picker, window title).
-pub const LEMON_TRIO: &str = "Mango Trio";
+pub const LEMON_TRIO: &str = "Orange Trio";
 /// The plugin id project files store for it (event 201).
 pub const FILE_NAME: &str = "3x Osc";
 
@@ -200,7 +200,7 @@ mod tests {
     fn builtin_lemon_3x_osc_takes_and_gives_the_file_state() {
         let mut pl = Plugins::default();
         pl.available = crate::plugins::builtin();
-        let index = pl.index_of(LEMON_TRIO).expect("built-in Mango Trio");
+        let index = pl.index_of(LEMON_TRIO).expect("built-in Orange Trio");
         assert!(crate::project_plugins::is_builtin(&pl.available[index].desc));
         let mut fl = default_state();
         set_field(&mut fl, op::osc(0) + op::SHAPE + 1, 3); // osc 1: saw
@@ -356,8 +356,8 @@ mod tests {
         let index = a.plugins.index_of(LEMON_TRIO).unwrap();
         let pick = |a: &App, target| crate::plugin_menu::items(&a.state, target, true).into_iter().find(|it| it.label == LEMON_TRIO).map(|it| it.cmd);
         let n = a.state.project.channels.len();
-        assert!(crate::rack::add_one_items(&a.state).iter().any(|it| it.label == LEMON_TRIO), "Add one lists Mango Trio");
-        let cmd = pick(&a, Target::Gen(None)).expect("the generator menu lists Mango Trio");
+        assert!(crate::rack::add_one_items(&a.state).iter().any(|it| it.label == LEMON_TRIO), "Add one lists Orange Trio");
+        let cmd = pick(&a, Target::Gen(None)).expect("the generator menu lists Orange Trio");
         crate::playlist::run(&mut a, cmd);
         assert_eq!(a.state.project.channels.len(), n + 1);
         assert_eq!(a.state.pending_plugin, Some((n, index)));

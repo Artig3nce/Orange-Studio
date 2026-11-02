@@ -158,7 +158,7 @@ impl Logic {
 
     fn load(&self, path: &str) {
         if let Err(e) = self.shared.load(path, &self.params) {
-            eprintln!("Mango BeepMap: {e}");
+            eprintln!("Orange BeepMap: {e}");
         }
     }
 }
@@ -349,7 +349,7 @@ mod win32 {
                 logic: Logic::new(params, shared, context),
                 slot: slot.clone(),
             });
-            let title = pw::wide("Mango BeepMap");
+            let title = pw::wide("Orange BeepMap");
             let hwnd = CreateWindowExW(
                 0,
                 class.as_ptr(),

@@ -781,7 +781,7 @@ fn strip_geo(ui: &mut Ui, s: &State, n: u16, left: f32, top: f32, bottom: f32, f
     routing(ui, s, n, left + w / 2.0, bottom - 38.0, g.send);
 }
 
-/// The strip's body (a card in the Mango skin), its selecting hit and the header number; the body colour and whether
+/// The strip's body (a card in the Orange skin), its selecting hit and the header number; the body colour and whether
 /// the mouse is over the strip's top.
 #[allow(clippy::too_many_arguments)]
 fn strip_body(ui: &mut Ui, s: &State, n: u16, left: f32, w: f32, (head0, head1, hov1): (f32, f32, f32), bottom: f32, num: Font) -> (Color, bool) {
@@ -803,7 +803,7 @@ fn strip_body(ui: &mut Ui, s: &State, n: u16, left: f32, w: f32, (head0, head1, 
     let tint = |c: Color, k: f32| own.map_or(c, |o| c.mix(o, k));
     let body = tint(body, 0.3);
     if lemon {
-        // Lemon (spec: ui/lemon-design.md §8): each strip is a rounded card on the dark gap colour. Mango, black: the gap
+        // Lemon (spec: ui/lemon-design.md §8): each strip is a rounded card on the dark gap colour. Orange, black: the gap
         // black, the card lit from the top down and rimmed, the selected one lighter with a mango rim, so every strip
         // stands on its own.
         let card = Rect::new(left, head1 + 1.0, w, bottom - head1 - 1.0);
@@ -842,7 +842,7 @@ fn strip_body(ui: &mut Ui, s: &State, n: u16, left: f32, w: f32, (head0, head1, 
             }
         } else if head1 - head0 > 30.0 {
         } else if let (true, Some(col)) = (lemon, own) {
-            // Mango: a coloured track's number sits on a pill of its colour (lit for the black), outlined when selected.
+            // Orange: a coloured track's number sits on a pill of its colour (lit for the black), outlined when selected.
             ui.c.fill_rrect(pill, lk::r_btn(t), readable_on_black(col));
             if selected {
                 ui.c.stroke_rrect(pill.outset(1.0), lk::r_btn(t) + 1.0, 2.0, t.accent);
@@ -881,7 +881,7 @@ fn strip_body(ui: &mut Ui, s: &State, n: u16, left: f32, w: f32, (head0, head1, 
     (body, hov)
 }
 
-/// The dark head panel behind the meter, name, light and pan knob, with a rounded bottom. Mango's black skin makes it a
+/// The dark head panel behind the meter, name, light and pan knob, with a rounded bottom. Orange's black skin makes it a
 /// soft charcoal, not black: the name and the light on it were hard to see on the near-black the skin maps this grey to.
 fn head_panel(ui: &mut Ui, r: Rect, own: Option<Color>) {
     let panel = if super::lemon(ui) { Color::rgb(0x2b2e31) } else { ui.t.s(0x1d1f21) };
@@ -932,7 +932,7 @@ fn name_and_colour(ui: &Ui, s: &State, n: u16, hov: bool) -> (String, Color) {
     let selected = s.selected_mixer == n;
     let also = !selected && mx::is_selected(s, n);
     let name = track.and_then(|m| m.name.clone()).unwrap_or_else(|| if n == 0 { "Master".into() } else { format!("Insert {n}") });
-    // Mango: names near white on the black strips, the selected track's in mango; a track's colour shows on its number's
+    // Orange: names near white on the black strips, the selected track's in mango; a track's colour shows on its number's
     // pill at the top instead.
     let c = if super::lemon(ui) {
         if selected { t.accent } else { ui.t.tx(0xe2e2e2) }
@@ -974,7 +974,7 @@ fn pan_knob(ui: &mut Ui, s: &State, n: u16, x: f32, y: f32, r: f32, halo: f32) {
     }
 }
 
-/// Which control a Mango-skin bar is: pan (from the centre), separation (the same, blue on the merged side) or a
+/// Which control a Orange-skin bar is: pan (from the centre), separation (the same, blue on the merged side) or a
 /// level (from the left end).
 #[derive(Clone, Copy, PartialEq)]
 pub(super) enum Bar {
@@ -983,7 +983,7 @@ pub(super) enum Bar {
     Level,
 }
 
-/// The Mango skin's pan and separation: a horizontal bar like its faders, a rounded trough `2 * half` wide with the
+/// The Orange skin's pan and separation: a horizontal bar like its faders, a rounded trough `2 * half` wide with the
 /// value growing left or right from the centre (0.5) in mango (`mono_blue`: blue on the merged side).
 pub(super) fn centre_bar(ui: &mut Ui, x: f32, y: f32, half: f32, h: f32, value: f32, kind: Bar) {
     let r = Rect::new(x - half, y - h / 2.0, 2.0 * half, h);
@@ -1046,7 +1046,7 @@ fn sep_knob(ui: &mut Ui, s: &State, n: u16, x: f32, y: f32, r: f32, halo: f32) {
     }
 }
 
-/// Fader: track, gain marks, handle (green on the selected strip, with the track lit below it). In the Mango skin the
+/// Fader: track, gain marks, handle (green on the selected strip, with the track lit below it). In the Orange skin the
 /// track is a rounded trough and the level below the handle a rounded bar, as the logo's equalizer bars: bright on the
 /// selected strip, softer on the others. `ys` maps a value to the handle's y; `marks` draws the gain marks.
 #[allow(clippy::too_many_arguments)]
@@ -1091,7 +1091,7 @@ fn fader(ui: &mut Ui, s: &State, n: u16, f: &FrameInfo, mx: f32, y0: f32, track_
 fn io_icons(ui: &mut Ui, n: u16, pin: (f32, f32), clock: (f32, f32), veil: Rect, body: Color) {
     let master = n == 0;
     let (sx, pt) = pin;
-    // Mango's strips are shaded cards: a veil in one colour would show as a square on them, so the icons are faded
+    // Orange's strips are shaded cards: a veil in one colour would show as a square on them, so the icons are faded
     // into the card instead.
     let lemon = super::lemon(ui);
     let fade = |c: Color| if lemon { c.mix(Color::rgb(0x161616), f32::from(crate::app::OFF_VEIL) / 255.0) } else { c };
@@ -1190,7 +1190,7 @@ fn ink_on(c: Color) -> Color {
     if luma > 150.0 { Color::rgb(0x141414) } else { Color::rgb(0xf4f4f4) }
 }
 
-/// A track colour on the Mango skin's black strips (its number's pill): its hue kept, lit to at least 68 % lightness and given some
+/// A track colour on the Orange skin's black strips (its number's pill): its hue kept, lit to at least 68 % lightness and given some
 /// saturation back, so a dark red reads as a clear red; greys stay grey and light colours as they are.
 fn readable_on_black(c: Color) -> Color {
     let (h, s, l) = c.hsl();
@@ -1200,7 +1200,7 @@ fn readable_on_black(c: Color) -> Color {
 
 /// Gain marks beside a fader track (spec: ui/mixer.md §5, measured from FL): 6 px ticks on both sides at 0, −6, −12 and
 /// −18 dB (2 px clear of the track), and faint 4 px rails between consecutive ticks (1 px clear of each tick). They
-/// belong to the track: the handle covers them as it moves. In the Mango skin (`lemon`) only short ticks, clear of its
+/// belong to the track: the handle covers them as it moves. In the Orange skin (`lemon`) only short ticks, clear of its
 /// wider trough.
 fn fader_marks(ui: &mut Ui, mx: f32, track_y1: f32, ys: &dyn Fn(f32) -> f32, lemon: bool) {
     let ys: Vec<f32> = [0.0, -6.0, -12.0, -18.0]
@@ -1326,7 +1326,7 @@ fn slot_panel(ui: &mut Ui, s: &State, r: Rect) {
         ui.c.text_clip(f, row.x + 19.0, ty, 140.0, ink, &name);
         let mix = KnobId::SlotMix(n, k);
         if super::lemon(ui) {
-            // The Mango skin: a level bar like the mixer's pan and separation bars.
+            // The Orange skin: a level bar like the mixer's pan and separation bars.
             let cx = row.right() - 33.0;
             ui.hit(Rect::new(cx - 16.0, row.y, 32.0, row.h), Action::Knob(mix), s.knob_text(mix));
             centre_bar(ui, cx, row.cy(), 15.0, 8.0, s.knob(mix), Bar::Level);

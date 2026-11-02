@@ -17,7 +17,7 @@ pub fn paint(ui: &mut Ui, s: &State) {
     if !s.palette.open {
         return;
     }
-    // The theme's colours, so the palette sits in the skin it opens in (Mango's black and mango, or Citrus).
+    // The theme's colours, so the palette sits in the skin it opens in (Orange's black and mango, or Citrus).
     let t = ui.t;
     let (border, bg_card, bg_search, bg_header_line) = (t.menu_drop_hi.shade(0.12), t.menu_drop, t.sunken, t.splitter);
     let (bg_row_sel, bg_row_hov, accent) = (t.accent.mix(t.menu_drop, 0.78), t.menu_drop_hi, t.accent);

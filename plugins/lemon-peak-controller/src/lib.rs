@@ -82,7 +82,7 @@ impl LemonPeakController {
 
 impl Plugin for LemonPeakController {
     const NAME: &'static str = SPEC.name;
-    const VENDOR: &'static str = "Mango Studio";
+    const VENDOR: &'static str = "Orange Studio";
     const URL: &'static str = "";
     const EMAIL: &'static str = "";
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -194,6 +194,6 @@ mod tests {
     fn a_new_instance_is_the_originals_default() {
         let p = LemonPeakController::default();
         assert_eq!(p.core.s, os_engine::effects::peak_ctrl::Settings::default());
-        assert_eq!(<LemonPeakController as Plugin>::NAME, "Mango Peak Controller");
+        assert_eq!(<LemonPeakController as Plugin>::NAME, "Orange Peak Controller");
     }
 }

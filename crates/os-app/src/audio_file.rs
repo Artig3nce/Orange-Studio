@@ -4,7 +4,7 @@
 
 //! FILE ▸ Import ▸ Audio file...: the file becomes what the form's kind says (`App::audio_file_chosen`, painted by
 //! `views::audio_form` as the MIDI import's form is): an audio clip, as a drop on the playlist makes, or the melody a
-//! tracker reads from it, played by 8-bit squares (a 3x Osc channel whose three oscillators are squares) or by Mango
+//! tracker reads from it, played by 8-bit squares (a 3x Osc channel whose three oscillators are squares) or by Orange
 //! Monk. The tracker is YIN (de Cheveigné and Kawahara 2002): the file's frames give a difference function whose first
 //! deep dip is the period, and the periods become notes — one line of them, for the tracker reads one pitch at a time,
 //! so chords and drums have no melody to give.
@@ -37,7 +37,7 @@ pub enum Kind {
     Clip,
     /// The melody as 8-bit squares: a 3x Osc channel whose saved state is squares all round.
     EightBit,
-    /// The melody chanted: a Mango Monk channel.
+    /// The melody chanted: a Orange Monk channel.
     Monk,
 }
 
@@ -597,7 +597,7 @@ mod tests {
     }
 
     /// Accept with the 8-bit's kind gives a 3x Osc channel whose state is squares, with the melody's notes; the monk's
-    /// kind gives a Mango Monk channel. One history step takes the channel and its notes back.
+    /// kind gives a Orange Monk channel. One history step takes the channel and its notes back.
     #[test]
     fn the_melody_imports_as_eight_bit_or_monk() {
         for (kind, name) in [(Kind::EightBit, "squares"), (Kind::Monk, "monk")] {

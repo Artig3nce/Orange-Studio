@@ -2510,8 +2510,8 @@ impl Logic {
         self.hint = match (ok, to) {
             (true, AudioTo::Playlist) => "Sent to the playlist".into(),
             (true, AudioTo::Channel) => "Sent to the selected channel".into(),
-            (true, AudioTo::Slicer) => "Sent to a new Mango Slicer channel".into(),
-            (false, _) => "Sending needs Mango Studio".into(),
+            (true, AudioTo::Slicer) => "Sent to a new Orange Slicer channel".into(),
+            (false, _) => "Sending needs Orange Studio".into(),
         };
     }
 
@@ -2632,7 +2632,7 @@ impl Logic {
 }
 
 fn about() -> String {
-    format!("Tesla {}: Mango Studio's audio editor and recorder", env!("CARGO_PKG_VERSION"))
+    format!("Tesla {}: Orange Studio's audio editor and recorder", env!("CARGO_PKG_VERSION"))
 }
 
 // ---------------------------------------------------------------------------------------------------------------

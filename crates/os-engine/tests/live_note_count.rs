@@ -31,7 +31,7 @@ fn channel() -> os_model::Channel {
         index: 0,
         kind: os_model::ChannelKind::Plugin,
         name: None,
-        plugin: Some("Mango Sampler".into()),
+        plugin: Some("Orange Sampler".into()),
         plugin_state: None,
         color: None,
         enabled: true,

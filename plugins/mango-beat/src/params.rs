@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Beat's parameters: the two sections' mixes and their slot choices. The envelope grids travel in the
+//! Orange Beat's parameters: the two sections' mixes and their slot choices. The envelope grids travel in the
 //! plugin state's fields (`grid`), written by the editor and read by the sound through the shared grids.
 
 use std::collections::BTreeMap;
@@ -35,7 +35,7 @@ pub const DEFS: [Def; PARAMS] = [
     Def { id: "vol_slot", name: "Volume slot" },
 ];
 
-/// What a new Mango Beat starts on: both sections fully in, on slot A.
+/// What a new Orange Beat starts on: both sections fully in, on slot A.
 pub const START: [i32; PARAMS] = [10000, 10000, 0, 0];
 
 /// The ranges (in `crates/os-app` the presets and the mixer read them too).
@@ -131,7 +131,7 @@ unsafe impl Params for BeatParams {
                     self.grid.store(g);
                     self.grid_version.fetch_add(1, Ordering::Release);
                 }
-                None => nih_debug_assert_failure!("Mango Beat: the saved grids did not read"),
+                None => nih_debug_assert_failure!("Orange Beat: the saved grids did not read"),
             }
         }
     }

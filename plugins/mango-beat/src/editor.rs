@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! The Mango Beat editor: the platform-independent logic (parameter drags, the envelope points, the slot and grid
+//! The Orange Beat editor: the platform-independent logic (parameter drags, the envelope points, the slot and grid
 //! menus) and the `Editor` the host spawns; `window` carries the per-platform child windows.
 //!
 // spec: plugins/mango-beat.md (§2 controls, §3 hints, §4 interaction)
@@ -476,11 +476,11 @@ impl Logic {
                 m.add(MenuItem::item("Copy value"), Cmd::CopyValue(id.clone()));
                 m.add(MenuItem::item("Paste value").enabled(self.copied.is_some()), Cmd::PasteValue(id.clone()));
                 m.add(MenuItem::item("Type in value..."), Cmd::TypeIn(id.clone()));
-                // Automation belongs to the host: offered when Mango Studio hosts the editor (host link).
+                // Automation belongs to the host: offered when Orange Studio hosts the editor (host link).
                 m.sep(Cmd::None);
                 m.add(MenuItem::item("Create automation clip").enabled(self.hosted), Cmd::Automate(id.clone()));
                 m.sep(Cmd::None);
-                m.add(MenuItem::item("About Mango Beat..."), Cmd::About);
+                m.add(MenuItem::item("About Orange Beat..."), Cmd::About);
                 m
             }
             MenuReq::Point(sec, slot, i) => {
@@ -515,7 +515,7 @@ impl Logic {
             }
             MenuReq::About => {
                 let mut m = MenuDef::new(MenuStyle::Context);
-                m.head("Mango Beat", Cmd::None);
+                m.head("Orange Beat", Cmd::None);
                 m.add(MenuItem::item(&format!("Version {}", env!("CARGO_PKG_VERSION"))).enabled(false), Cmd::None);
                 m.add(MenuItem::item("A Gross Beat-style time manipulator").enabled(false), Cmd::None);
                 m
@@ -753,7 +753,7 @@ mod tests {
         // The About menu comes from the wordmark.
         let (x, y) = centre(&l, &Target::Logo);
         assert!(matches!(l.down(x, y, Btn::Left, Mods::default(), false).last(), Some(Act::Menu(MenuReq::About, _, _))));
-        assert_eq!(l.hint, "Mango Beat");
+        assert_eq!(l.hint, "Orange Beat");
     }
 
     /// The editor follows grids that moved outside it (a preset loading), by letter on the slot and in decibels

@@ -1,5 +1,5 @@
 name: Bug report
-description: Report something that is broken or behaves unexpectedly in Mango Studio.
+description: Report something that is broken or behaves unexpectedly in Orange Studio.
 title: "[Bug]: "
 labels: ["bug"]
 body:
@@ -24,7 +24,7 @@ body:
     id: branch
     attributes:
       label: Branch
-      description: Which branch did you build Mango Studio from? Include the commit hash if you know it ```git rev-parse --short HEAD```
+      description: Which branch did you build Orange Studio from? Include the commit hash if you know it ```git rev-parse --short HEAD```
       placeholder: main @ a1b2c3d
     validations:
       required: false
@@ -46,7 +46,7 @@ body:
       label: Steps to reproduce
       description: List the exact steps needed to make the issue happen, starting from launching the app.
       placeholder: |
-        1. Open Mango Studio
+        1. Open Orange Studio
         2. Create a new project
         3. Click on '...'
         4. See the problem

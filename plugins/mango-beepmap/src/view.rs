@@ -89,7 +89,7 @@ pub fn paint(c: &mut Canvas, d: &Display) {
     c.fill_rect(panel, RACK_PANEL);
     c.stroke_rrect(panel, 0.0, 1.0, Color::rgb(0x3c3c3c));
 
-    c.text(TITLE, 28.0, 22.0, brand::MAIN, "MANGO BEEPMAP");
+    c.text(TITLE, 28.0, 22.0, brand::MAIN, "ORANGE BEEPMAP");
     c.text(SMALL, 220.0, 26.0, plug::DIM, "IMAGE SYNTHESIZER");
 
     // The picture, or the well that asks for one.

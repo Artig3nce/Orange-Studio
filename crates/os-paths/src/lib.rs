@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Where Lemon Studio keeps its own files: settings, the remembered theme and design, presets, browser folders.
+//! Where Orange Studio keeps its own files: settings, the remembered theme and design, presets, browser folders.
 //!
 //! One folder per user, shared by the application and its own plugins (a plugin runs in its own module and reads the
 //! theme from here itself):
@@ -16,8 +16,10 @@
 use std::path::PathBuf;
 
 /// The folder's own name inside the platform's per-user settings folder.
-const APP: &str = "Mango Studio";
-/// Lemon Studio's folder, which Mango Studio was forked from (`lemon_dir`): its settings are copied once.
+const APP: &str = "Orange Studio";
+/// Its folder before the rename to Orange Studio (`mango_dir`): its settings are copied once.
+const MANGO: &str = "Mango Studio";
+/// Lemon Studio's folder, which Orange Studio was forked from (`lemon_dir`): its settings are copied once.
 const LEMON: &str = "Lemon Studio";
 /// Its name before the rename to Lemon Studio (`legacy_dir`).
 const LEGACY: &str = "OpenStudio";
@@ -47,6 +49,15 @@ pub fn lemon_dir() -> Option<PathBuf> {
         return None;
     }
     platform_dir().map(|d| d.join(LEMON))
+}
+
+/// Mango Studio's per-user folder (`Mango Studio` in the same place), the app's name before Orange Studio: the app
+/// copies its settings to [`user_dir`] once. `None` when `OPENSTUDIO_USER_DIR` chooses the folder.
+pub fn mango_dir() -> Option<PathBuf> {
+    if var("OPENSTUDIO_USER_DIR").is_some() {
+        return None;
+    }
+    platform_dir().map(|d| d.join(MANGO))
 }
 
 /// A file or folder inside [`user_dir`].
@@ -97,6 +108,9 @@ mod tests {
         if let (Some(old), Some(new)) = (legacy_dir(), user_dir()) {
             assert_eq!(old.parent(), new.parent());
             assert_eq!(old.file_name().and_then(|n| n.to_str()), Some(LEGACY));
+        }
+        if let (Some(mango), Some(new)) = (mango_dir(), user_dir()) {
+            assert_eq!((mango.parent(), mango.file_name().and_then(|n| n.to_str())), (new.parent(), Some(MANGO)));
         }
         if let (Some(lemon), Some(new)) = (lemon_dir(), user_dir()) {
             assert_eq!((lemon.parent(), lemon.file_name().and_then(|n| n.to_str())), (new.parent(), Some(LEMON)));

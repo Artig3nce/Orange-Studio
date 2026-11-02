@@ -15,9 +15,9 @@ use crate::app::{App, State, Win};
 use crate::knobs::KnobId;
 use crate::playlist::{Cmd, Mark, PItem, Popup};
 
-/// Name button width at 100 % (§17): wide enough for a new project's "Lemon Sampler" at every UI scale with every text
+/// Name button width at 100 % (§17): wide enough for a new project's "Orange Sampler" at every UI scale with every text
 /// engine; Linux's Barlow is the widest (Lemon Studio).
-pub const NAME_W: f32 = 94.0;
+pub const NAME_W: f32 = 96.0;
 /// FL's name button width at 100 % (§17): the measured columns right of the name button assume it.
 pub const FL_NAME_W: f32 = 82.0;
 /// Width of the mixer-box column (§17: Alt+M moves everything right of it ≈ 41 px).
@@ -2966,7 +2966,7 @@ mod tests {
         app.plugins.available = crate::plugins::builtin();
         let r = sampler_row(&app);
         app.plugin_tick();
-        assert!(app.state.hosted_rows.contains(&r), "Mango Sampler hosts the row");
+        assert!(app.state.hosted_rows.contains(&r), "Orange Sampler hosts the row");
         let params = |app: &App| {
             let st = app.plugins.state(r).expect("state");
             let json = if st.first() == Some(&b'{') { &st[..] } else { &st[8..] };

@@ -4,9 +4,9 @@
 
 //! Lemon Studio's small effects as VST3 / CLAP plugins (nih-plug): Lemon Soft Clipper, Lemon Fast Distortion, Lemon
 //! Balance, Lemon Stereo Enhancer, Lemon Transient Processor, Lemon Chorus, Lemon Stereo Shaper, Lemon Filter,
-//! Lemon Flanger, Lemon Phaser and Mango 12 (and the controllers' settings and editors, [`peak_controller`] and [`formula_controller`], with the ticks they share, [`ticks`]). Each is a handful
+//! Lemon Flanger, Lemon Phaser and Orange 12 (and the controllers' settings and editors, [`peak_controller`] and [`formula_controller`], with the ticks they share, [`ticks`]). Each is a handful
 //! of settings over a sound of
-//! `os_engine::effects` (Mango 12 has its own), so they share
+//! `os_engine::effects` (Orange 12 has its own), so they share
 //! everything but their description: the plugin, its parameters and saved state ([`params`]), the Pith editor
 //! ([`editor`], [`view`]). A description ([`Spec`]) gives the settings, their value texts, the editor's cards and
 //! controls, and the sound. The plugin modules (`plugins/lemon-soft-clipper` and the others) export one each.
@@ -80,7 +80,7 @@ pub enum Control {
     /// A button centred at (`cx`, `cy`) that shows the value's envelope shape; a click steps to the next value.
     Shape { id: &'static str, cx: f32, cy: f32 },
     /// A small switch box centred at (`cx`, `cy`) that steps between the range's two ends on click, lit mango on
-    /// the range's top (Mango 12's crush).
+    /// the range's top (Orange 12's crush).
     Switch { id: &'static str, cx: f32, cy: f32 },
     /// A tile (Lemon Chorus's grid): its own card over `x0..x1`, `y0..y1`, a small dial at the left, the caption in a
     /// field at the top right and the value text under it.
@@ -183,7 +183,7 @@ pub struct Spec {
     pub parse: fn(usize, &str) -> Option<i32>,
     /// A setting shown other than it is stored, when its knob means something the parameters do not hold: the
     /// values (the spec's settings, in order) and the setting's place give `Some(offset)` to show `stored - offset`
-    /// and to edit by the shown value (the stored one written is the shown plus the offset). Mango 12's gains: while
+    /// and to edit by the shown value (the stored one written is the shown plus the offset). Orange 12's gains: while
     /// Link is on the out knob shows the effective output gain (the stored out less the in, what the output stage
     /// runs at), so it follows the in knob and editing it moves the total by the same amount. `None`: every setting
     /// shows its stored value.
@@ -274,7 +274,7 @@ impl<K: Kind> SmallFx<K> {
 
 impl<K: Kind> Plugin for SmallFx<K> {
     const NAME: &'static str = K::SPEC.name;
-    const VENDOR: &'static str = "Mango Studio";
+    const VENDOR: &'static str = "Orange Studio";
     const URL: &'static str = "";
     const EMAIL: &'static str = "";
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -384,7 +384,7 @@ mod tests {
                     assert_eq!((s.text)(k, back), t, "{} {} {v}", s.name, set.id);
                 }
             }
-            assert!(s.name.starts_with("Mango "));
+            assert!(s.name.starts_with("Orange "));
         }
         let ids = [
             <soft_clipper::LemonSoftClipper as ClapPlugin>::CLAP_ID,
@@ -420,7 +420,7 @@ mod tests {
                 assert_ne!(classes[i], classes[j]);
             }
         }
-        assert_eq!(<balance::LemonBalance as Plugin>::NAME, "Mango Balance");
+        assert_eq!(<balance::LemonBalance as Plugin>::NAME, "Orange Balance");
     }
 
     #[test]

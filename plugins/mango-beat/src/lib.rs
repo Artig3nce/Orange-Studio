@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Beat: Mango Studio's Gross Beat-style time manipulator as a VST3 / CLAP plugin (nih-plug). Two envelope
+//! Orange Beat: Orange Studio's Gross Beat-style time manipulator as a VST3 / CLAP plugin (nih-plug). Two envelope
 //! grids per beat — time (the playback rate, from +16x through the centre's 1x down to -16x) and volume (the gate) —
 //! in four switchable slots each, drawn in the editor like the playlist draws automation.
 //!
@@ -67,8 +67,8 @@ impl MangoBeat {
 }
 
 impl Plugin for MangoBeat {
-    const NAME: &'static str = "Mango Beat";
-    const VENDOR: &'static str = "Mango Studio";
+    const NAME: &'static str = "Orange Beat";
+    const VENDOR: &'static str = "Orange Studio";
     const URL: &'static str = "";
     const EMAIL: &'static str = "";
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -138,7 +138,7 @@ impl Plugin for MangoBeat {
 
 impl ClapPlugin for MangoBeat {
     const CLAP_ID: &'static str = "org.openstudio.mango-beat";
-    const CLAP_DESCRIPTION: Option<&'static str> = Some("Mango Studio's time manipulator: half time, gates and scratches on two envelope grids");
+    const CLAP_DESCRIPTION: Option<&'static str> = Some("Orange Studio's time manipulator: half time, gates and scratches on two envelope grids");
     const CLAP_MANUAL_URL: Option<&'static str> = None;
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::AudioEffect, ClapFeature::Glitch, ClapFeature::Gate, ClapFeature::Stereo];
@@ -149,8 +149,8 @@ impl Vst3Plugin for MangoBeat {
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Fx, Vst3SubCategory::Modulation];
 }
 
-// Built as a plugin module: the C entry points hosts look for. Linked into Mango Studio (`linked` feature): only the
-// symbol-free table, so several Mango plugins fit in one program (spec: plugins/plugin-formats.md).
+// Built as a plugin module: the C entry points hosts look for. Linked into Orange Studio (`linked` feature): only the
+// symbol-free table, so several Orange plugins fit in one program (spec: plugins/plugin-formats.md).
 #[cfg(not(feature = "linked"))]
 nih_export_clap!(MangoBeat);
 #[cfg(not(feature = "linked"))]
@@ -163,7 +163,7 @@ mod tests {
     use crate::grid::{Curve, GridState, Mode, Pt};
     use crate::params::{GRID_FIELD, TIME_SLOT, VOL_SLOT};
 
-    /// A fresh Mango Beat's settings are the defaults, and slot edits reach them.
+    /// A fresh Orange Beat's settings are the defaults, and slot edits reach them.
     #[test]
     fn editor_edits_reach_the_sound() {
         let mut p = MangoBeat::default();
@@ -187,7 +187,7 @@ mod tests {
     /// plugin, the blob carries its length prefix and the grids parse.
     #[test]
     fn factory_presets_hold_readable_grids() {
-        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/os-app/factory-presets/Mango Beat");
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/os-app/factory-presets/Orange Beat");
         let mut count = 0;
         for file in std::fs::read_dir(&dir).expect("preset folder") {
             let path = file.expect("file").path();
@@ -197,7 +197,7 @@ mod tests {
             count += 1;
             let bytes = std::fs::read(&path).expect("read");
             assert!(bytes.starts_with(b"OSPRESET 1\n"), "{}: not a preset", path.display());
-            assert!(bytes.windows(17).any(|w| w == b"plugin=Mango Beat"), "{}: wrong plugin", path.display());
+            assert!(bytes.windows(18).any(|w| w == b"plugin=Orange Beat"), "{}: wrong plugin", path.display());
             // The body: after the magic and the header line, the length prefix and the state JSON.
             let Some(at) = bytes.iter().enumerate().filter(|(_, b)| **b == b'\n').nth(1).map(|(i, _)| i + 1) else {
                 panic!("{}: no header", path.display())

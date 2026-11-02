@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Keys: Mango Studio's electric piano (the roadmap's "FL Keys"). Three partials of a tine — the fundamental,
+//! Orange Keys: Orange Studio's electric piano (the roadmap's "FL Keys"). Three partials of a tine — the fundamental,
 //! its octave as the body and the fourth partial that rings and fades fast as the bell — a hammer of noise on the
 //! strike, a damper's fade on the key up, the pitch stretched the way real tines go sharp, and a tremolo of its
 //! own. Eight notes at once; the low ones ring longer than the high ones.
@@ -67,9 +67,9 @@ const CONTROLS: [Control; 10] = [
 ];
 
 pub const SPEC: &GenSpec = &GenSpec {
-    name: "Mango Keys",
+    name: "Orange Keys",
     word: "KEYS",
-    about: "Mango Studio's electric piano",
+    about: "Orange Studio's electric piano",
     settings: &SETTINGS,
     version: None,
     any_version: false,
@@ -421,7 +421,7 @@ pub struct KeysKind;
 impl Kind for KeysKind {
     const SPEC: &'static GenSpec = SPEC;
     const CLAP_ID: &'static str = "org.openstudio.mango-keys";
-    const CLAP_DESCRIPTION: &'static str = "Mango Studio's electric piano";
+    const CLAP_DESCRIPTION: &'static str = "Orange Studio's electric piano";
     const CLAP_FEATURES: &'static [ClapFeature] =
         &[ClapFeature::Instrument, ClapFeature::Synthesizer, ClapFeature::Stereo];
     const VST3_CLASS_ID: [u8; 16] = *b"MangoStudioKeys\0";

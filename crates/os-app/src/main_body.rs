@@ -596,7 +596,7 @@ impl ApplicationHandler for Shell {
         }
         splash::step(&self.splash, splash::WINDOW, "Opening the main window");
         let attrs = Window::default_attributes()
-            .with_title("Mango Studio")
+            .with_title("Orange Studio")
             .with_decorations(false)
             .with_inner_size(LogicalSize::new(1920.0, 1080.0))
             // Layouts are measured at 1920x1080 and are not responsive yet; below this they break.
@@ -1788,14 +1788,14 @@ fn wake_ui() {
 /// Tells the user of a startup failure and ends the program. Windows shows a message box: run from a shortcut, or
 /// under Wine (Winlator on Android), there is no console to read the error from, and the program would just vanish.
 fn fatal(what: &str, why: String) -> ! {
-    let message = format!("Mango Studio could not start.\n\n{what}: {why}");
+    let message = format!("Orange Studio could not start.\n\n{what}: {why}");
     eprintln!("{message}");
     crash_log(&format!("{what}: {why}"));
     #[cfg(windows)]
     unsafe {
         use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_OK};
         let wide = |s: &str| s.encode_utf16().chain([0]).collect::<Vec<u16>>();
-        let (text, title) = (wide(&message), wide("Mango Studio"));
+        let (text, title) = (wide(&message), wide("Orange Studio"));
         MessageBoxW(std::ptr::null_mut(), text.as_ptr(), title.as_ptr(), MB_ICONERROR | MB_OK);
     }
     std::process::exit(1);
@@ -1992,14 +1992,14 @@ pub(crate) fn run_from(mut builder: winit::event_loop::EventLoopBuilder<()>, pat
         if let Some(Err(e)) = crate::templates::root().map(|r| crate::templates::ensure_starter(&r)) {
             eprintln!("[templates] the Starter kit was not made: {e}");
         }
-        // The Mango Kit: eighteen drum sounds made from maths, written once and listed in the Browser.
+        // The Orange Kit: eighteen drum sounds made from maths, written once and listed in the Browser.
         if let Some(Err(e)) = os_paths::user_dir().map(|r| crate::sound_kit::offer(&mut app.state, &r)) {
-            eprintln!("[sound kit] the Mango Kit was not made: {e}");
+            eprintln!("[sound kit] the Orange Kit was not made: {e}");
         }
-        // The Mango Pack: Virtuosity Drums' one-shots (CC0; assets/samples/mango-pack/PROVENANCE.md), written once and
+        // The Orange Pack: Virtuosity Drums' one-shots (CC0; assets/samples/mango-pack/PROVENANCE.md), written once and
         // listed in the Browser.
         if let Some(Err(e)) = os_paths::user_dir().map(|r| crate::sample_pack::offer(&mut app.state, &r)) {
-            eprintln!("[sample pack] the Mango Pack was not made: {e}");
+            eprintln!("[sample pack] the Orange Pack was not made: {e}");
         }
         app.startup_project();
         // Ask for data folder "On startup": the New project form over it (spec: ui/data-folder.md §7).

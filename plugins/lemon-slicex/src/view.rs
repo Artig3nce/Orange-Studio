@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango Slicex editor: painting and hit regions (platform independent), laid out as the original Slicex's window:
+//! Orange Slicex editor: painting and hit regions (platform independent), laid out as the original Slicex's window:
 //! the top strip (four faders, the modulation pad, the layering and the emblem), the middle panel (the emblem plate,
 //! the articulator buttons, the filter, the target and source tabs and the envelope), the toolbar, the info strip, the
 //! wave with its slices, the chosen slice's strip and the keyboard.
@@ -29,7 +29,7 @@ const fn edges(x0: f32, x1: f32, y0: f32, y1: f32) -> Rect {
     Rect::new(x0, y0, x1 - x0, y1 - y0)
 }
 
-// The colours of the original's window, in Mango's orange.
+// The colours of the original's window, in Orange's orange.
 const FRAME: Color = Color::rgb(0x2f3747);
 const STRIP: Color = Color::rgb(0x2a2d33);
 const STRIP_PANEL: Color = Color::rgb(0x33363d);
@@ -535,7 +535,7 @@ fn layer_panel(ui: &mut Ui, look: &Look) {
     ui.hit(hr, ot);
 }
 
-/// The Mango Studio logo (the mango, its stem and the three bars and leaf) fitted into a circle of radius `r`.
+/// The Orange Studio logo (the mango, its stem and the three bars and leaf) fitted into a circle of radius `r`.
 fn mango_mark(ui: &mut Ui, cx: f32, cy: f32, r: f32) {
     use crate::logo::{CENTER, RIND, SLICES, VIEW_H, VIEW_W};
     let k = 2.0 * r / VIEW_W.max(VIEW_H);

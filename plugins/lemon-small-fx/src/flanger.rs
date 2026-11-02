@@ -70,9 +70,9 @@ const CONTROLS: [Control; dsp::PARAMS] = [
 ];
 
 pub const SPEC: &Spec = &Spec {
-    name: "Mango Flanger",
+    name: "Orange Flanger",
     word: "FLANGER",
-    about: "Mango Studio's flanger",
+    about: "Orange Studio's flanger",
     settings: &SETTINGS,
     version: Some(dsp::VERSION),
     any_version: false,
@@ -188,7 +188,7 @@ pub struct FlangerKind;
 impl Kind for FlangerKind {
     const SPEC: &'static Spec = SPEC;
     const CLAP_ID: &'static str = "org.openstudio.lemon-flanger";
-    const CLAP_DESCRIPTION: &'static str = "Mango Studio's flanger";
+    const CLAP_DESCRIPTION: &'static str = "Orange Studio's flanger";
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::AudioEffect, ClapFeature::Flanger, ClapFeature::Stereo];
     const VST3_CLASS_ID: [u8; 16] = *b"LemonStudioFlngr";
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Fx, Vst3SubCategory::Modulation];

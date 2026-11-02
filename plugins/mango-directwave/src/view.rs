@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
-//! Mango DirectWave editor: painting and hit regions (platform independent), in the Lemon "Pith" plugin look on a
+//! Orange DirectWave editor: painting and hit regions (platform independent), in the Lemon "Pith" plugin look on a
 //! 6 px grid: the header band (the lemon mark and "WAVE" on one line, the spread button), the eight zones' list,
 //! and the cards of the master (its envelope and filter knobs) and of the chosen zone (its sample, key and velocity
 //! ranges and levels).

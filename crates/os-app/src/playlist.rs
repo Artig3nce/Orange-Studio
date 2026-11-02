@@ -715,6 +715,9 @@ pub struct PlaylistState {
     pub pos: u32,
     /// Time selection (ticks).
     pub range: Option<(u32, u32)>,
+    /// A drag has been clear of the grid's sides (`edge_scroll`), and when the view last moved for it.
+    pub edge_armed: bool,
+    pub edge_at: Option<std::time::Instant>,
     /// While the clips of the time selection are dragged: where the selection started from.
     pub range_drag: Option<(u32, u32)>,
     pub clipboard: Vec<Clip>,
@@ -778,6 +781,8 @@ impl Default for PlaylistState {
             pos: 0,
             range: None,
             range_drag: None,
+            edge_armed: false,
+            edge_at: None,
             clipboard: Vec::new(),
             gain_clip: None,
             overlay: None,
@@ -3948,12 +3953,73 @@ pub fn drag_move(app: &mut App, d: PlDrag, grid: Rect) {
     }
 }
 
+/// How close to the grid's sides a drag starts scrolling, and the speeds (px per second) there and per px past it.
+const EDGE_ZONE: f32 = 16.0;
+const EDGE_SPEED: f32 = 240.0;
+const EDGE_SPEED_PER_PX: f32 = 16.0;
+const EDGE_SPEED_MAX: f32 = 4000.0;
+
+/// How fast a drag at `x` over `grid` scrolls the view (px per second, negative: to the left), and whether it's past
+/// the side; None for a drag that doesn't scroll, or away from the sides.
+fn edge_speed(d: &PlDrag, grid: Rect, x: f32) -> Option<(f32, bool)> {
+    if !matches!(d, PlDrag::TimeSel { .. } | PlDrag::SongPos | PlDrag::Marquee { .. } | PlDrag::Move { .. } | PlDrag::ResizeL { .. } | PlDrag::ResizeR { .. }) {
+        return None;
+    }
+    let (left, right) = (grid.x + EDGE_ZONE - x, x - (grid.right() - EDGE_ZONE));
+    let over = left.max(right);
+    (over > 0.0).then(|| {
+        let v = (EDGE_SPEED + (over - EDGE_ZONE).max(0.0) * EDGE_SPEED_PER_PX).min(EDGE_SPEED_MAX);
+        (if left > right { -v } else { v }, over > EDGE_ZONE)
+    })
+}
+
+/// Whether the running drag is at a side of the grid, so the view has to keep moving with the mouse still.
+pub fn at_edge(app: &App) -> bool {
+    let (Some(crate::app::Drag::Pl(d)), Some(g)) = (&app.drag, app.pl_grid) else { return false };
+    edge_speed(d, g, app.mouse.0).is_some()
+}
+
+/// A drag held at a side of the grid scrolls the view that way and goes on as if the mouse moved. A drag that starts in
+/// the zone waits until it has left it, or gone past the side. Called on every tick; `now` is its time.
+pub fn edge_scroll(app: &mut App, now: std::time::Instant) {
+    let (Some(crate::app::Drag::Pl(d)), Some(grid)) = (app.drag.clone(), app.pl_grid) else { return };
+    let Some((v, past)) = edge_speed(&d, grid, app.mouse.0) else {
+        (app.state.playlist.edge_armed, app.state.playlist.edge_at) = (true, None);
+        return;
+    };
+    if !app.state.playlist.edge_armed && !past {
+        return;
+    }
+    app.state.playlist.edge_armed = true;
+    let last = app.state.playlist.edge_at.replace(now);
+    let Some(last) = last else { return };
+    let dt = now.duration_since(last).as_secs_f32().min(0.05);
+    let from = app.state.playlist_scroll.0;
+    app.scroll_set(crate::app::Scroll::PlaylistX, from + v * dt);
+    let moved = app.state.playlist_scroll.0 - from;
+    if moved == 0.0 {
+        return;
+    }
+    // A drag that remembers where it started on screen: that place moved with the view.
+    let d = match d {
+        PlDrag::Move { x0, y0, orig, fresh } => PlDrag::Move { x0: x0 - moved, y0, orig, fresh },
+        PlDrag::Marquee { x0, y0, base } => PlDrag::Marquee { x0: x0 - moved, y0, base },
+        PlDrag::ResizeL { x0, orig } => PlDrag::ResizeL { x0: x0 - moved, orig },
+        PlDrag::ResizeR { x0, orig } => PlDrag::ResizeR { x0: x0 - moved, orig },
+        d => d,
+    };
+    app.drag = Some(crate::app::Drag::Pl(d.clone()));
+    drag_move(app, d, grid);
+    app.invalidate();
+}
+
 /// Button released.
 pub fn drag_end(app: &mut App, d: PlDrag, grid: Rect) {
     let s = &mut app.state;
     let g = PGeom::new(s, grid);
     let overlay = s.playlist.overlay.take();
     s.playlist.range_drag = None;
+    (s.playlist.edge_armed, s.playlist.edge_at) = (false, None);
     // A resized clip is what gets placed next.
     if let PlDrag::ResizeL { orig, .. } | PlDrag::ResizeR { orig, .. } = &d
         && let Some(c) = orig.first().and_then(|&(i, _)| clips(s).get(i)).copied()

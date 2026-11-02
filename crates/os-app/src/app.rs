@@ -1487,7 +1487,7 @@ pub struct App {
     /// The key now passed to [`App::key`] is an auto-repeat of a held key (spec: ui/piano-keys.md §4 rule 1).
     pub repeat: bool,
     /// Playlist regions from the last paint (grid, ruler, marker lane).
-    pl_grid: Option<Rect>,
+    pub(crate) pl_grid: Option<Rect>,
     /// Playlist scrolls since the last paint: how far the content moved (logical px, right and down), see
     /// `playlist_scrolled`.
     scrolled: Option<(f64, f64)>,
@@ -4344,6 +4344,7 @@ impl App {
             || self.midi_play.busy()
             || self.remote.busy()
             || self.state.browser_marquee.borrow().is_some()
+            || crate::playlist::at_edge(self)
     }
 
     /// Linux: a plugin window is open (its X11 events and the editor's run loop are served on the tick).
@@ -4444,6 +4445,7 @@ impl App {
         }
         self.follow_device();
         self.record_tick();
+        crate::playlist::edge_scroll(self, std::time::Instant::now());
         // CPU panel (spec: ui/main-window.md §13) and the Plugin performance monitor: a reading at the panel's refresh
         // rate.
         let now = std::time::Instant::now();
@@ -19413,6 +19415,65 @@ mod tests {
         assert!(work.h - s.panel_area().h > 300.0, "several tracks show");
         s.panel_auto = false;
         assert_eq!(s.panel_area().h, PANEL_H);
+    }
+
+    /// A drag held past the playlist's side scrolls it that way: a time selection grows, a dragged clip goes along. One
+    /// that starts near a side waits until it has left the side.
+    #[test]
+    fn dragging_to_the_playlists_side_scrolls_it() {
+        use crate::playlist as pl;
+        use std::time::{Duration, Instant};
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let (mut app, ruler, g, bar) = ruler_app(&mut c);
+        app.state.playlist_scroll.0 = 3000.0;
+        frame(&mut app, &mut c, None);
+        let grid = g.grid;
+        let run = |app: &mut App, ms: u64| {
+            let t0 = Instant::now();
+            for k in 0..=(ms / 16) {
+                pl::edge_scroll(app, t0 + Duration::from_millis(k * 16));
+            }
+        };
+        // A time selection dragged off the left side.
+        app.mouse_move(grid.x + 400.0, ruler.cy());
+        app.mouse_down_right();
+        app.mouse_move(grid.x + 200.0, ruler.cy());
+        run(&mut app, 200);
+        assert_eq!(app.state.playlist_scroll.0, 3000.0, "away from the sides: it stays");
+        app.mouse_move(grid.x - 40.0, ruler.cy());
+        assert!(pl::at_edge(&app));
+        run(&mut app, 500);
+        let view = app.state.playlist_scroll.0;
+        assert!(view < 3000.0, "it scrolled left: {view}");
+        let (a, b) = app.state.playlist.range.expect("a selection");
+        let tick = |x: f32| x * bar as f32 / app.state.playlist_bar_w;
+        assert!(f64::from(a) < f64::from(tick(view + 10.0)), "the selection reaches the view's left side: {a}");
+        assert!(b > a);
+        app.mouse_up();
+        assert_eq!(app.state.playlist.edge_at, None);
+        // To the very start and no further.
+        app.state.playlist_scroll.0 = 20.0;
+        app.mouse_move(grid.x + 400.0, ruler.cy());
+        app.mouse_down_right();
+        app.mouse_move(grid.x - 100.0, ruler.cy());
+        run(&mut app, 500);
+        assert_eq!(app.state.playlist_scroll.0, 0.0);
+        app.mouse_up();
+        // A clip dragged off the right side stays under the mouse as the view moves.
+        app.state.playlist_scroll.0 = 0.0;
+        pl::arr_mut(&mut app.state).clips = vec![os_model::Clip::new(bar, bar, 0, os_model::ClipSource::Pattern(1))];
+        app.state.playlist.range = None;
+        app.state.playlist.tool = pl::PlTool::Draw;
+        frame(&mut app, &mut c, None);
+        let r = pl::PGeom::new(&app.state, grid).clip_rect(&pl::clips(&app.state)[0]);
+        app.mouse_move(r.cx(), r.cy());
+        app.mouse_down();
+        app.mouse_move(grid.right() + 20.0, r.cy());
+        let at_first = pl::clips(&app.state)[0].position;
+        run(&mut app, 500);
+        assert!(app.state.playlist_scroll.0 > 0.0);
+        assert!(pl::clips(&app.state)[0].position > at_first, "the clip went along");
+        app.mouse_up();
     }
 
     /// Clicking a clip trimmed at both ends and placing the next one repeats the trim: the same part, the same length.

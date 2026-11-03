@@ -1172,6 +1172,8 @@ pub struct State {
     /// Playlist horizontal zoom, pixels per bar.
     pub playlist_bar_w: f32,
     pub mixer_scroll: f32,
+    /// How far the docked mixer's slot list is scrolled (px).
+    pub mixer_slot_scroll: f32,
     pub rack_scroll: f32,
     /// Browser (spec: ui/browser.md): active tab, opened node keys, list scroll (px), selected row key,
     /// and the drag label with the mouse position while an item is dragged.
@@ -1719,6 +1721,7 @@ impl App {
                 playlist_scroll: (0.0, 0.0),
                 playlist_bar_w: views::playlist::BAR_W,
                 mixer_scroll: 0.0,
+                mixer_slot_scroll: 0.0,
                 rack_scroll: 0.0,
                 browser_tab: 0,
                 browser_open: views::browser::default_open(),
@@ -7898,6 +7901,15 @@ impl App {
         let area = self.top_hit(x, y).map(|h| h.action.clone());
         if self.picker_wheel(area.as_ref(), dy + dx) {
             return None;
+        }
+        // The docked mixer's slot list scrolls in a low panel.
+        if self.state.docked_ui && dy != 0.0 && matches!(area, Some(Action::Mix(crate::mixer::MHit::SlotName(_) | crate::mixer::MHit::SlotArrow(_) | crate::mixer::MHit::SlotLed(_)))) {
+            let max = views::mixer::slot_scroll_max(self.state.panel_rect().h);
+            if max > 0.0 {
+                self.state.mixer_slot_scroll = (self.state.mixer_slot_scroll - dy * 28.0).clamp(0.0, max);
+                self.invalidate();
+                return None;
+            }
         }
         // The rolling sampler's strip: Shift+wheel zooms the view on the selection (else the live edge), the wheel
         // scrolls through the tape.
@@ -19876,6 +19888,37 @@ mod tests {
         app.state.panel_h = 300.0;
         app.state.docked_ui = false;
         assert!(!short(&app.state));
+    }
+
+    /// In a low panel the docked mixer's slot list keeps readable rows and scrolls with the wheel; in a tall one all the slots
+    /// fit and nothing scrolls.
+    #[test]
+    fn the_slot_list_scrolls_in_a_low_panel() {
+        use crate::mixer::MHit;
+        use crate::views::mixer::{slot_metrics, slot_scroll_max};
+        let (kp, _, _) = slot_metrics(270.0);
+        assert_eq!(kp, 0.8, "readable rows");
+        assert!(slot_scroll_max(270.0) > 0.0 && slot_scroll_max(900.0) == 0.0);
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.state.docked_ui = true;
+        app.state.panel_auto = false;
+        app.state.panel_h = 300.0;
+        app.act(Action::PanelTab(Win::Mixer));
+        frame(&mut app, &mut c, None);
+        let slot = hit_rect(&app, &Action::Mix(MHit::SlotName(0)));
+        app.mouse_move(slot.cx(), slot.cy());
+        app.wheel_act(0.0, -1.0, false, false);
+        assert_eq!(app.state.mixer_slot_scroll, 28.0);
+        for _ in 0..20 {
+            app.wheel_act(0.0, -1.0, false, false);
+        }
+        assert_eq!(app.state.mixer_slot_scroll, slot_scroll_max(app.state.panel_rect().h), "no further than the list goes");
+        app.wheel_act(0.0, 100.0, false, false);
+        assert_eq!(app.state.mixer_slot_scroll, 0.0);
+        // A row only partly in view isn't there to click.
+        frame(&mut app, &mut c, None);
+        assert!(!app.hits.iter().any(|h| matches!(h.action, Action::Mix(MHit::SlotName(k)) if k >= 6)), "the rows past the view take no clicks");
     }
 
     /// A panel nobody has sized leaves a smaller screen room for the Playlist; a dragged one stays as dragged.

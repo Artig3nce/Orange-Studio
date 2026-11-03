@@ -1285,6 +1285,23 @@ fn fader_handle(ui: &mut Ui, cx: f32, cy: f32, selected: bool, hov: bool) {
     os_ui::kit::fader_handle(ui.c, ui.t, cx, cy, selected, os_ui::kit::State::hover(hov));
 }
 
+/// The docked slot list: the row scale (never under 0.8, so the rows stay readable), the height the rows have under the input
+/// row and what all of them take. A low panel scrolls the list (the wheel over it).
+/// What the output and send rows take under the slot list.
+const SLOT_FOOT: f32 = 66.0;
+
+pub fn slot_metrics(h: f32) -> (f32, f32, f32) {
+    let count = os_model::SLOTS as f32;
+    let kp = ((h - 145.0) / (33.0 * count)).clamp(0.8, 1.0);
+    (kp, (h - 61.0 - SLOT_FOOT).max(0.0), 33.0 * kp * count)
+}
+
+/// How far the docked slot list scrolls at most in a panel `h` tall.
+pub fn slot_scroll_max(h: f32) -> f32 {
+    let (_, view, total) = slot_metrics(h);
+    (total - view).max(0.0)
+}
+
 fn slot_panel(ui: &mut Ui, s: &State, r: Rect) {
     let t = ui.t;
     let docked = s.is_fixed(Win::Mixer);
@@ -1312,7 +1329,7 @@ fn slot_panel(ui: &mut Ui, s: &State, r: Rect) {
     let room = r.h - 125.0;
     // The docked layout has no equalizer here: all the slots, as tall as the panel lets them be.
     let slot_count = if s.is_fixed(Win::Mixer) { os_model::SLOTS } else { 10 };
-    let kp = if s.is_fixed(Win::Mixer) { ((r.h - 145.0) / (33.0 * slot_count as f32)).clamp(0.3, 1.0) } else { ((room - 15.0) / 503.0).clamp(0.3, 1.0) };
+    let kp = if s.is_fixed(Win::Mixer) { slot_metrics(r.h).0 } else { ((room - 15.0) / 503.0).clamp(0.3, 1.0) };
     let knobs = room >= 579.0;
     let q = kp.max(0.55);
     // Input row: the record-source icon with its label, the input combo, the input latency clock (not available yet:
@@ -1346,9 +1363,15 @@ fn slot_panel(ui: &mut Ui, s: &State, r: Rect) {
     ui.off(clock, "Input latency");
     ui.veil(clock, input_bg);
 
-    // The effect slots.
+    // The effect slots; the docked list scrolls when the panel is too low for all of them.
+    let scroll = if docked { s.mixer_slot_scroll.clamp(0.0, slot_scroll_max(r.h)) } else { 0.0 };
+    let (view_top, view_bottom) = (r.y + 61.0, r.bottom() - SLOT_FOOT);
     for i in 0..slot_count {
-        let row = Rect::new(r.x + 1.0, r.y + 61.0 + 33.0 * kp * i as f32, r.w - 2.0, 28.0 * kp);
+        let row = Rect::new(r.x + 1.0, r.y + 61.0 + 33.0 * kp * i as f32 - scroll, r.w - 2.0, 28.0 * kp);
+        // A row only partly in view takes no clicks (its part would lie over the rows above): out it goes.
+        if docked && (row.y < view_top - 0.5 || row.bottom() > view_bottom + 0.5) {
+            continue;
+        }
         let k = i as u8;
         let plugin = mx::slot_name(s, n, k);
         let fs = (18.0 * kp.max(0.62)).round() as u16;
@@ -1393,6 +1416,12 @@ fn slot_panel(ui: &mut Ui, s: &State, r: Rect) {
         }
         ui.hit(Rect::new(row.right() - 18.0 - inset, row.y, 18.0, row.h), Action::Mix(MHit::SlotLed(k)), "Mute / solo  (ctrl)0..9");
         led_small(ui, row.right() - 10.0 - inset, row.cy(), track.is_none_or(|m| m.slot_on[i]));
+    }
+    // A thin thumb shows the list scrolls.
+    if docked && slot_scroll_max(r.h) > 0.0 {
+        let (_, view, total) = slot_metrics(r.h);
+        let (th, ty) = (view * view / total, view_top + scroll / total * view);
+        ui.c.fill_rrect(Rect::new(r.right() - 4.0, ty, 2.0, th), 1.0, super::MANGO_MIXER_RIM);
     }
     let sep = r.y + 61.0 + 33.0 * slot_count as f32 * kp;
     ui.c.fill_rect(Rect::new(r.x, sep, r.w, 1.0), ui.t.s(0x1f2224));

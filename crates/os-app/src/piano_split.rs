@@ -11,8 +11,11 @@ pub const BAND: f32 = 8.0;
 /// An open event panel / grid is at least this tall; less than half of it collapses the part.
 pub const PANEL_MIN: f32 = 45.0;
 pub const GRID_MIN: f32 = 46.0;
-/// The default layout's event panel (the measured maximized layout, band at bottom − 185).
+/// The default layout's event panel at most (the measured maximized layout, band at bottom − 185).
 pub const DEFAULT_PANEL: f32 = 177.0;
+/// A smaller piano roll (the docked layout's short panel) gives the event panel this much of its height by default, so
+/// the note grid keeps most of it.
+pub const DEFAULT_SHARE: f32 = 0.28;
 
 /// `f` = the grid's share of the height shared by the grid and the event panel (1 = the panel collapsed, 0 = the grid
 /// collapsed); `spare` = what a double click on a collapsed panel brings back. `None` = the default layout.
@@ -30,7 +33,7 @@ impl Split {
             Some(f) if f >= 1.0 => return h,
             Some(f) if f <= 0.0 => return 0.0,
             Some(f) => (f * h).round(),
-            None => h - DEFAULT_PANEL,
+            None => h - (h * DEFAULT_SHARE).clamp(PANEL_MIN, DEFAULT_PANEL),
         };
         // The minimums of open parts; when there is not room for both, the panel keeps its own.
         g.max(GRID_MIN).min(h - PANEL_MIN).max(0.0)

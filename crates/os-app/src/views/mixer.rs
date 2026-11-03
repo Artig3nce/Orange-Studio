@@ -714,8 +714,45 @@ pub const GEOS: [Geo; 8] = [
     },
 ];
 
+/// Extra large for a short panel (under `SHORT_BELOW`): the fader keeps a travel of its own by leaving out the rows of small
+/// switches under it (clock, polarity, swap, the stereo separation knob), and the record arm sits by the meter's foot.
+pub const GEO_SHORT: Geo = Geo {
+    w: 64.0,
+    region: 68.0,
+    col: (21.0, 26.0, -96.0),
+    long: true,
+    head_h: 44.0,
+    num_font: 15,
+    name: None,
+    name_font: 15,
+    meter: (4.0, 14.0, 70.0, -100.0),
+    panel: None,
+    led: (11.0, 52.0),
+    pan: (42.0, 52.0, 12.5, 16.0),
+    fader: (41.0, 70.0, -100.0),
+    pol: (11.0, -10000.0),
+    swap: (11.0, -10000.0),
+    sep: (42.0, -10000.0, 1.0, 1.0),
+    pin: (32.0, -64.0),
+    clock: (11.0, -10000.0),
+    dot: (11.0, -84.0),
+    send: 1.0,
+    foot: Some(-52.0),
+};
+
+/// Whether the mixer takes the short layout: the docked layout's Extra large in a low panel.
+pub fn short(s: &State) -> bool {
+    usize::from(s.mixer.layout) >= GEOS.len() - 1 && s.docked_ui && s.panel_area().h < SHORT_BELOW
+}
+
+/// A panel under this tall (tabs included) gets the short layout.
+pub const SHORT_BELOW: f32 = 400.0;
+
 /// The current layout's sizes.
 pub fn geo(s: &State) -> &'static Geo {
+    if short(s) {
+        return &GEO_SHORT;
+    }
     &GEOS[usize::from(s.mixer.layout).min(GEOS.len() - 1)]
 }
 

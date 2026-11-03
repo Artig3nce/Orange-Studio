@@ -108,15 +108,13 @@ impl CloseAll {
 /// The docked layout's bottom panel: its tab strip's height, its default and smallest height (the Mixer's minimum under
 /// the strip) and where its height is kept.
 pub const PANEL_TABS_H: f32 = 30.0;
-const PANEL_H: f32 = 470.0;
+const PANEL_H: f32 = 300.0;
 /// The most of the workspace a panel nobody has sized takes, so a smaller screen keeps room for the Playlist.
 const PANEL_SHARE: f32 = 0.5;
-/// The smallest panel with the mixer in it; the other tabs let it go lower (`State::panel_min`).
-const PANEL_MIN_H: f32 = 400.0 + PANEL_TABS_H;
-const PANEL_KEY: &str = "panel_height";
-/// The Devices tab keeps a height of its own, lower than the mixer's, as Ableton's device view is.
-const PANEL_DEVICES_KEY: &str = "panel_height_devices";
-const PANEL_DEVICES_H: f32 = 300.0;
+/// The smallest panel, the same on every tab (the mixer has a short layout for it).
+const PANEL_MIN_H: f32 = 230.0 + PANEL_TABS_H;
+/// One height for all the tabs, as Ableton's detail view has (the key kept from when the Devices tab had its own).
+const PANEL_KEY: &str = "panel_height_devices";
 const PANEL_COLLAPSED_KEY: &str = "panel_collapsed";
 
 /// Resize edge bits for `Action::WinResize`.
@@ -1109,8 +1107,6 @@ pub struct State {
     pub panel: Win,
     /// The bottom panel's height, its tab strip included.
     pub panel_h: f32,
-    /// The panel's height on the Devices tab.
-    pub panel_h_devices: f32,
     /// Nobody has sized the panel: it keeps to `PANEL_SHARE`.
     pub panel_auto: bool,
     /// Only the panel's tab strip shows: its window is out of the way and the Playlist has the room.
@@ -1302,27 +1298,16 @@ impl State {
         open
     }
 
-    /// The smallest the panel goes on the tab it shows: the mixer needs the most, the device chain and the rack least.
+    /// The smallest the panel goes: the same on every tab.
     pub fn panel_min(&self) -> f32 {
-        match self.panel {
-            Win::PluginTab => 200.0 + PANEL_TABS_H,
-            Win::ChannelRack => 230.0 + PANEL_TABS_H,
-            Win::PianoRoll => 320.0 + PANEL_TABS_H,
-            _ => PANEL_MIN_H,
-        }
+        PANEL_MIN_H
     }
 
     /// The panel as it is when open, whether or not it is collapsed now: where its window is laid out.
     fn panel_area_open(&self) -> Rect {
         let work = self.work_rect();
         let room = work.h - Win::Playlist.min_size().1;
-        let want = if self.panel == Win::PluginTab {
-            self.panel_h_devices
-        } else if self.panel_auto {
-            self.panel_h.min((work.h * PANEL_SHARE).round())
-        } else {
-            self.panel_h
-        };
+        let want = if self.panel_auto { self.panel_h.min((work.h * PANEL_SHARE).round()) } else { self.panel_h };
         let h = want.min(room).max(self.panel_min());
         Rect::new(0.0, work.bottom() - h, self.screen.0, h)
     }
@@ -1696,7 +1681,6 @@ impl App {
                 docked_ui: !cfg!(test),
                 panel: Win::Mixer,
                 panel_h: crate::settings_file::get(PANEL_KEY).and_then(|v| v.parse().ok()).unwrap_or(PANEL_H),
-                panel_h_devices: crate::settings_file::get(PANEL_DEVICES_KEY).and_then(|v| v.parse().ok()).unwrap_or(PANEL_DEVICES_H),
                 panel_auto: crate::settings_file::get(PANEL_KEY).is_none(),
                 panel_collapsed: crate::settings_file::get(PANEL_COLLAPSED_KEY).is_some_and(|v| v == "1"),
                 panel_plugin: None,
@@ -6356,12 +6340,7 @@ impl App {
                 Drag::BrowserSplit { dx } => self.browser_split_drag(x - dx),
                 Drag::PanelSplit { dy } => {
                     let bottom = self.state.work_rect().bottom();
-                    let h = (bottom - (self.mouse.1 - dy)).round().max(self.state.panel_min());
-                    if self.state.panel == Win::PluginTab {
-                        self.state.panel_h_devices = h;
-                    } else {
-                        self.state.panel_h = h;
-                    }
+                    self.state.panel_h = (bottom - (self.mouse.1 - dy)).round().max(self.state.panel_min());
                     self.state.panel_auto = false;
                     // Dragging the strip of a collapsed panel opens it.
                     self.set_panel_collapsed(false);
@@ -7455,13 +7434,8 @@ impl App {
             Some(Drag::BrowserSplit { .. }) => crate::browser::save_width(self.state.browser_w),
             Some(Drag::PanelSplit { .. }) if !self.state.panel_collapsed => {
                 let h = self.state.panel_area().h;
-                if self.state.panel == Win::PluginTab {
-                    self.state.panel_h_devices = h;
-                    crate::settings_file::write(PANEL_DEVICES_KEY, &h.to_string());
-                } else {
-                    self.state.panel_h = h;
-                    crate::settings_file::write(PANEL_KEY, &h.to_string());
-                }
+                self.state.panel_h = h;
+                crate::settings_file::write(PANEL_KEY, &h.to_string());
             }
             Some(Drag::Marker) if self.transport.playing() && !self.transport.song() => {
                 self.start_playback();
@@ -19705,7 +19679,7 @@ mod tests {
         frame(&mut app, &mut c, None);
         let strip = app.state.panel_area();
         assert_eq!((strip.h, strip.bottom()), (PANEL_TABS_H, open.bottom()), "only the strip, at the bottom");
-        assert!(app.state.win_rect(Win::Playlist).h > playlist_open + 300.0, "the playlist takes the room");
+        assert!(app.state.win_rect(Win::Playlist).h > playlist_open + 200.0, "the playlist takes the room");
         assert!(!app.hits.iter().any(|h| h.win == Some(Win::Mixer)), "nothing of the mixer is there");
         assert_eq!(app.state.z.last(), Some(&Win::Playlist), "the keyboard is the playlist's");
         // The button again opens it.
@@ -19811,14 +19785,12 @@ mod tests {
         assert_eq!(app.state.device_scroll, 0.0);
         // The panel goes lower with the chain than with the mixer.
         app.state.panel_auto = false;
-        app.state.panel_h = 500.0;
-        app.state.panel_h_devices = 260.0;
-        app.act(Action::PanelTab(Win::PluginTab));
-        frame(&mut app, &mut c, None);
-        assert_eq!(app.state.panel_area().h, 260.0, "its own height");
-        app.act(Action::PanelTab(Win::Mixer));
-        frame(&mut app, &mut c, None);
-        assert_eq!(app.state.panel_area().h, 500.0, "the mixer keeps its own");
+        app.state.panel_h = 300.0;
+        for tab in [Win::PluginTab, Win::Mixer, Win::PianoRoll, Win::ChannelRack] {
+            app.act(Action::PanelTab(tab));
+            frame(&mut app, &mut c, None);
+            assert_eq!(app.state.panel_area().h, 300.0, "{tab:?}: one height for every tab");
+        }
         // Opening one with the panel folded away unfolds it.
         app.act(Action::PanelCollapse);
         app.state.raise(Win::Hosted(1));
@@ -19851,7 +19823,7 @@ mod tests {
         let (first, second) = (slot(&mut app, 0, "Orange Limiter"), slot(&mut app, 1, "Orange Delay"));
         app.state.selected_mixer = 1;
         app.state.panel_auto = false;
-        app.state.panel_h_devices = 330.0;
+        app.state.panel_h = 330.0;
         app.act(Action::PanelTab(Win::PluginTab));
         frame(&mut app, &mut c, None);
         app.layout_devices();
@@ -19887,22 +19859,41 @@ mod tests {
         assert!(app.plugins.panel_shown().is_empty());
     }
 
+    /// The panel is one height on every tab, and the mixer has a short layout that keeps the faders' travel in a panel as low
+    /// as the Devices tab's, the full one when there is room.
+    #[test]
+    fn the_mixer_has_a_short_layout_for_a_low_panel() {
+        use crate::views::mixer::short;
+        let mut app = App::new(None);
+        app.state.docked_ui = true;
+        app.state.panel_auto = false;
+        app.state.mixer.layout = crate::mixer::EXTRA_LARGE;
+        app.state.panel_h = 300.0;
+        assert!(short(&app.state));
+        app.state.panel_h = 500.0;
+        assert!(!short(&app.state));
+        // Only the docked layout has it.
+        app.state.panel_h = 300.0;
+        app.state.docked_ui = false;
+        assert!(!short(&app.state));
+    }
+
     /// A panel nobody has sized leaves a smaller screen room for the Playlist; a dragged one stays as dragged.
     #[test]
     fn the_panel_fits_a_smaller_screen() {
         let mut app = App::new(None);
         let s = &mut app.state;
         s.docked_ui = true;
-        s.panel_h = PANEL_H;
+        s.panel_h = 900.0;
         s.panel_auto = true;
-        s.screen = (1920.0, 1400.0);
-        assert_eq!(s.panel_area().h, PANEL_H, "a large screen: the usual height");
+        s.screen = (1920.0, 2000.0);
+        assert_eq!(s.panel_area().h, 900.0, "a large screen: the height as it is");
         s.screen = (1400.0, 1000.0);
         let work = s.work_rect();
-        assert_eq!(s.panel_area().h, (work.h * PANEL_SHARE).round());
+        assert_eq!(s.panel_area().h, (work.h * PANEL_SHARE).round(), "a tall panel on a small screen leaves room");
         assert!(work.h - s.panel_area().h > 300.0, "several tracks show");
         s.panel_auto = false;
-        assert_eq!(s.panel_area().h, PANEL_H);
+        assert_eq!(s.panel_area().h, 900.0f32.min(work.h - Win::Playlist.min_size().1));
     }
 
     /// A drag held past the playlist's side scrolls it that way: a time selection grows, a dragged clip goes along. One

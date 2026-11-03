@@ -3597,10 +3597,10 @@ pub fn press_grid(app: &mut App, grid: Rect, right: bool) {
                     }
                 }
                 // Grouped clips go along (§3a); clicking one selects its whole group.
-                let grouped = clips(s)[i].group() != 0;
                 let mut group = with_groups(s, if s.playlist.sel.contains(&i) { s.playlist.sel.clone() } else { vec![i] });
+                // Pressing a clip selects it (and its group), whatever the tool: the white outline shows at once.
                 if !s.playlist.sel.contains(&i) {
-                    s.playlist.sel = if tool == PlTool::Select || grouped { group.clone() } else { Vec::new() };
+                    s.playlist.sel = group.clone();
                 }
                 // The clicked clip first.
                 group.retain(|&j| j != i);

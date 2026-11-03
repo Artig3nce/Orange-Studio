@@ -19490,6 +19490,42 @@ mod tests {
         assert!(!app.state.panel_collapsed && app.state.panel_h > PANEL_TABS_H + 100.0);
     }
 
+    /// Pressing a clip with the Draw tool selects it, so its white outline shows; pressing an empty spot puts a copy there
+    /// and selects nothing; another clip takes the selection.
+    #[test]
+    fn pressing_a_clip_selects_it() {
+        use crate::playlist as pl;
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let (mut app, _, g, bar) = ruler_app(&mut c);
+        app.state.playlist.tool = pl::PlTool::Draw;
+        let src = os_model::ClipSource::Pattern(1);
+        pl::arr_mut(&mut app.state).clips = vec![os_model::Clip::new(0, bar, 0, src), os_model::Clip::new(bar * 3, bar, 1, src)];
+        app.state.playlist.sel.clear();
+        frame(&mut app, &mut c, None);
+        let at = |app: &App, i: usize| {
+            let g = pl::PGeom::new(&app.state, app.pl_grid().unwrap());
+            let r = g.clip_rect(&pl::clips(&app.state)[i]);
+            (r.cx(), r.cy())
+        };
+        let press = |app: &mut App, c: &mut Canvas, (x, y): (f32, f32)| {
+            app.state.playlist.last_clip = None;
+            app.mouse_move(x, y);
+            app.mouse_down();
+            app.mouse_up();
+            frame(app, c, None);
+        };
+        let first = at(&app, 0);
+        press(&mut app, &mut c, first);
+        assert_eq!(app.state.playlist.sel, [0], "the pressed clip is selected");
+        let second = at(&app, 1);
+        press(&mut app, &mut c, second);
+        assert_eq!(app.state.playlist.sel, [1], "another clip takes it");
+        let empty = (g.grid.x + 20.0, g.y_of(4) + 20.0);
+        press(&mut app, &mut c, empty);
+        assert!(app.state.playlist.sel.is_empty(), "an empty spot selects nothing");
+        assert_eq!(pl::clips(&app.state).len(), 3, "and places a clip");
+    }
+
     /// A panel nobody has sized leaves a smaller screen room for the Playlist; a dragged one stays as dragged.
     #[test]
     fn the_panel_fits_a_smaller_screen() {

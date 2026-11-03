@@ -1044,7 +1044,7 @@ fn clip_paint(ui: &mut Ui, s: &State, g: &PGeom, i: usize, c: &Clip) {
         } else {
             pl::clip_tint(s, c.source)
                 .or_else(|| pl::source_color(s, c.source))
-                .or_else(|| pl::track_info(s, c.track).and_then(|t| t.color))
+                .or_else(|| pl::track_color(s, c.track))
                 .map_or(cc(t, TITLE_TOP), rgb)
         };
         let col = if c.muted || !pl::track_on(s, c.track) { col.mix(t.grid, 0.6) } else { col };
@@ -1056,7 +1056,7 @@ fn clip_paint(ui: &mut Ui, s: &State, g: &PGeom, i: usize, c: &Clip) {
     let track_on = pl::track_on(s, c.track);
     let dim = |col: Color| if track_on { col } else { col.mix(t.grid, 0.5) };
     // Body colour: the track's colour, else the source's (§2 "Body colour source").
-    let color = pl::track_info(s, c.track).and_then(|t| t.color).or_else(|| pl::source_color(s, c.source)).map(rgb);
+    let color = pl::track_color(s, c.track).or_else(|| pl::source_color(s, c.source)).map(rgb);
     let darken = |c: Color| c.mix(ui.t.s(0x000000), 0.55);
     // A pattern clip's title strip takes the pattern's (or its track's) colour, as in FL's newer versions; the older
     // measured look (a neutral strip) stays for a pattern with no colour.
@@ -1064,7 +1064,7 @@ fn clip_paint(ui: &mut Ui, s: &State, g: &PGeom, i: usize, c: &Clip) {
     if s.docked_ui {
         // Audio and automation channels get a colour when they are made: only the track's counts here, so those clips
         // otherwise keep the logo's.
-        let own = pl::track_info(s, c.track).and_then(|t| t.color).map(rgb);
+        let own = pl::track_color(s, c.track).map(rgb);
         return docked_clip(ui, s, g, i, c, kind, if kind == PickKind::Pattern { tint.or(color) } else { own });
     }
 
@@ -1657,7 +1657,7 @@ fn header(ui: &mut Ui, s: &State, g: &PGeom, row: u16, x: f32, w: f32) {
     let joins_below = (lead || member) && next_member;
     let on = pl::track_on(s, row);
     // A member takes its group track's colour, so the block reads as one.
-    let colored = pl::track_info(s, leader.unwrap_or(row)).and_then(|i| i.color).map(rgb);
+    let colored = pl::track_color(s, leader.unwrap_or(row)).map(rgb);
     let base = colored.unwrap_or(t.track_header);
     let base = if s.playlist.track == row { base.shade(0.1) } else { base };
     let base = if on { base } else { base.mix(t.grid_gap, 0.4) };

@@ -1174,6 +1174,30 @@ pub fn track_info(s: &State, t: u16) -> Option<&PlaylistTrack> {
     s.project.arrangement().and_then(|a| a.tracks.get(usize::from(t)))
 }
 
+/// The colours tracks without one of their own cycle through in the docked layout, as Ableton gives each new track its own.
+const AUTO_COLORS: [os_model::Rgb; 14] = [
+    os_model::Rgb::new(0xe5, 0x6b, 0x7f),
+    os_model::Rgb::new(0xf0, 0x93, 0x2a),
+    os_model::Rgb::new(0xc2, 0x9a, 0x3b),
+    os_model::Rgb::new(0xe8, 0xd8, 0x5a),
+    os_model::Rgb::new(0xa8, 0xd8, 0x3c),
+    os_model::Rgb::new(0x4c, 0xc2, 0x5b),
+    os_model::Rgb::new(0x3f, 0xcf, 0x9e),
+    os_model::Rgb::new(0x4c, 0xc8, 0xd8),
+    os_model::Rgb::new(0x6a, 0xa8, 0xe8),
+    os_model::Rgb::new(0x55, 0x74, 0xd8),
+    os_model::Rgb::new(0x8a, 0x84, 0xe0),
+    os_model::Rgb::new(0xb8, 0x6c, 0xd8),
+    os_model::Rgb::new(0xd8, 0x5a, 0xa8),
+    os_model::Rgb::new(0xa8, 0xa8, 0xb0),
+];
+
+/// Track `t`'s colour: the one it was given, else (docked layout) one from the palette by its place, so a new project's
+/// tracks and their clips are told apart at a glance. The project file keeps only what was chosen.
+pub fn track_color(s: &State, t: u16) -> Option<os_model::Rgb> {
+    track_info(s, t).and_then(|i| i.color).or_else(|| s.docked_ui.then(|| AUTO_COLORS[usize::from(t) % AUTO_COLORS.len()]))
+}
+
 pub fn track_on(s: &State, t: u16) -> bool {
     track_info(s, t).is_none_or(|t| t.enabled)
 }

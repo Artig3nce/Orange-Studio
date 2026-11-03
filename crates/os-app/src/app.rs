@@ -19921,6 +19921,28 @@ mod tests {
         assert!(!app.hits.iter().any(|h| matches!(h.action, Action::Mix(MHit::SlotName(k)) if k >= 6)), "the rows past the view take no clicks");
     }
 
+    /// Tracks without a colour of their own get one from a palette in the docked layout, each different from its neighbours;
+    /// a colour chosen for a track wins, and the old layout stays as it was.
+    #[test]
+    fn tracks_get_an_automatic_colour() {
+        use crate::playlist::track_color;
+        let mut app = App::new(None);
+        app.state.project = test_project();
+        app.state.docked_ui = true;
+        let colours: Vec<_> = (0..14).map(|t| track_color(&app.state, t).expect("a colour")).collect();
+        for pair in colours.windows(2) {
+            assert_ne!(pair[0], pair[1], "neighbours differ");
+        }
+        assert_eq!(track_color(&app.state, 14), track_color(&app.state, 0), "the palette cycles");
+        let chosen = os_model::Rgb::new(1, 2, 3);
+        crate::playlist::arr_mut(&mut app.state).tracks[1].color = Some(chosen);
+        assert_eq!(track_color(&app.state, 1), Some(chosen));
+        // What the file keeps is only what was chosen.
+        assert!(crate::playlist::arr_mut(&mut app.state).tracks[0].color.is_none());
+        app.state.docked_ui = false;
+        assert_eq!(track_color(&app.state, 0), None);
+    }
+
     /// A panel nobody has sized leaves a smaller screen room for the Playlist; a dragged one stays as dragged.
     #[test]
     fn the_panel_fits_a_smaller_screen() {

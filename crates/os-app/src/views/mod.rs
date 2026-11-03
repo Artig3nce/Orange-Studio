@@ -266,6 +266,14 @@ fn panel_tabs(ui: &mut Ui, s: &State) {
         }
         x += w;
     }
+    // In the middle: the button that folds the panel away, so the Playlist has the whole height, and brings it back.
+    let r = Rect::new(strip.cx() - 26.0, strip.y + 5.0, 52.0, 20.0);
+    let hov = ui.hit(r, Action::PanelCollapse, if s.panel_collapsed { "Show the panel" } else { "Collapse the panel: more room for the playlist" });
+    ui.c.fill_rrect(r, 10.0, if hov { t.button_hi } else { t.sunken });
+    let (cx, cy) = (r.cx(), r.cy());
+    // A chevron: down to fold the panel away, up to bring it back.
+    let tip = if s.panel_collapsed { -3.0 } else { 3.0 };
+    ui.c.polyline(&[(cx - 6.0, cy - tip), (cx, cy + tip), (cx + 6.0, cy - tip)], 2.0, if hov { t.text } else { t.text_dim });
 }
 
 /// Paints the frame; returns the number of hits registered before the overlays (menus, popups, picker...), which cover
@@ -307,7 +315,7 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) -> usize {
         panel_tabs(ui, s);
     }
     for (i, &win) in order.iter().enumerate() {
-        if docked_at.is_some_and(|d| i < d) {
+        if docked_at.is_some_and(|d| i < d) || (s.docked_ui && s.panel_collapsed && win.is_panel()) {
             continue;
         }
         ui.win = Some(win);

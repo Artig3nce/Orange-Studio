@@ -110,6 +110,7 @@ const PANEL_H: f32 = 670.0;
 const PANEL_SHARE: f32 = 0.65;
 const PANEL_MIN_H: f32 = 400.0 + PANEL_TABS_H;
 const PANEL_KEY: &str = "panel_height";
+const PANEL_COLLAPSED_KEY: &str = "panel_collapsed";
 
 /// Resize edge bits for `Action::WinResize`.
 pub const EDGE_L: u8 = 1;
@@ -296,6 +297,8 @@ pub enum Action {
     PanelTab(Win),
     /// The bottom panel's tab strip, past its tabs: drag to resize the panel.
     PanelSplitter,
+    /// The button in the middle of the panel's tab strip: collapses the panel to the strip, or brings it back.
+    PanelCollapse,
     /// The plugin browser (Plugin database tab): filter button `i` (`views::plugin_panel::FILTERS`), a category
     /// (`None`: all of them), the star of row `i`.
     BrowserPlugFilter(usize),
@@ -1097,6 +1100,8 @@ pub struct State {
     pub panel_h: f32,
     /// Nobody has sized the panel: it keeps to `PANEL_SHARE`.
     pub panel_auto: bool,
+    /// Only the panel's tab strip shows: its window is out of the way and the Playlist has the room.
+    pub panel_collapsed: bool,
     /// No window places were kept (a first start): the paints lay the windows out as FL does (`layout::fl_default`) on
     /// the screen they get, again whenever its size changes (the main window maximized after its first paint), until
     /// a window is moved, resized, minimized or maximized.
@@ -1261,6 +1266,15 @@ impl State {
     /// The bottom panel of the docked layout, its tab strip included: never so tall that the Playlist goes under its
     /// minimum, the smallest screens excepted.
     pub fn panel_area(&self) -> Rect {
+        let open = self.panel_area_open();
+        if self.docked_ui && self.panel_collapsed {
+            return Rect::new(open.x, open.bottom() - PANEL_TABS_H, open.w, PANEL_TABS_H);
+        }
+        open
+    }
+
+    /// The panel as it is when open, whether or not it is collapsed now: where its window is laid out.
+    fn panel_area_open(&self) -> Rect {
         let work = self.work_rect();
         let room = work.h - Win::Playlist.min_size().1;
         let want = if self.panel_auto { self.panel_h.min((work.h * PANEL_SHARE).round()) } else { self.panel_h };
@@ -1270,7 +1284,7 @@ impl State {
 
     /// Where the panel's window goes, under the tab strip.
     fn panel_rect(&self) -> Rect {
-        let a = self.panel_area();
+        let a = self.panel_area_open();
         Rect::new(a.x, a.y + PANEL_TABS_H, a.w, a.h - PANEL_TABS_H)
     }
 
@@ -1582,6 +1596,7 @@ impl App {
                 panel: Win::Mixer,
                 panel_h: crate::settings_file::get(PANEL_KEY).and_then(|v| v.parse().ok()).unwrap_or(PANEL_H),
                 panel_auto: crate::settings_file::get(PANEL_KEY).is_none(),
+                panel_collapsed: crate::settings_file::get(PANEL_COLLAPSED_KEY).is_some_and(|v| v == "1"),
                 fl_layout: false,
                 fl_screen: (0.0, 0.0),
                 palette: Default::default(),
@@ -6118,6 +6133,8 @@ impl App {
                     let bottom = self.state.work_rect().bottom();
                     self.state.panel_h = (bottom - (self.mouse.1 - dy)).round().max(PANEL_MIN_H);
                     self.state.panel_auto = false;
+                    // Dragging the strip of a collapsed panel opens it.
+                    self.set_panel_collapsed(false);
                     self.invalidate();
                 }
                 Drag::SongPosHold { .. } => {}
@@ -6376,6 +6393,21 @@ impl App {
                         | crate::dialog::Body::Project(crate::project_forms::Form::Export(_))
                 )
             })
+    }
+
+    /// Collapses the bottom panel to its tab strip, or opens it again; kept for the next start. The keyboard goes to the
+    /// Playlist while the panel's window is out of the way.
+    fn set_panel_collapsed(&mut self, collapsed: bool) {
+        if self.state.panel_collapsed == collapsed {
+            return;
+        }
+        self.state.panel_collapsed = collapsed;
+        crate::settings_file::write(PANEL_COLLAPSED_KEY, if collapsed { "1" } else { "0" });
+        if collapsed {
+            self.state.raise(Win::Playlist);
+            self.state.no_focus = false;
+        }
+        self.invalidate();
     }
 
     pub fn mouse_down(&mut self) {
@@ -7191,7 +7223,7 @@ impl App {
             Some(Drag::Bar(d)) => self.bar_drop(d),
             Some(Drag::PianoSplit { .. }) => crate::piano_split::save(self.state.piano.split),
             Some(Drag::BrowserSplit { .. }) => crate::browser::save_width(self.state.browser_w),
-            Some(Drag::PanelSplit { .. }) => {
+            Some(Drag::PanelSplit { .. }) if !self.state.panel_collapsed => {
                 let h = self.state.panel_area().h;
                 self.state.panel_h = h;
                 crate::settings_file::write(PANEL_KEY, &h.to_string());
@@ -9122,7 +9154,13 @@ impl App {
             Action::WinDrag(win) if s.is_fixed(win) => {}
             Action::MinWin(win) | Action::MaxWin(win) if s.is_fixed(win) => {}
             Action::PanelTab(w) => {
+                self.set_panel_collapsed(false);
                 self.state.raise(w);
+                self.invalidate();
+            }
+            Action::PanelCollapse => {
+                let collapse = !self.state.panel_collapsed;
+                self.set_panel_collapsed(collapse);
                 self.invalidate();
             }
             Action::PanelSplitter => {
@@ -19397,6 +19435,59 @@ mod tests {
         app.mouse_down();
         app.mouse_up();
         assert!(app.state.piano.range.is_some());
+    }
+
+    /// The button in the middle of the panel's strip folds the panel to the strip, the Playlist taking the room; a tab, the
+    /// button again, or dragging the strip brings it back.
+    #[test]
+    fn the_panel_collapses_to_its_strip() {
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.state.docked_ui = true;
+        app.state.panel_collapsed = false;
+        app.act(Action::PanelTab(Win::Mixer));
+        frame(&mut app, &mut c, None);
+        let open = app.state.panel_area();
+        let playlist_open = app.state.win_rect(Win::Playlist).h;
+        assert!(app.hits.iter().any(|h| h.win == Some(Win::Mixer)), "the mixer shows");
+        let button = hit_rect(&app, &Action::PanelCollapse);
+        assert!((button.cx() - open.cx()).abs() < 1.0, "in the middle");
+        app.mouse_move(button.cx(), button.cy());
+        app.mouse_down();
+        app.mouse_up();
+        assert!(app.state.panel_collapsed);
+        frame(&mut app, &mut c, None);
+        let strip = app.state.panel_area();
+        assert_eq!((strip.h, strip.bottom()), (PANEL_TABS_H, open.bottom()), "only the strip, at the bottom");
+        assert!(app.state.win_rect(Win::Playlist).h > playlist_open + 300.0, "the playlist takes the room");
+        assert!(!app.hits.iter().any(|h| h.win == Some(Win::Mixer)), "nothing of the mixer is there");
+        assert_eq!(app.state.z.last(), Some(&Win::Playlist), "the keyboard is the playlist's");
+        // The button again opens it.
+        let button = hit_rect(&app, &Action::PanelCollapse);
+        app.mouse_move(button.cx(), button.cy());
+        app.mouse_down();
+        app.mouse_up();
+        assert!(!app.state.panel_collapsed);
+        assert_eq!(app.state.panel_area(), open);
+        // A tab opens it too, and shows that tab's window.
+        app.act(Action::PanelCollapse);
+        frame(&mut app, &mut c, None);
+        app.act(Action::PanelTab(Win::PianoRoll));
+        frame(&mut app, &mut c, None);
+        assert!(!app.state.panel_collapsed && app.hits.iter().any(|h| h.win == Some(Win::PianoRoll)));
+        // A click on the collapsed strip doesn't change what the panel's height is saved as; a drag opens it.
+        app.act(Action::PanelCollapse);
+        frame(&mut app, &mut c, None);
+        let before = app.state.panel_h;
+        let strip = app.state.panel_area();
+        app.mouse_move(strip.x + 900.0, strip.y + 10.0);
+        app.mouse_down();
+        app.mouse_up();
+        assert!(app.state.panel_collapsed && app.state.panel_h == before);
+        app.mouse_down();
+        app.mouse_move(strip.x + 900.0, strip.y - 150.0);
+        app.mouse_up();
+        assert!(!app.state.panel_collapsed && app.state.panel_h > PANEL_TABS_H + 100.0);
     }
 
     /// A panel nobody has sized leaves a smaller screen room for the Playlist; a dragged one stays as dragged.

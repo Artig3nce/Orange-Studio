@@ -42,6 +42,24 @@ fn bar_line(t: &os_theme::Palette) -> Color {
     t.pr_line(t.pr_bar)
 }
 
+/// The docked layout's piano roll has a thin overview and a ruler of just its numbers' height.
+const COMPACT_BAR: f32 = 8.0;
+const COMPACT_RULER: f32 = 19.0;
+
+thread_local! {
+    static COMPACT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// The compact band is in use (`set_compact`).
+pub fn compact() -> bool {
+    COMPACT.with(std::cell::Cell::get)
+}
+
+/// The app's paint says whether the layout is the docked one, whose piano roll has the compact band.
+pub fn set_compact(on: bool) {
+    COMPACT.with(|c| c.set(on));
+}
+
 /// The regions of the window for a given window rect `r` (§1; offsets from the client corner at
 /// x 209, y 83).
 pub struct Layout {
@@ -64,16 +82,26 @@ pub struct Layout {
 /// "Miscellaneous"), the room going to the ruler and the grid.
 pub fn layout(r: Rect, split: crate::piano_split::Split) -> Layout {
     use crate::piano_split::BAND;
-    let (hbar, vcol) = if super::small_scrollbars() { (11.0, 12.0) } else { (22.0, 22.0) };
+    let compact = compact();
+    let (hbar, vcol) = if compact {
+        (COMPACT_BAR, 12.0)
+    } else if super::small_scrollbars() {
+        (11.0, 12.0)
+    } else {
+        (22.0, 22.0)
+    };
+    // The band over the grid: the overview and the ruler, with the (not yet working) note colour tab at its left. The
+    // docked layout's low panel keeps it as small as the ruler's numbers let it be.
+    let head = if compact { hbar + COMPACT_RULER } else { 41.0 };
     let bottom = r.bottom();
     let gx = r.x + 73.0;
     let gr = r.right() - vcol - 1.0;
-    let gy = r.y + 64.0;
+    let gy = r.y + 23.0 + head;
     let split = gy + split.grid_h(bottom - gy - BAND);
     Layout {
-        tab: Rect::new(r.x, r.y + 23.0, 71.0, 41.0),
+        tab: Rect::new(r.x, r.y + 23.0, 71.0, head),
         overview: Rect::new(r.x + 72.0, r.y + 23.0, gr - r.x - 72.0 + 2.0, hbar),
-        ruler: Rect::new(r.x + 72.0, r.y + 23.0 + hbar, gr - r.x - 72.0 + 2.0, 41.0 - hbar),
+        ruler: Rect::new(r.x + 72.0, r.y + 23.0 + hbar, gr - r.x - 72.0 + 2.0, head - hbar),
         keys: Rect::new(r.x, gy, 71.0, split - gy),
         grid: Rect::new(gx, gy, gr - gx, split - gy),
         vscroll: Rect::new(gr + 1.0, r.y + 23.0, r.right() - gr - 1.0, split - r.y - 23.0),

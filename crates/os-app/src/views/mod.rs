@@ -370,6 +370,7 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) -> usize {
         ui.part(Seg::Browser, r, |ui| browser::paint(ui, s, r));
     }
     let _ = work;
+    piano::set_compact(s.docked_ui);
     if s.docked_ui {
         panel_tabs(ui, s);
         device_chain(ui, s);

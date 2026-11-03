@@ -123,7 +123,176 @@ pub fn load(path: &Path) -> Result<Sample, SampleError> {
         return Ok(s);
     }
     let ext = path.extension().and_then(|e| e.to_str());
-    decode(bytes, ext).map_err(decode_err)
+    // An MP4 the demuxer can't read may be a streamed one whose boxes have no sizes (`fragmented_mp4_to_adts`).
+    let backup = (bytes.get(4..8) == Some(&b"ftyp"[..])).then(|| bytes.clone());
+    match decode(bytes, ext) {
+        Ok(s) => Ok(s),
+        Err(first) => match backup.as_deref().and_then(fragmented_mp4_to_adts) {
+            Some(adts) => decode(adts, Some("aac")).map_err(|_| decode_err(first)),
+            None => Err(decode_err(first)),
+        },
+    }
+}
+
+/// An AAC file's settings from the first `esds` box: (audio object type, sampling index, channels). None for what an ADTS
+/// header can't say (the HE-AAC types, a rate given in full).
+fn aac_config(b: &[u8]) -> Option<(u8, u8, u8)> {
+    let at = b.windows(4).position(|w| w == b"esds")?;
+    let mut p = at + 8;
+    // A descriptor's length: one to four bytes, seven bits each, the high bit saying another follows.
+    let length = |p: &mut usize| -> Option<usize> {
+        let mut n = 0usize;
+        for _ in 0..4 {
+            let c = *b.get(*p)?;
+            *p += 1;
+            n = n << 7 | usize::from(c & 0x7f);
+            if c & 0x80 == 0 {
+                break;
+            }
+        }
+        Some(n)
+    };
+    if *b.get(p)? == 0x03 {
+        p += 1;
+        length(&mut p)?;
+        // The stream id, and the flags that say whether anything sits before the next descriptor.
+        if b.get(p + 2)? & 0xe0 != 0 {
+            return None;
+        }
+        p += 3;
+    }
+    if *b.get(p)? != 0x04 {
+        return None;
+    }
+    p += 1;
+    length(&mut p)?;
+    p += 13;
+    if *b.get(p)? != 0x05 {
+        return None;
+    }
+    p += 1;
+    length(&mut p)?;
+    let (a, c) = (*b.get(p)?, *b.get(p + 1)?);
+    let (aot, rate, channels) = (a >> 3, (a & 7) << 1 | c >> 7, c >> 3 & 15);
+    ((1..=4).contains(&aot) && rate < 13 && (1..=7).contains(&channels)).then_some((aot, rate, channels))
+}
+
+/// The AAC frames of a fragmented MP4 as an ADTS stream, which decodes where the MP4 itself doesn't: some muxers that write
+/// as they go leave a size of 0 ("to the end of the file") on the `moof`, `traf` and `trun` boxes, so a parser that goes by
+/// the sizes takes the `mdat` for part of the `trun`. The `trun` is read by its layout instead, and the frames are found
+/// by its sizes and offset. One audio track; None when this isn't such a file.
+fn fragmented_mp4_to_adts(b: &[u8]) -> Option<Vec<u8>> {
+    let be32 = |at: usize| b.get(at..at + 4).map(|w| u32::from_be_bytes([w[0], w[1], w[2], w[3]]));
+    let be64 = |at: usize| b.get(at..at + 8).map(|w| u64::from_be_bytes([w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7]]));
+    if b.get(4..8) != Some(&b"ftyp"[..]) {
+        return None;
+    }
+    let (aot, rate, channels) = aac_config(b)?;
+    // The audio track's id: the `tkhd` before its `esds`.
+    let esds = b.windows(4).position(|w| w == b"esds")?;
+    let track = b[..esds].windows(4).rposition(|w| w == b"tkhd").and_then(|t| be32(t + if b[t + 4] == 0 { 16 } else { 24 }));
+    let mut out = Vec::new();
+    let mut pos = 0;
+    while pos + 8 <= b.len() {
+        let size = be32(pos)? as usize;
+        let kind = &b[pos + 4..pos + 8];
+        let total = match size {
+            0 => b.len() - pos,
+            1 => be64(pos + 8)? as usize,
+            n => n,
+        };
+        if kind == b"moof" {
+            // Inside the fragment: its boxes in turn, the `trun` by its layout.
+            let (mut q, mut base, mut on, mut next) = (pos + 8, pos as u64, false, None::<u64>);
+            let (mut default_size, mut flags_present) = (0usize, 0u32);
+            while q + 8 <= b.len() {
+                let kind = &b[q + 4..q + 8];
+                let len = be32(q)? as usize;
+                match kind {
+                    b"traf" => q += 8,
+                    b"tfhd" => {
+                        let flags = be32(q + 8)? & 0x00ff_ffff;
+                        on = track.is_none_or(|t| be32(q + 12) == Some(t));
+                        let mut at = q + 16;
+                        if flags & 1 != 0 {
+                            base = be64(at)?;
+                            at += 8;
+                        }
+                        if flags & 2 != 0 {
+                            at += 4;
+                        }
+                        if flags & 8 != 0 {
+                            at += 4;
+                        }
+                        default_size = if flags & 0x10 != 0 { be32(at)? as usize } else { 0 };
+                        flags_present = flags;
+                        q += len.max(16);
+                    }
+                    b"trun" => {
+                        let flags = be32(q + 8)? & 0x00ff_ffff;
+                        let count = be32(q + 12)? as usize;
+                        let mut at = q + 16;
+                        let offset = if flags & 1 != 0 {
+                            at += 4;
+                            Some(i64::from(be32(at - 4)? as i32))
+                        } else {
+                            None
+                        };
+                        if flags & 4 != 0 {
+                            at += 4;
+                        }
+                        let stride = [0x100, 0x200, 0x400, 0x800].iter().filter(|f| flags & **f != 0).count() * 4;
+                        let mut data = match (offset, next) {
+                            (Some(o), _) => (base as i64 + o) as u64,
+                            (None, Some(n)) => n,
+                            (None, None) => return None,
+                        } as usize;
+                        // Some muxers point the offset at the `mdat` box, not at its first byte.
+                        if offset.is_some() && b.get(data + 4..data + 8) == Some(&b"mdat"[..]) {
+                            data += 8;
+                        }
+                        for i in 0..count {
+                            let mut field = at + i * stride;
+                            if flags & 0x100 != 0 {
+                                field += 4;
+                            }
+                            let n = if flags & 0x200 != 0 { be32(field)? as usize } else { default_size };
+                            if on {
+                                let frame = b.get(data..data + n)?;
+                                let len = n + 7;
+                                if len > 0x1fff {
+                                    return None;
+                                }
+                                out.extend_from_slice(&[
+                                    0xff,
+                                    0xf1,
+                                    (aot - 1) << 6 | rate << 2 | channels >> 2,
+                                    (channels & 3) << 6 | (len >> 11) as u8,
+                                    (len >> 3) as u8,
+                                    ((len & 7) as u8) << 5 | 0x1f,
+                                    0xfc,
+                                ]);
+                                out.extend_from_slice(frame);
+                            }
+                            data += n;
+                        }
+                        next = Some(data as u64);
+                        q = at + count * stride;
+                        let _ = flags_present;
+                    }
+                    b"mdat" => break,
+                    _ if len >= 8 => q += len,
+                    _ => break,
+                }
+            }
+        }
+        // A fragment with no size runs to the file's end, which is no use for finding the next box.
+        if (size == 0 && kind == b"moof") || total < 8 {
+            break;
+        }
+        pos += total;
+    }
+    (!out.is_empty()).then_some(out)
 }
 
 /// The length of the audio file at `path`: its frames and their rate. Read from the file's headers where they give it
@@ -812,6 +981,26 @@ mod tests {
 
     /// `tests/data/click_sine.m4a` (made with ffmpeg's AAC, 96 kbit/s mono, the decoder's priming hidden by an edit):
     /// the same source as the MP3 above.
+    /// A streamed fragmented MP4 (`click_sine_streamed.m4a`: `click_sine.m4a`'s frames, the `moof`, `traf` and `trun`
+    /// boxes sized 0) decodes by way of ADTS, as the same sound.
+    #[test]
+    fn a_streamed_fragmented_mp4_decodes() {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data");
+        let plain = load(&dir.join("click_sine.m4a")).unwrap();
+        // `click_sine_streamed_box_offset.m4a`: the same, the `trun`'s data offset at the `mdat` box as one real muxer has it.
+        for name in ["click_sine_streamed.m4a", "click_sine_streamed_box_offset.m4a"] {
+            let streamed = load(&dir.join(name)).unwrap_or_else(|e| panic!("{name}: {e}"));
+            assert_eq!((streamed.rate, plain.rate), (44100, 44100), "{name}");
+            // The decoder's priming and end padding are left in: a few thousand frames longer than the edit's run.
+            assert!((13230..=13230 + 3000).contains(&streamed.frames()), "{name}: {}", streamed.frames());
+            let peak = |s: &Sample| s.left.iter().fold(0f32, |m, v| m.max(v.abs()));
+            assert!(peak(&streamed) > 0.3 && (peak(&streamed) - peak(&plain)).abs() < 0.1, "{name}: {} {}", peak(&streamed), peak(&plain));
+        }
+        assert!(fragmented_mp4_to_adts(&std::fs::read(dir.join("click_sine.m4a")).unwrap()).is_none(), "an ordinary file isn't one");
+        assert!(fragmented_mp4_to_adts(b"not an mp4 file at all").is_none());
+        assert!(fragmented_mp4_to_adts(&std::fs::read(dir.join("click_sine_streamed.m4a")).unwrap()[..400]).is_none(), "cut short");
+    }
+
     #[test]
     fn m4a_decodes_in_time_and_level() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/click_sine.m4a");

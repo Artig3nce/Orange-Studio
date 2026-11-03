@@ -3737,7 +3737,9 @@ pub fn drag_move(app: &mut App, d: PlDrag, grid: Rect) {
             return;
         }
         PlDrag::Move { x0, y0, orig, .. } => {
-            let mut dt = snap_delta(s, &g, (x - x0) / g.ppt, alt);
+            // The clicked clip lands on the grid, wherever it started (Alt: anywhere); the others keep their distance.
+            let from = orig.first().map_or(0.0, |(_, c)| c.position as f32);
+            let mut dt = i64::from(snap_round(s, &g, from + (x - x0) / g.ppt, alt)) - from as i64;
             let min_pos = orig.iter().map(|(_, c)| i64::from(c.position)).min().unwrap_or(0);
             dt = dt.max(-min_pos);
             if let Some((r0, r1)) = s.playlist.range_drag {

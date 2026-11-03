@@ -19524,6 +19524,48 @@ mod tests {
         assert!(pl::clips(&app.state).is_empty(), "removed from its curve");
     }
 
+    /// Alt moves a clip off the grid, held from the press or only during the drag; without it the clip lands on the grid.
+    #[test]
+    fn alt_moves_a_clip_off_the_grid() {
+        use crate::playlist as pl;
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let (mut app, _, _, bar) = ruler_app(&mut c);
+        app.state.playlist_bar_w = 400.0;
+        app.state.playlist.tool = pl::PlTool::Draw;
+        app.state.playlist.snap = crate::snap::EditorSnap::Grid(pl::Snap::Beat);
+        let beat = bar / 4;
+        for src in [os_model::ClipSource::Pattern(1), os_model::ClipSource::Pattern(2)] {
+            for (alt_at_press, alt_in_drag, free) in [(false, false, false), (true, true, true), (false, true, true)] {
+                pl::arr_mut(&mut app.state).clips = vec![os_model::Clip::new(bar, bar, 0, src)];
+                app.state.playlist.sel.clear();
+                frame(&mut app, &mut c, None);
+                let g = pl::PGeom::new(&app.state, app.pl_grid().unwrap());
+                let r = g.clip_rect(&pl::clips(&app.state)[0]);
+                app.state.playlist.last_clip = None;
+                app.alt = alt_at_press;
+                app.mouse_move(r.cx(), r.cy());
+                app.mouse_down();
+                app.alt = alt_in_drag;
+                app.mouse_move(r.cx() + 37.0, r.cy());
+                app.mouse_up();
+                app.alt = false;
+                let at = pl::clips(&app.state)[0].position;
+                assert_eq!(at % beat != 0, free, "alt at press {alt_at_press}, in drag {alt_in_drag}: tick {at}");
+            }
+            // A clip off the grid comes back onto it when moved without Alt.
+            pl::arr_mut(&mut app.state).clips = vec![os_model::Clip::new(bar + beat / 3, bar, 0, src)];
+            frame(&mut app, &mut c, None);
+            let g = pl::PGeom::new(&app.state, app.pl_grid().unwrap());
+            let r = g.clip_rect(&pl::clips(&app.state)[0]);
+            app.state.playlist.last_clip = None;
+            app.mouse_move(r.cx(), r.cy());
+            app.mouse_down();
+            app.mouse_move(r.cx() + 37.0, r.cy());
+            app.mouse_up();
+            assert_eq!(pl::clips(&app.state)[0].position % beat, 0, "on the grid again");
+        }
+    }
+
     /// Clicking a clip trimmed at both ends and placing the next one repeats the trim: the same part, the same length.
     #[test]
     fn a_trimmed_clip_is_placed_as_trimmed() {

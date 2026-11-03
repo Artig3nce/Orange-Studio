@@ -19812,6 +19812,7 @@ mod tests {
     /// The device chain on a real X display: the selected track's plugins are cards side by side, each a window of its own
     /// width as tall as the panel; folding one closes its editor and the next card moves up to its strip.
     #[test]
+    #[cfg(target_os = "linux")]
     #[ignore = "requires an X11 display"]
     fn the_device_chain_lays_its_cards_side_by_side() {
         use x11rb::connection::Connection;

@@ -79,6 +79,7 @@ lemon-filter = { path = "../../plugins/lemon-filter", features = ["linked"] }
 tesla = { path = "../../plugins/tesla", features = ["linked"] }
 pulp-filter = { path = "../../plugins/pulp-filter", features = ["linked"] }
 press = { path = "../../plugins/press", features = ["linked"] }
+orange-master = { path = "../../plugins/orange-master", features = ["linked"] }
 lemon-flanger = { path = "../../plugins/lemon-flanger", features = ["linked"] }
 lemon-phaser = { path = "../../plugins/lemon-phaser", features = ["linked"] }
 lemon-crusher = { path = "../../plugins/lemon-crusher", features = ["linked"] }

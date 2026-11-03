@@ -266,6 +266,27 @@ fn panel_tabs(ui: &mut Ui, s: &State) {
         }
         x += w;
     }
+    // The device chain's tab: the plugins of the selected track as cards, side by side.
+    {
+        let w = ui.c.text_width(font, "Devices") + 28.0;
+        let r = Rect::new(x, strip.y, w, strip.h);
+        let hov = ui.hit(r, Action::PanelTab(Win::PluginTab), "Devices: the selected track's plugins");
+        let open = s.panel == Win::PluginTab;
+        ui.c.text(font, x + 14.0, strip.y + 6.0, if open || hov { t.text } else { t.text_dim }, "Devices");
+        if open {
+            ui.c.fill_rect(Rect::new(x + 6.0, strip.bottom() - 2.0, w - 12.0, 2.0), t.accent);
+        }
+    }
+    // The chain scrolls when it is wider than the panel.
+    if s.panel == Win::PluginTab && s.device_total > a.w + 1.0 && !s.panel_collapsed {
+        for (dx, dir, hint) in [(-96.0, -1i8, "Scroll the devices left"), (-66.0, 1i8, "Scroll the devices right")] {
+            let r = Rect::new(strip.cx() + dx, strip.y + 5.0, 26.0, 20.0);
+            let hov = ui.hit(r, Action::DeviceScroll(dir), hint);
+            ui.c.fill_rrect(r, 10.0, if hov { t.button_hi } else { t.sunken });
+            let (cx, cy, tip) = (r.cx(), r.cy(), 3.0 * f32::from(-dir));
+            ui.c.polyline(&[(cx + tip, cy - 5.0), (cx - tip, cy), (cx + tip, cy + 5.0)], 2.0, if hov { t.text } else { t.text_dim });
+        }
+    }
     // In the middle: the button that folds the panel away, so the Playlist has the whole height, and brings it back.
     let r = Rect::new(strip.cx() - 26.0, strip.y + 5.0, 52.0, 20.0);
     let hov = ui.hit(r, Action::PanelCollapse, if s.panel_collapsed { "Show the panel" } else { "Collapse the panel: more room for the playlist" });
@@ -274,6 +295,44 @@ fn panel_tabs(ui: &mut Ui, s: &State) {
     // A chevron: down to fold the panel away, up to bring it back.
     let tip = if s.panel_collapsed { -3.0 } else { 3.0 };
     ui.c.polyline(&[(cx - 6.0, cy - tip), (cx, cy + tip), (cx + 6.0, cy - tip)], 2.0, if hov { t.text } else { t.text_dim });
+}
+
+/// The Devices tab's own parts: a thin strip for each folded card (a click opens it), and what to do when the track has no
+/// plugin. The open cards are native windows over the panel.
+fn device_chain(ui: &mut Ui, s: &State) {
+    if s.panel != Win::PluginTab || s.panel_collapsed {
+        return;
+    }
+    let a = s.panel_area();
+    let panel = Rect::new(a.x, a.y + crate::app::PANEL_TABS_H, a.w, a.h - crate::app::PANEL_TABS_H);
+    let t = ui.t;
+    ui.c.push_clip(panel);
+    // The panel's surface, over the workspace's watermark.
+    ui.c.fill_rect(panel, os_ui::kit::lemon::plug::BG);
+    if s.device_cards.is_empty() {
+        let lines = ["No devices on this track", "Add an effect to one of its mixer slots, or drag one from the browser"];
+        ui.c.text_center(fnt(16.0), Rect::new(panel.x, panel.cy() - 22.0, panel.w, 22.0), t.text_dim, lines[0]);
+        ui.c.text_center(fnt(13.0), Rect::new(panel.x, panel.cy(), panel.w, 18.0), t.text_faint, lines[1]);
+    }
+    for c in s.device_cards.iter().filter(|c| c.folded) {
+        let r = Rect::new(c.x, panel.y + 4.0, c.w, panel.h - 8.0);
+        let hov = ui.hit(r, Action::DeviceFold(c.row), format!("{}: click to open", c.name));
+        os_ui::kit::lemon::plug_panel(ui.c, r);
+        let ink = if hov { t.text } else { t.text_dim };
+        // A caret, then the name stacked down the strip.
+        let (cx, y0) = (r.cx(), r.y + 12.0);
+        ui.c.fill_polygon(&[(cx - 3.0, y0 - 4.0), (cx + 3.0, y0), (cx - 3.0, y0 + 4.0)], ink);
+        let mut y = y0 + 12.0;
+        for ch in c.name.chars().filter(|ch| !ch.is_whitespace()) {
+            if y + 12.0 > r.bottom() - 6.0 {
+                break;
+            }
+            let mut b = [0; 4];
+            ui.c.text_center(fnt(12.0), Rect::new(r.x, y, r.w, 13.0), ink, ch.encode_utf8(&mut b));
+            y += 12.0;
+        }
+    }
+    ui.c.pop_clip();
 }
 
 /// Paints the frame; returns the number of hits registered before the overlays (menus, popups, picker...), which cover
@@ -313,6 +372,7 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) -> usize {
     let _ = work;
     if s.docked_ui {
         panel_tabs(ui, s);
+        device_chain(ui, s);
     }
     for (i, &win) in order.iter().enumerate() {
         if docked_at.is_some_and(|d| i < d) || (s.docked_ui && s.panel_collapsed && win.is_panel()) {

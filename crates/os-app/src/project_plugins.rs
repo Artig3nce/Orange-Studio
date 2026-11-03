@@ -885,6 +885,45 @@ mod tests {
         }
     }
 
+    /// Orange Master in a mixer slot keeps its knobs through a save and a reopen, and they still reach the sound's state.
+    #[test]
+    fn orange_master_keeps_its_settings_in_a_project() {
+        let path = std::env::temp_dir().join(format!("openstudio-orange-master-{}.flp", std::process::id()));
+        let mut a = App::new(None);
+        a.state.project = crate::app::test_project();
+        (a.state.file, a.state.path) = (None, None);
+        a.plugins.effects = crate::plugins::builtin_effects();
+        let index = a.plugins.effect_index("Orange Master").expect("built in");
+        a.state.project.mixer[3].slots[1] = Some(crate::plugins::new_slot("Orange Master"));
+        a.plugins.create_effect(3, 1, index, None).unwrap();
+        let key = fx_key(3, 1);
+        assert!(a.plugins.set_param_named(key, "Gain", 7.5));
+        assert!(a.plugins.set_param_named(key, "EQ High", 2.0));
+        a.plugins.hosted[&key].plugin.lock().unwrap().idle();
+        // Audio through it as the host runs it: the gain is heard, and nothing passes the ceiling.
+        {
+            let mut p = a.plugins.hosted[&key].plugin.lock().unwrap();
+            let wave: Vec<f32> = (0..256).map(|i| 0.1 * (i as f32 * 0.1).sin()).collect();
+            let mut loudest = 0f32;
+            for _ in 0..200 {
+                let (mut l, mut r) = (wave.clone(), wave.clone());
+                p.process_fx(48000, &mut l, &mut r);
+                loudest = l.iter().fold(loudest, |m, v| m.max(v.abs()));
+            }
+            assert!(loudest > 0.2 && loudest < 0.9, "{loudest}");
+        }
+        let state = a.plugins.state(key).unwrap();
+        assert!(String::from_utf8_lossy(&state).contains("gain"), "the knobs are in the saved state");
+        a.save_to(path.clone());
+        assert!(a.state.message.as_deref().is_some_and(|m| m.starts_with("Saved") && !m.contains("not stored")), "{:?}", a.state.message);
+        let mut b = App::new(None);
+        b.plugins.effects = crate::plugins::builtin_effects();
+        b.open(path.clone());
+        b.sync_wrapped();
+        let _ = std::fs::remove_file(&path);
+        assert_eq!(b.plugins.state(key), Some(state));
+    }
+
     /// Lemon Studio's other effects are compiled in like the EQ but have no file plugin of their own to be saved as: a
     /// slot hosting one is saved wrapped with its state, and the reopened project hosts the built-in copy again with
     /// that state (Tesla's is its sample: its parameters are only its transport).

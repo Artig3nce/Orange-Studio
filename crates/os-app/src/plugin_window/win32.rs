@@ -312,6 +312,54 @@ impl FrameWindow {
         unsafe { apply_clip(self.hwnd, &self.state) };
     }
 
+    /// Pins the window into the bottom panel's Plugin tab (the app places it with `move_to` and hides it with `hide`), or
+    /// lets it be a free window again.
+    pub fn set_pinned(&self, on: bool) {
+        let changed = std::mem::replace(&mut self.state.borrow_mut().pinned, on) != on;
+        super::set_pin_look(on);
+        if changed {
+            unsafe { layout(self.hwnd) };
+        }
+    }
+
+    /// The window's own size around its editor (logical px), whatever it is pinned to fill.
+    pub fn natural_size(&self) -> (f32, f32) {
+        self.state.borrow().natural()
+    }
+
+    /// Pinned: the frame fills `size` (logical px), the editor centred across it. None: its own size.
+    pub fn set_fill(&self, size: Option<(f32, f32)>) {
+        let changed = {
+            let mut st = self.state.borrow_mut();
+            std::mem::replace(&mut st.fill, size) != size
+        };
+        if changed {
+            unsafe { layout(self.hwnd) };
+        }
+    }
+
+    /// The window's size (physical px).
+    pub fn size_px(&self) -> (i32, i32) {
+        let mut r: RECT = unsafe { std::mem::zeroed() };
+        unsafe { GetWindowRect(self.hwnd, &mut r) };
+        (r.right - r.left, r.bottom - r.top)
+    }
+
+    /// Moves a docked window to `at` in the main window's client area (physical px).
+    pub fn move_to(&self, at: (i32, i32)) {
+        if self.detached() {
+            return;
+        }
+        self.place(|_| at);
+        unsafe { apply_clip(self.hwnd, &self.state) };
+    }
+
+    /// Takes the window off the screen (`raise` shows it again).
+    pub fn hide(&self) {
+        unsafe { ShowWindow(self.hwnd, SW_HIDE) };
+        expose();
+    }
+
     /// Moves the docked window to where `to` puts it, given its rect in the parent's client area (physical px).
     fn place(&self, to: impl FnOnce([i32; 4]) -> (i32, i32)) {
         unsafe {
@@ -419,8 +467,11 @@ impl FrameWindow {
     /// A point of the editor (logical px from its top-left) on the screen (screen px): where a menu the plugin asked
     /// for opens (spec: plugins/vst3-hosting.md §9).
     pub fn editor_to_screen(&self, x: f32, y: f32) -> (i32, i32) {
-        let ay = self.state.borrow().area_y();
-        to_screen(self.hwnd, self.scale())(BORDER + x, ay + y)
+        let (ax, ay) = {
+            let st = self.state.borrow();
+            (st.area_x(), st.area_y())
+        };
+        to_screen(self.hwnd, self.scale())(ax + x, ay + y)
     }
 
     /// Redraws the frame at another DPI scale (same logical size). The editor inside is the caller's: plugins take
@@ -581,7 +632,7 @@ unsafe fn layout(hwnd: HWND) {
     let (fw, fh) = st.size();
     let px = |v: f32| (v * w.scale).round() as i32;
     let tab_plugin = !st.misc;
-    let (ay, ed, detached) = (st.area_y(), st.editor, st.detached);
+    let (ay, ed, detached, ax) = (st.area_y(), st.editor, st.detached, st.area_x());
     drop(st);
     unsafe {
         let mut r: RECT = std::mem::zeroed();
@@ -590,7 +641,7 @@ unsafe fn layout(hwnd: HWND) {
             expose();
         }
         SetWindowPos(hwnd, std::ptr::null_mut(), 0, 0, px(fw), px(fh), SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-        SetWindowPos(w.area, std::ptr::null_mut(), px(BORDER), px(ay), px(ed.0), px(ed.1), SWP_NOZORDER | SWP_NOACTIVATE);
+        SetWindowPos(w.area, std::ptr::null_mut(), px(ax), px(ay), px(ed.0), px(ed.1), SWP_NOZORDER | SWP_NOACTIVATE);
         ShowWindow(w.area, if tab_plugin { SW_SHOW } else { SW_HIDE });
     }
     w.canvas.resize(px(fw) as u32, px(fh) as u32, w.scale);

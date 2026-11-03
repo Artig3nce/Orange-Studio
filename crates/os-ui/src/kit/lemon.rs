@@ -384,7 +384,7 @@ pub mod plug {
     use os_theme::Color;
 
     /// Editor background.
-    pub const BG: Color = Color::rgb(0x121212);
+    pub const BG: Color = Color::rgb(0x141414);
     /// Panels and cards: outline and fill.
     pub const PANEL_LINE: Color = Color::rgb(0x0e0e0e);
     pub const PANEL: Color = Color::rgb(0x1a1a1a);

@@ -121,20 +121,34 @@ pub const MIN_EDITOR: (f32, f32) = (240.0, 80.0);
 /// Width of the Presets box in the title bar (its right edge is 49 px from the window's).
 const PRESETS_W: f32 = 80.0;
 
+/// Frames pinned into the panel (the docked layout) take the panel's own colours, so the editor sits on the DAW's surface
+/// and not in a grey box of its own.
+static PIN_LOOK: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub(crate) fn set_pin_look(on: bool) {
+    PIN_LOOK.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// The panel's surface (the docked theme's window colour), when frames are pinned.
+fn surface() -> Option<Color> {
+    // Our own plugins draw their editors on this: the card, the panel behind it and the plugin are one surface.
+    PIN_LOOK.load(std::sync::atomic::Ordering::Relaxed).then_some(os_ui::kit::lemon::plug::BG)
+}
+
 fn c_frame() -> Color {
-    os_theme::current().s(0x25292b)
+    surface().unwrap_or_else(|| os_theme::current().s(0x25292b))
 }
 fn c_outline() -> Color {
-    os_theme::current().s(0x191d1f)
+    surface().unwrap_or_else(|| os_theme::current().s(0x191d1f))
 }
 fn c_top_light() -> Color {
-    os_theme::current().s(0x2b2f31)
+    surface().unwrap_or_else(|| os_theme::current().s(0x2b2f31))
 }
 fn c_editor_line() -> Color {
-    os_theme::current().s(0x13191d)
+    surface().unwrap_or_else(|| os_theme::current().s(0x13191d))
 }
 fn c_presets() -> Color {
-    os_theme::current().s(0x1d2123)
+    surface().map_or_else(|| os_theme::current().s(0x1d2123), |c| c.shade(0.07))
 }
 fn c_arrow() -> Color {
     os_theme::current().tx(0xc2c8cc)
@@ -143,13 +157,13 @@ fn c_gear_on() -> Color {
     os_theme::current().a(0x8eff7e)
 }
 fn c_strip() -> Color {
-    os_theme::current().s(0x1b1d1e)
+    surface().map_or_else(|| os_theme::current().s(0x1b1d1e), |c| c.shade(0.03))
 }
 fn c_strip_line() -> Color {
-    os_theme::current().s(0x151718)
+    surface().map_or_else(|| os_theme::current().s(0x151718), |c| c.shade(-0.25))
 }
 fn c_body() -> Color {
-    os_theme::current().s(0x202324)
+    surface().unwrap_or_else(|| os_theme::current().s(0x202324))
 }
 fn c_text() -> Color {
     os_theme::current().tx(0xd4dade)
@@ -193,6 +207,8 @@ pub struct ChannelInfo {
 #[derive(Clone, Debug, PartialEq)]
 pub enum FrameEvent {
     Close,
+    /// Pinned in the panel's device chain: the title bar (or its close button) folds the device up, or opens it again.
+    Fold,
     /// The user picked page `n` of the plugin (a tab left of the Misc tab).
     Page(usize),
     ToggleOn,
@@ -320,6 +336,11 @@ struct State {
     clip: Option<([i32; 4], Vec<[i32; 4]>)>,
     /// The clip last applied (window rect, workspace, covering rects), so unchanged clips are not reset.
     clip_key: Option<Vec<i32>>,
+    /// Docked into the bottom panel's Plugin tab: the app places it, so it has no maximize or minimize, no edges to drag
+    /// and its title bar does not move it.
+    pinned: bool,
+    /// Pinned: the panel's size (logical px) the frame fills, the editor centred across it under the title bar.
+    fill: Option<(f32, f32)>,
 }
 
 impl State {
@@ -348,6 +369,8 @@ impl State {
             detached,
             clip: None,
             clip_key: None,
+            pinned: false,
+            fill: None,
         }
     }
 
@@ -399,8 +422,25 @@ impl State {
         }
     }
     fn size(&self) -> (f32, f32) {
+        let n = self.natural();
+        match self.fill.filter(|_| self.pinned) {
+            Some((fw, fh)) => (n.0.max(fw), n.1.max(fh)),
+            None => n,
+        }
+    }
+    /// The frame's own size around its editor, with nothing to fill.
+    fn natural(&self) -> (f32, f32) {
         let (w, h) = self.shown();
-        (w + 2.0 * BORDER, self.area_y() + h + BORDER)
+        let b = self.border();
+        (w + 2.0 * b, self.area_y() + h + b)
+    }
+    /// The frame around the editor on its left, right and bottom: none for a card in the panel, which sits flush.
+    fn border(&self) -> f32 {
+        if self.pinned { 0.0 } else { BORDER }
+    }
+    /// Left of the editor: the border, and a pinned frame bigger than its editor keeps the editor in the middle.
+    fn area_x(&self) -> f32 {
+        self.border() + ((self.size().0 - self.natural().0) / 2.0).floor()
     }
     /// The size of what the editor area shows: the Misc page's own while that tab is open (the frame fits it, as a
     /// tab change in FL does), the plugin's editor otherwise.
@@ -415,7 +455,7 @@ impl State {
     /// The frame around the editor: what the window adds to the editor's width and height (logical px).
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     fn chrome(&self) -> (f32, f32) {
-        (2.0 * BORDER, self.area_y() + BORDER)
+        (2.0 * self.border(), self.area_y() + self.border())
     }
     fn area_y(&self) -> f32 {
         TITLE_H + if self.strip { STRIP_H } else { 0.0 } + 1.0
@@ -505,15 +545,17 @@ fn parts(st: &State) -> Vec<(Rect, Part)> {
     if max_w(st) > 0.0 {
         v.push((Rect::new(w - 42.0, 7.0, 17.0, 17.0), Part::Maximize));
     }
-    if st.resizable() {
+    if st.resizable() && !st.pinned {
         // The corner first (it overlaps both edges); below the title bar, so the close button stays a button.
         v.push((Rect::new(w - CORNER, h - CORNER, CORNER, CORNER), Part::Edge { right: true, bottom: true }));
         v.push((Rect::new(w - BORDER, TITLE_H, BORDER, h - TITLE_H), Part::Edge { right: true, bottom: false }));
         v.push((Rect::new(0.0, h - BORDER, w, BORDER), Part::Edge { right: false, bottom: true }));
     }
+    if !st.pinned {
+        v.push((Rect::new(w - 42.0 - max_w(st), 7.0, 17.0, 17.0), Part::Minimize));
+    }
     v.extend([
         (Rect::new(w - 23.0, 7.0, 17.0, 17.0), Part::Close),
-        (Rect::new(w - 42.0 - max_w(st), 7.0, 17.0, 17.0), Part::Minimize),
         (MENU_RECT, Part::Menu),
         (GEAR_RECT, Part::Gear),
         (Rect::new(p.right() - 33.0, p.y, 17.0, p.h), Part::PresetPrev),
@@ -576,7 +618,7 @@ fn presets_rect(st: &State) -> Rect {
 
 /// The room the maximize button takes in the title bar: a resizable editor's frame has one.
 fn max_w(st: &State) -> f32 {
-    if st.resizable() { 19.0 } else { 0.0 }
+    if st.resizable() && !st.pinned { 19.0 } else { 0.0 }
 }
 
 fn page_tabler(p: PageIcon) -> &'static tb::TablerIcon {
@@ -611,8 +653,9 @@ fn paint(c: &mut Canvas, st: &State) {
     }
     // The editor's 1 px outline; the plugin's own window covers the inside.
     let ay = st.area_y();
-    c.fill_rect(Rect::new(BORDER - 1.0, ay - 1.0, w - 2.0 * BORDER + 2.0, h - ay - BORDER + 2.0), c_editor_line());
-    let a = Rect::new(BORDER, ay, w - 2.0 * BORDER, h - ay - BORDER);
+    let (ax, (sw, sh)) = (st.area_x(), st.shown());
+    c.fill_rect(Rect::new(ax - 1.0, ay - 1.0, sw + 2.0, sh + 2.0), c_editor_line());
+    let a = Rect::new(ax, ay, sw, sh);
     c.fill_rect(a, c_body());
     if st.misc {
         match &st.info.misc {
@@ -669,7 +712,9 @@ fn title_bar(c: &mut Canvas, st: &State, w: f32) {
     icon_at(c, &tb::CARET_LEFT, p.right() - 22.2, 15.5, 18.9, c_icon());
     icon_at(c, &tb::CARET_RIGHT, p.right() - 7.8, 15.5, 18.9, c_icon());
     let mw = max_w(st);
-    c.icon_stroke(&tb::MINUS, Rect::new(w - 39.5 - mw, 7.0, 12.0, 12.0), c_icon(), 2.0);
+    if !st.pinned {
+        c.icon_stroke(&tb::MINUS, Rect::new(w - 39.5 - mw, 7.0, 12.0, 12.0), c_icon(), 2.0);
+    }
     if mw > 0.0 {
         c.icon(&tb::SQUARES, Rect::new(w - 40.0, 9.0, 13.0, 13.0), c_icon());
     }
@@ -679,8 +724,9 @@ fn title_bar(c: &mut Canvas, st: &State, w: f32) {
 fn strip(c: &mut Canvas, st: &State, w: f32) {
     // Strip box with a 1 px outline (its bottom edge is the editor's outline).
     let (dx, dy) = (w - STRIP_RIGHT, TITLE_H - 24.0);
-    c.fill_rect(Rect::new(BORDER - 1.0, TITLE_H, w - 2.0 * BORDER + 2.0, STRIP_H), c_strip_line());
-    c.fill_rect(Rect::new(BORDER, TITLE_H + 1.0, w - 2.0 * BORDER, STRIP_H - 1.0), c_strip());
+    let b = st.border();
+    c.fill_rect(Rect::new(b - 1.0, TITLE_H, w - 2.0 * b + 2.0, STRIP_H), c_strip_line());
+    c.fill_rect(Rect::new(b, TITLE_H + 1.0, w - 2.0 * b, STRIP_H - 1.0), c_strip());
     // Page tabs, then the Misc wrench (always the last tab).
     let n = st.pages.len();
     for i in 0..=n {
@@ -944,6 +990,14 @@ impl State {
             }
             // Drag the window by the title bar (no longer maximized); a double-click maximizes or restores.
             // The double-click's first press unmaximized the frame: the second restores it.
+            // Pinned in the panel's device chain: the title bar folds the device.
+            Some(Part::Caption) if self.pinned => {
+                if !double {
+                    self.events.push(FrameEvent::Fold);
+                    os_clap::wake();
+                }
+                Reply::Repaint
+            }
             Some(Part::Caption) if double && max_w(self) > 0.0 => {
                 if self.maxed.is_none() {
                     self.maxed = self.maxed_at_press.take();
@@ -1017,12 +1071,13 @@ impl State {
         let mut hover = false;
         if self.misc {
             if self.misc_ui.bar_drag.is_some() {
-                let moved = crate::misc_page::bar_drag_to(&mut self.misc_ui, x - BORDER);
+                let ax = self.area_x();
+                let moved = crate::misc_page::bar_drag_to(&mut self.misc_ui, x - ax);
                 return if moved { Reply::Repaint } else { Reply::None };
             }
             if self.misc_ui.drag.is_some() {
                 let ay = self.area_y();
-                if let Some((m, v)) = crate::misc_page::drag_value(&self.misc_ui, x - BORDER, y - ay, fine) {
+                if let Some((m, v)) = crate::misc_page::drag_value(&self.misc_ui, x - self.area_x(), y - ay, fine) {
                     if self.info.misc.is_some_and(|vals| vals.get(m) != v) {
                         misc_set(self, m, v);
                         os_clap::wake();
@@ -1086,7 +1141,8 @@ impl State {
         self.release();
         match armed {
             Some(Part::Close) if over => {
-                self.events.push(FrameEvent::Close);
+                // In the panel's chain a device is folded, not closed.
+                self.events.push(if self.pinned { FrameEvent::Fold } else { FrameEvent::Close });
                 Reply::Repaint
             }
             Some(Part::Minimize) if over => Reply::Minimize,
@@ -1168,7 +1224,7 @@ impl State {
                 self.events.push(FrameEvent::MiscMenu(m, sx, sy));
             }
             (Btn::Left, Hit::Value(m)) if mp::draggable(m) => {
-                self.misc_ui.drag = Some((m, mp::drag_start(m, x - BORDER, y - self.area_y()), vals.get(m)));
+                self.misc_ui.drag = Some((m, mp::drag_start(m, x - self.area_x(), y - self.area_y()), vals.get(m)));
                 reply = Reply::Capture;
             }
             (Btn::Left, Hit::Value(m)) => {
@@ -1193,7 +1249,8 @@ impl State {
                 misc_set(self, M::Fine, 0.0);
             }
             (Btn::Left, Hit::ScrollBar) => {
-                mp::bar_press(&mut self.misc_ui, x - BORDER);
+                let ax = self.area_x();
+                mp::bar_press(&mut self.misc_ui, x - ax);
                 reply = Reply::Capture;
             }
             (Btn::Left, Hit::Key(k)) => {
@@ -1234,7 +1291,7 @@ fn misc_hit(st: &State, x: f32, y: f32) -> Option<crate::misc_page::Hit> {
     if !st.misc || st.info.misc.is_none() {
         return None;
     }
-    let (ax, ay) = (BORDER, st.area_y());
+    let (ax, ay) = (st.area_x(), st.area_y());
     crate::misc_page::hit(&st.misc_ui, x - ax, y - ay)
 }
 

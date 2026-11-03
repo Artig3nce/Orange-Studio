@@ -51,6 +51,9 @@ pub enum Win {
     Events,
     /// A docked hosted-plugin window (a native child window; rack row), stacked with the drawn windows.
     Hosted(usize),
+    /// The docked layout's Plugin tab: the bottom panel shows the editor of `State::panel_plugin`, a native window pinned
+    /// over it, in place of the Mixer, the Piano roll or the Channel rack.
+    PluginTab,
 }
 
 impl Win {
@@ -66,7 +69,7 @@ impl Win {
 
     /// Whether the window lives in the bottom panel of the docked layout, one at a time under its tab.
     pub fn is_panel(self) -> bool {
-        matches!(self, Win::Mixer | Win::PianoRoll | Win::ChannelRack)
+        matches!(self, Win::Mixer | Win::PianoRoll | Win::ChannelRack | Win::PluginTab)
     }
 
     /// Smallest outer size (the layouts stay intact down to this).
@@ -105,11 +108,15 @@ impl CloseAll {
 /// The docked layout's bottom panel: its tab strip's height, its default and smallest height (the Mixer's minimum under
 /// the strip) and where its height is kept.
 pub const PANEL_TABS_H: f32 = 30.0;
-const PANEL_H: f32 = 670.0;
+const PANEL_H: f32 = 470.0;
 /// The most of the workspace a panel nobody has sized takes, so a smaller screen keeps room for the Playlist.
-const PANEL_SHARE: f32 = 0.65;
+const PANEL_SHARE: f32 = 0.5;
+/// The smallest panel with the mixer in it; the other tabs let it go lower (`State::panel_min`).
 const PANEL_MIN_H: f32 = 400.0 + PANEL_TABS_H;
 const PANEL_KEY: &str = "panel_height";
+/// The Devices tab keeps a height of its own, lower than the mixer's, as Ableton's device view is.
+const PANEL_DEVICES_KEY: &str = "panel_height_devices";
+const PANEL_DEVICES_H: f32 = 300.0;
 const PANEL_COLLAPSED_KEY: &str = "panel_collapsed";
 
 /// Resize edge bits for `Action::WinResize`.
@@ -299,6 +306,10 @@ pub enum Action {
     PanelSplitter,
     /// The button in the middle of the panel's tab strip: collapses the panel to the strip, or brings it back.
     PanelCollapse,
+    /// A folded device card of the Devices tab: opens it.
+    DeviceFold(usize),
+    /// The Devices tab's chain scrolls a step left (-1) or right (1).
+    DeviceScroll(i8),
     /// The plugin browser (Plugin database tab): filter button `i` (`views::plugin_panel::FILTERS`), a category
     /// (`None`: all of them), the star of row `i`.
     BrowserPlugFilter(usize),
@@ -1098,10 +1109,28 @@ pub struct State {
     pub panel: Win,
     /// The bottom panel's height, its tab strip included.
     pub panel_h: f32,
+    /// The panel's height on the Devices tab.
+    pub panel_h_devices: f32,
     /// Nobody has sized the panel: it keeps to `PANEL_SHARE`.
     pub panel_auto: bool,
     /// Only the panel's tab strip shows: its window is out of the way and the Playlist has the room.
     pub panel_collapsed: bool,
+    /// The plugin (rack row, or `fx_key`) whose editor the panel's Plugin tab shows, with the name on the tab. While one is
+    /// open the tab is there, whatever tab is showing.
+    pub panel_plugin: Option<usize>,
+    /// The device chain (the Devices tab): the cards of the selected mixer track's plugins, as laid out last; the cards folded
+    /// up; how far the chain is scrolled and how wide it is (logical px); the instrument a plugin opened from the rack puts
+    /// first; the card to bring into view; the track the chain last followed; the plugins that would not open.
+    pub device_cards: Vec<DeviceCard>,
+    pub device_fold: std::collections::BTreeSet<usize>,
+    pub device_scroll: f32,
+    pub device_total: f32,
+    pub panel_instrument: Option<usize>,
+    pub device_reveal: Option<usize>,
+    pub device_track_seen: u16,
+    pub device_failed: std::collections::BTreeSet<usize>,
+    /// The tab the panel went back to when the Plugin tab closes.
+    pub panel_back: Win,
     /// No window places were kept (a first start): the paints lay the windows out as FL does (`layout::fl_default`) on
     /// the screen they get, again whenever its size changes (the main window maximized after its first paint), until
     /// a window is moved, resized, minimized or maximized.
@@ -1273,12 +1302,28 @@ impl State {
         open
     }
 
+    /// The smallest the panel goes on the tab it shows: the mixer needs the most, the device chain and the rack least.
+    pub fn panel_min(&self) -> f32 {
+        match self.panel {
+            Win::PluginTab => 200.0 + PANEL_TABS_H,
+            Win::ChannelRack => 230.0 + PANEL_TABS_H,
+            Win::PianoRoll => 320.0 + PANEL_TABS_H,
+            _ => PANEL_MIN_H,
+        }
+    }
+
     /// The panel as it is when open, whether or not it is collapsed now: where its window is laid out.
     fn panel_area_open(&self) -> Rect {
         let work = self.work_rect();
         let room = work.h - Win::Playlist.min_size().1;
-        let want = if self.panel_auto { self.panel_h.min((work.h * PANEL_SHARE).round()) } else { self.panel_h };
-        let h = want.min(room).max(PANEL_MIN_H);
+        let want = if self.panel == Win::PluginTab {
+            self.panel_h_devices
+        } else if self.panel_auto {
+            self.panel_h.min((work.h * PANEL_SHARE).round())
+        } else {
+            self.panel_h
+        };
+        let h = want.min(room).max(self.panel_min());
         Rect::new(0.0, work.bottom() - h, self.screen.0, h)
     }
 
@@ -1370,15 +1415,61 @@ impl State {
         }
     }
 
-    /// Show `w` and bring it to the front.
+    /// Show `w` and bring it to the front. In the docked layout a plugin's window is the panel's Plugin tab.
     pub fn raise(&mut self, w: Win) {
+        if let (true, Win::Hosted(row)) = (self.docked_ui, w) {
+            self.show_plugin_tab(row);
+            return;
+        }
+        // Leaving the Plugin tab for another one: it is where the panel goes back to when the tab closes.
+        if self.docked_ui && w.is_panel() && w != Win::PluginTab {
+            self.panel_back = w;
+        }
         self.z.retain(|&o| o != w);
         self.z.push(w);
         self.no_focus = false;
     }
 
     pub fn hide(&mut self, w: Win) {
+        if let (true, Win::Hosted(row)) = (self.docked_ui, w) {
+            if self.panel_plugin == Some(row) {
+                self.panel_plugin = None;
+            }
+            return;
+        }
         self.z.retain(|&o| o != w);
+    }
+
+    /// The panel shows the device chain with plugin `row` in view: the chain of its mixer track, an instrument first.
+    pub fn show_plugin_tab(&mut self, row: usize) {
+        self.panel_plugin = Some(row);
+        self.device_reveal = Some(row);
+        self.device_fold.remove(&row);
+        self.device_failed.remove(&row);
+        let track = match crate::plugins::fx_of(row) {
+            Some((t, _)) => {
+                self.panel_instrument = None;
+                Some(t)
+            }
+            None => {
+                self.panel_instrument = Some(row);
+                self.project.channels.get(row).map(|c| c.mixer_track)
+            }
+        };
+        if let Some(t) = track.filter(|t| self.project.mixer.iter().any(|m| m.index == *t)) {
+            self.selected_mixer = t;
+        }
+        self.device_track_seen = self.selected_mixer;
+        self.panel_collapsed = false;
+        self.z.retain(|&o| o != Win::PluginTab);
+        self.z.push(Win::PluginTab);
+        self.no_focus = false;
+    }
+
+    /// Leaves the Devices tab for the one the panel came from (the devices stay as they are).
+    pub fn leave_devices(&mut self) {
+        let back = if self.panel_back.is_panel() && self.panel_back != Win::PluginTab { self.panel_back } else { Win::Mixer };
+        self.raise(back);
     }
 
     /// Whether `w` is in front of everything that could cover it: the top window for floating
@@ -1386,6 +1477,16 @@ impl State {
     pub fn in_front(&self, w: Win) -> bool {
         if self.is_max(w) { self.docked() == Some(w) } else { self.z.last() == Some(&w) }
     }
+}
+
+/// One card of the device chain: where it is across the panel (logical px) and whether it is folded up.
+#[derive(Clone, Debug, PartialEq)]
+pub struct DeviceCard {
+    pub row: usize,
+    pub x: f32,
+    pub w: f32,
+    pub folded: bool,
+    pub name: String,
 }
 
 pub struct App {
@@ -1595,8 +1696,19 @@ impl App {
                 docked_ui: !cfg!(test),
                 panel: Win::Mixer,
                 panel_h: crate::settings_file::get(PANEL_KEY).and_then(|v| v.parse().ok()).unwrap_or(PANEL_H),
+                panel_h_devices: crate::settings_file::get(PANEL_DEVICES_KEY).and_then(|v| v.parse().ok()).unwrap_or(PANEL_DEVICES_H),
                 panel_auto: crate::settings_file::get(PANEL_KEY).is_none(),
                 panel_collapsed: crate::settings_file::get(PANEL_COLLAPSED_KEY).is_some_and(|v| v == "1"),
+                panel_plugin: None,
+                device_cards: Vec::new(),
+                device_fold: Default::default(),
+                device_scroll: 0.0,
+                device_total: 0.0,
+                panel_instrument: None,
+                device_reveal: None,
+                device_track_seen: 0,
+                device_failed: Default::default(),
+                panel_back: Win::Mixer,
                 fl_layout: false,
                 fl_screen: (0.0, 0.0),
                 palette: Default::default(),
@@ -2710,6 +2822,7 @@ impl App {
 
     /// Plugin host work on the UI thread: create / open requested plugins, apply plugin-window edits to the channel.
     pub(crate) fn plugin_tick(&mut self) {
+        self.plugins.panel_mode = self.state.docked_ui;
         // Rows moved by an undone or redone channel delete: the instruments follow, the deleted ones come back.
         for (map, back) in std::mem::take(&mut self.state.rows_moved) {
             self.remap_rows(&|r| map.get(r).copied().flatten());
@@ -2847,6 +2960,16 @@ impl App {
                 let chans = &mut self.state.project.channels;
                 match r {
                     Request::Close(_) => continue,
+                    Request::Fold(row) => {
+                        if !self.state.device_fold.remove(&row) {
+                            self.state.device_fold.insert(row);
+                        } else {
+                            self.state.device_reveal = Some(row);
+                            self.state.device_failed.remove(&row);
+                        }
+                        self.invalidate();
+                        continue;
+                    }
                     // Ctrl+Z in a plugin's own window: what the main window's Ctrl+Z, Ctrl+Alt+Z and Ctrl+Shift+Z do.
                     Request::Undo { alt, shift } => {
                         if shift {
@@ -3089,6 +3212,9 @@ impl App {
     /// windows above them and the overlays (spec: ui/plugin-window.md "Docking"). Detached windows leave `State::z`.
     #[cfg(plugin_windows)]
     fn clip_docked(&mut self) {
+        if self.state.docked_ui {
+            return self.layout_devices();
+        }
         let docked = self.plugins.docked();
         self.state.z.retain(|w| !matches!(w, Win::Hosted(r) if !docked.contains(r)));
         for &r in &docked {
@@ -3119,6 +3245,100 @@ impl App {
             }
             self.plugins.clip(row, work, &covers);
         }
+    }
+
+    /// The Devices tab: the plugins of the selected mixer track (an instrument opened from the rack first) as cards side by
+    /// side across the panel, each a native window pinned in place at its own width and the panel's height, or folded up into
+    /// a thin strip (its editor closed). The chain follows the selected track; the windows out of view or behind another
+    /// tab are off the screen.
+    #[cfg(plugin_windows)]
+    fn layout_devices(&mut self) {
+        use crate::plugins::{fx_key, FX_KEY};
+        const FOLD_W: f32 = 28.0;
+        const GAP: f32 = 4.0;
+        const MIN_W: f32 = 230.0;
+        self.plugins.panel_mode = true;
+        self.state.z.retain(|w| !matches!(w, Win::Hosted(_)));
+        let (k, (ox, oy)) = (self.plugins.scale, self.canvas_off);
+        let px = |r: Rect| [(r.x * k).floor() as i32 + ox, (r.y * k).floor() as i32 + oy, (r.right() * k).ceil() as i32 + ox, (r.bottom() * k).ceil() as i32 + oy];
+        let panel = self.state.panel_rect();
+        let ppx = px(panel);
+        self.plugins.panel_at = (ppx[0], ppx[1]);
+        if self.state.panel != Win::PluginTab || self.state.panel_collapsed {
+            self.plugins.unpin_except(&[]);
+            if !self.state.device_cards.is_empty() {
+                self.state.device_cards.clear();
+            }
+            return;
+        }
+        // The chain follows the selected track.
+        let t = self.state.selected_mixer;
+        if t != self.state.device_track_seen {
+            self.state.device_track_seen = t;
+            self.state.panel_instrument = None;
+            self.state.device_failed.clear();
+        }
+        let mut rows: Vec<usize> = self.state.panel_instrument.filter(|i| self.plugins.hosted.contains_key(i)).into_iter().collect();
+        rows.extend((0..10u8).map(|slot| fx_key(t, slot)).filter(|key| self.plugins.hosted.contains_key(key)));
+        // Only the cards that are open have an editor: the others, and those of other tracks, are closed.
+        let open: Vec<usize> = rows.iter().copied().filter(|r| !self.state.device_fold.contains(r)).collect();
+        for row in self.plugins.docked() {
+            if !open.contains(&row) {
+                self.plugins.close_if_open(row);
+            }
+        }
+        for &row in &open {
+            if self.plugins.window_size(row).is_some() || self.state.device_failed.contains(&row) {
+                continue;
+            }
+            let info = if row >= FX_KEY { crate::mixer::fx_info(&self.state.project, &self.state.mixer, row) } else { channel_info(&self.state.project, row) };
+            if info.map(|info| self.plugins.open_window(row, info)).is_none_or(|r| r.is_err()) {
+                self.state.device_failed.insert(row);
+            }
+        }
+        // Our own plugins' editors scale down to the panel's height.
+        for &row in &open {
+            self.plugins.fit_scale(row, panel.h);
+        }
+        // Where each card goes.
+        let mut x = panel.x + 4.0 - self.state.device_scroll;
+        let mut cards = Vec::with_capacity(rows.len());
+        for &row in &rows {
+            let size = self.plugins.window_size(row).filter(|_| !self.state.device_fold.contains(&row));
+            let w = size.map_or(FOLD_W, |s| s.0.max(MIN_W));
+            let name = self.plugins.descriptor(row).map(|d| d.name.clone()).unwrap_or_default();
+            cards.push(DeviceCard { row, x, w, folded: size.is_none(), name });
+            x += w + GAP;
+        }
+        let total = x + self.state.device_scroll - panel.x + 4.0;
+        self.state.device_total = total;
+        let most = (total - panel.w).max(0.0);
+        if self.state.device_scroll > most {
+            self.state.device_scroll = most;
+        }
+        // A plugin just opened: scrolled into view (the next tick lays it out there).
+        if let Some(c) = self.state.device_reveal.and_then(|r| cards.iter().find(|c| c.row == r)) {
+            let (left, right) = (c.x - panel.x, c.x + c.w - panel.right());
+            if left < 0.0 {
+                self.state.device_scroll = (self.state.device_scroll + left - 4.0).max(0.0);
+            } else if right > 0.0 {
+                self.state.device_scroll = (self.state.device_scroll + right + 4.0).min(most.max(self.state.device_scroll + right + 4.0));
+            }
+            self.state.device_reveal = None;
+        }
+        if self.state.device_cards != cards {
+            self.state.device_cards = cards.clone();
+            self.invalidate();
+        }
+        // Pinned, clipped to the panel and the overlays above it; the ones out of view are off the screen.
+        let over: Vec<[i32; 4]> = self.overlays.iter().map(|&r| px(r.outset(2.0))).collect();
+        let mut shown = Vec::new();
+        for c in cards.iter().filter(|c| !c.folded && c.x + c.w > panel.x && c.x < panel.right()) {
+            let at = (px(Rect::new(c.x, panel.y, c.w, panel.h))[0], ppx[1]);
+            self.plugins.pin_to(c.row, &move |_| at, ppx, &over, (MIN_W, panel.h));
+            shown.push(c.row);
+        }
+        self.plugins.unpin_except(&shown);
     }
 
     /// Paint the whole frame.
@@ -3698,6 +3918,11 @@ impl App {
 
         // --- LEVEL 3: Frontmost Floating Plugin Windows ---
         match self.state.z.last().copied() {
+            Some(Win::PluginTab) => {
+                self.state.leave_devices();
+                self.invalidate();
+                return true;
+            }
             Some(Win::Hosted(row)) => {
                 self.plugins.close_if_open(row);
                 self.state.hide(Win::Hosted(row));
@@ -6131,7 +6356,12 @@ impl App {
                 Drag::BrowserSplit { dx } => self.browser_split_drag(x - dx),
                 Drag::PanelSplit { dy } => {
                     let bottom = self.state.work_rect().bottom();
-                    self.state.panel_h = (bottom - (self.mouse.1 - dy)).round().max(PANEL_MIN_H);
+                    let h = (bottom - (self.mouse.1 - dy)).round().max(self.state.panel_min());
+                    if self.state.panel == Win::PluginTab {
+                        self.state.panel_h_devices = h;
+                    } else {
+                        self.state.panel_h = h;
+                    }
                     self.state.panel_auto = false;
                     // Dragging the strip of a collapsed panel opens it.
                     self.set_panel_collapsed(false);
@@ -7225,8 +7455,13 @@ impl App {
             Some(Drag::BrowserSplit { .. }) => crate::browser::save_width(self.state.browser_w),
             Some(Drag::PanelSplit { .. }) if !self.state.panel_collapsed => {
                 let h = self.state.panel_area().h;
-                self.state.panel_h = h;
-                crate::settings_file::write(PANEL_KEY, &h.to_string());
+                if self.state.panel == Win::PluginTab {
+                    self.state.panel_h_devices = h;
+                    crate::settings_file::write(PANEL_DEVICES_KEY, &h.to_string());
+                } else {
+                    self.state.panel_h = h;
+                    crate::settings_file::write(PANEL_KEY, &h.to_string());
+                }
             }
             Some(Drag::Marker) if self.transport.playing() && !self.transport.song() => {
                 self.start_playback();
@@ -9156,6 +9391,17 @@ impl App {
             Action::PanelTab(w) => {
                 self.set_panel_collapsed(false);
                 self.state.raise(w);
+                self.invalidate();
+            }
+            Action::DeviceFold(row) => {
+                self.state.device_fold.remove(&row);
+                self.state.device_reveal = Some(row);
+                self.state.device_failed.remove(&row);
+                self.invalidate();
+            }
+            Action::DeviceScroll(d) => {
+                let most = (self.state.device_total - self.state.panel_area().w).max(0.0);
+                self.state.device_scroll = (self.state.device_scroll + f32::from(d) * 240.0).clamp(0.0, most);
                 self.invalidate();
             }
             Action::PanelCollapse => {
@@ -19524,6 +19770,121 @@ mod tests {
         press(&mut app, &mut c, empty);
         assert!(app.state.playlist.sel.is_empty(), "an empty spot selects nothing");
         assert_eq!(pl::clips(&app.state).len(), 3, "and places a clip");
+    }
+
+    /// The docked layout's Devices tab: always there; opening a plugin shows it with its track's chain (the track becomes the
+    /// selected one, an instrument comes first); Esc and the other tabs leave it; a folded card opens by its strip; and
+    /// the panel may be lower here than with the mixer.
+    #[test]
+    fn plugins_open_in_the_devices_tab() {
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.state.docked_ui = true;
+        app.act(Action::PanelTab(Win::PianoRoll));
+        frame(&mut app, &mut c, None);
+        assert!(app.hits.iter().any(|h| h.action == Action::PanelTab(Win::PluginTab)), "the tab is always there");
+        // An effect of track 2: the tab, the track selected, no instrument.
+        let key = crate::plugins::fx_key(2, 1);
+        app.state.raise(Win::Hosted(key));
+        frame(&mut app, &mut c, None);
+        assert_eq!((app.state.panel, app.state.panel_plugin, app.state.selected_mixer, app.state.panel_instrument), (Win::PluginTab, Some(key), 2, None));
+        assert!(!app.state.z.iter().any(|w| matches!(w, Win::Hosted(_))), "no floating window");
+        // An instrument of the rack: first in its track's chain.
+        let track = app.state.project.channels[0].mixer_track;
+        app.state.raise(Win::Hosted(0));
+        assert_eq!((app.state.panel_instrument, app.state.selected_mixer), (Some(0), track));
+        // Leaving goes back to the tab it came from, the devices staying as they are.
+        app.state.leave_devices();
+        frame(&mut app, &mut c, None);
+        assert_eq!(app.state.panel, Win::PianoRoll);
+        assert_eq!(app.state.panel_plugin, Some(0));
+        // A folded card opens by its strip.
+        app.state.device_fold.insert(7);
+        app.act(Action::DeviceFold(7));
+        assert!(!app.state.device_fold.contains(&7) && app.state.device_reveal == Some(7));
+        // The chain scrolls within what it is wider than the panel by.
+        app.state.device_total = 3000.0;
+        app.act(Action::DeviceScroll(1));
+        assert_eq!(app.state.device_scroll, 240.0);
+        app.act(Action::DeviceScroll(-1));
+        app.act(Action::DeviceScroll(-1));
+        assert_eq!(app.state.device_scroll, 0.0);
+        // The panel goes lower with the chain than with the mixer.
+        app.state.panel_auto = false;
+        app.state.panel_h = 500.0;
+        app.state.panel_h_devices = 260.0;
+        app.act(Action::PanelTab(Win::PluginTab));
+        frame(&mut app, &mut c, None);
+        assert_eq!(app.state.panel_area().h, 260.0, "its own height");
+        app.act(Action::PanelTab(Win::Mixer));
+        frame(&mut app, &mut c, None);
+        assert_eq!(app.state.panel_area().h, 500.0, "the mixer keeps its own");
+        // Opening one with the panel folded away unfolds it.
+        app.act(Action::PanelCollapse);
+        app.state.raise(Win::Hosted(1));
+        assert!(!app.state.panel_collapsed);
+    }
+
+    /// The device chain on a real X display: the selected track's plugins are cards side by side, each a window of its own
+    /// width as tall as the panel; folding one closes its editor and the next card moves up to its strip.
+    #[test]
+    #[ignore = "requires an X11 display"]
+    fn the_device_chain_lays_its_cards_side_by_side() {
+        use x11rb::connection::Connection;
+        use x11rb::protocol::xproto::{ConnectionExt, CreateWindowAux, WindowClass};
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let (connection, screen) = x11rb::connect(None).expect("X11 test display");
+        let parent = connection.generate_id().unwrap();
+        connection.create_window(x11rb::COPY_DEPTH_FROM_PARENT, parent, connection.setup().roots[screen].root, 0, 0, 1920, 1080, 0, WindowClass::INPUT_OUTPUT, x11rb::COPY_FROM_PARENT, &CreateWindowAux::new()).unwrap().check().unwrap();
+        let mut app = App::new(None);
+        app.state.docked_ui = true;
+        app.state.project = test_project();
+        app.plugins.owner = parent as isize;
+        app.plugins.scale = 1.0;
+        app.plugins.effects = crate::plugins::builtin_effects();
+        let slot = |app: &mut App, k: u8, name: &str| {
+            let index = app.plugins.effect_index(name).expect("built in effect");
+            app.state.project.mixer[1].slots[usize::from(k)] = Some(crate::plugins::new_slot(name));
+            app.plugins.create_effect(1, k, index, None).unwrap();
+            crate::plugins::fx_key(1, k)
+        };
+        let (first, second) = (slot(&mut app, 0, "Orange Limiter"), slot(&mut app, 1, "Orange Delay"));
+        app.state.selected_mixer = 1;
+        app.state.panel_auto = false;
+        app.state.panel_h_devices = 330.0;
+        app.act(Action::PanelTab(Win::PluginTab));
+        frame(&mut app, &mut c, None);
+        app.layout_devices();
+        connection.flush().unwrap();
+        let cards = app.state.device_cards.clone();
+        assert_eq!(cards.iter().map(|c| c.row).collect::<Vec<_>>(), [first, second], "the track's plugins, in slot order");
+        assert!(cards.iter().all(|c| !c.folded && c.w >= 230.0));
+        assert!(cards[1].x >= cards[0].x + cards[0].w, "side by side: {:?}", cards.iter().map(|c| (c.x, c.w)).collect::<Vec<_>>());
+        let geometry = |app: &App, row: usize| {
+            let win = app.plugins.hosted[&row].window.as_ref().expect("an open editor").hwnd() as u32;
+            connection.get_geometry(win).unwrap().reply().unwrap()
+        };
+        let panel = app.state.panel_area();
+        let (g1, g2) = (geometry(&app, first), geometry(&app, second));
+        let avail = panel.h - PANEL_TABS_H;
+        assert!(f32::from(g1.height) >= avail - 0.5 && f32::from(g1.height) <= avail + 0.5, "our plugins scale to the panel's height: {} in {avail}", g1.height);
+        let scale = |row: usize| app.plugins.hosted[&row].window.as_ref().unwrap().scale();
+        // Small and large plugins alike come out as tall as the panel.
+        assert!((f32::from(g2.height) - avail).abs() <= 0.5, "the second card too: {} in {avail}", g2.height);
+        assert!((0.6..=3.0).contains(&scale(first)) && (0.6..=3.0).contains(&scale(second)));
+        assert_eq!(i32::from(g2.x) - i32::from(g1.x), (cards[1].x - cards[0].x).round() as i32, "where the cards are");
+        // Folded: the editor closes, the strip is thin and the next card moves up to it.
+        app.state.device_fold.insert(first);
+        app.layout_devices();
+        let cards = app.state.device_cards.clone();
+        assert!(cards[0].folded && cards[0].w < 40.0 && !cards[1].folded);
+        assert!(app.plugins.window_size(first).is_none() && app.plugins.window_size(second).is_some());
+        assert!(cards[1].x < 60.0, "{}", cards[1].x);
+        // Another tab: nothing of the chain is on the screen.
+        app.act(Action::PanelTab(Win::Mixer));
+        frame(&mut app, &mut c, None);
+        app.layout_devices();
+        assert!(app.plugins.panel_shown().is_empty());
     }
 
     /// A panel nobody has sized leaves a smaller screen room for the Playlist; a dragged one stays as dragged.

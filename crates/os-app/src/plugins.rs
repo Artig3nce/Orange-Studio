@@ -231,6 +231,8 @@ impl Hosted {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Request {
     Close(usize),
+    /// A device card's title bar or close button (the panel's chain): fold it up or open it again.
+    Fold(usize),
     ToggleOn(usize),
     Volume(usize, f64),
     Pan(usize, f64),
@@ -319,6 +321,14 @@ pub struct Plugins {
     /// Main window handle (owner of plugin windows).
     pub owner: isize,
     pub scale: f32,
+    /// The docked layout: every plugin window is pinned into the bottom panel's Plugin tab (`pin_to`, `hide_frame`), never
+    /// detached; where a new one opens (the main window's client px) is `panel_at`.
+    pub panel_mode: bool,
+    pub panel_at: (i32, i32),
+    /// The rows whose windows are on the screen in the panel now (`pin_to`).
+    panel_shown: Vec<usize>,
+    /// The rows whose editors are not ours: they keep their size (`fit_scale`).
+    no_fit: Vec<usize>,
     /// Plugin windows opened so far (stamps `Hosted::opened`).
     #[cfg(plugin_windows)]
     opens: u64,
@@ -443,6 +453,7 @@ pub fn builtin_effects() -> Vec<Available> {
         &lemon_twelve::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void,
         &lemon_peak_controller::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void,
         &lemon_formula_controller::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void,
+        &orange_master::LINKED_CLAP_ENTRY as *const _ as *const std::ffi::c_void,
     ];
     let names = FILE_MAPPED.into_iter().chain(LINKED_EFFECTS);
     LIBS.iter().zip(entries).zip(names).flat_map(|((lib, entry), name)| linked(lib, entry, name)).collect()
@@ -967,7 +978,8 @@ impl Plugins {
     /// The hosted row whose plugin window is at screen point (x, y).
     #[cfg(target_os = "linux")]
     pub fn row_at_screen(&self, x: i32, y: i32) -> Option<usize> {
-        self.hosted.iter().find(|(_, h)| h.window.as_ref().and_then(|f| f.screen_rect()).is_some_and(|[l, t, r, b]| x >= l && x < r && y >= t && y < b)).map(|(&r, _)| r)
+        // Only a window that is on the screen: one hidden behind another tab takes no drops.
+        self.hosted.iter().find(|(_, h)| h.window.as_ref().filter(|f| f.visible()).and_then(|f| f.screen_rect()).is_some_and(|[l, t, r, b]| x >= l && x < r && y >= t && y < b)).map(|(&r, _)| r)
     }
 
     /// Hands file `path` to row `row`'s plugin through the host link, when that plugin takes dropped files (Orange Slicex
@@ -1070,12 +1082,16 @@ impl Plugins {
         }
         // At most `MAX_EDITORS` open: the one opened earliest closes (its plugin keeps running). Spec:
         // ui/settings-choices.md "Miscellaneous: naming, detached plugins and startup".
-        if crate::prefs::check(&crate::prefs::LIMIT_EDITORS) {
+        if !self.panel_mode && crate::prefs::check(&crate::prefs::LIMIT_EDITORS) {
             while let Some(k) = earliest_over(self.hosted.iter().filter(|(_, h)| h.window.is_some()).map(|(&k, h)| (k, h.opened)), MAX_EDITORS) {
                 self.close_window(k);
             }
         }
         let Some(h) = self.hosted.get_mut(&row) else { return Err("not a plugin channel".into()) };
+        // In the panel there are no detached windows.
+        if self.panel_mode {
+            h.detached = false;
+        }
         // A detached window reopens where it was; the first time, on a monitor as the settings say (spec: as above).
         let pos = match (h.detached, h.placed) {
             (true, Some(at)) => at,
@@ -1084,6 +1100,11 @@ impl Plugins {
         };
         // Create the frame at a provisional size, embed the editor, then fit the frame to the editor's real size.
         let w = FrameWindow::new(owner, info, (560.0, 437.0), scale, pos, h.detached)?;
+        // Pinned into the panel at once, so it never shows where a free window would open.
+        if self.panel_mode {
+            w.set_pinned(true);
+            w.move_to(self.panel_at);
+        }
         // Mixer effects have no channel strip (spec: ui/mixer.md §7).
         if row >= FX_KEY {
             w.set_strip(false);
@@ -1204,6 +1225,8 @@ impl Plugins {
             h.window = None;
             h.link = None;
         }
+        self.panel_shown.retain(|&r| r != row);
+        self.no_fit.retain(|&r| r != row);
     }
 
     /// Row `row`'s open window (native frame handle) and whether it is detached.
@@ -1215,6 +1238,10 @@ impl Plugins {
     /// Docks or detaches row `row`'s window (window menu > Detached); closed, it opens that way next time.
     #[cfg(plugin_windows)]
     pub fn set_detached(&mut self, row: usize, on: bool) {
+        // No detached windows in the panel.
+        if self.panel_mode {
+            return;
+        }
         let owner = self.owner;
         if let Some(h) = self.hosted.get_mut(&row) {
             h.detached = on;
@@ -1260,6 +1287,82 @@ impl Plugins {
         for w in self.hosted.values().filter_map(|h| h.window.as_ref()) {
             w.move_into_workspace();
         }
+    }
+
+    /// Shows row `row`'s window in the panel as one card of the device chain: at the point `place` gives for its size (physical
+    /// px), as tall as `fill` (logical px) and at least as wide, clipped to `work` minus `covers` (main-window client px).
+    #[cfg(plugin_windows)]
+    pub fn pin_to(&mut self, row: usize, place: &dyn Fn((i32, i32)) -> (i32, i32), work: [i32; 4], covers: &[[i32; 4]], fill: (f32, f32)) {
+        let shown = self.panel_shown.contains(&row);
+        let Some(w) = self.hosted.get(&row).and_then(|h| h.window.as_ref()) else { return };
+        w.set_pinned(true);
+        w.set_fill(Some(fill));
+        w.move_to(place(w.size_px()));
+        w.clip_to(work, covers);
+        // Mapped when it comes back from another tab or from out of view, and on top of the app's drawn parts.
+        if !shown {
+            w.raise();
+            self.panel_shown.push(row);
+        }
+    }
+
+    /// Our own plugins' editors in the device chain scale to the panel's height (between 60 % and 300 %), so every card is as
+    /// tall as the panel and the whole plugin shows; others keep their size. Reopens the editor at the new scale only when
+    /// it changes by a real step.
+    #[cfg(plugin_windows)]
+    pub fn fit_scale(&mut self, row: usize, avail_h: f32) {
+        if self.no_fit.contains(&row) {
+            return;
+        }
+        let Some(w) = self.hosted.get(&row).and_then(|h| h.window.as_ref()) else { return };
+        let want = self.scale * (avail_h / w.natural_size().1.max(1.0)).clamp(0.6, 3.0);
+        if (w.scale() - want).abs() <= 0.03 {
+            return;
+        }
+        // Asked once: the instance's lock is not for the audio thread to wait on.
+        let ours = self.hosted.get(&row).and_then(|h| h.plugin.lock().ok()).is_some_and(|p| crate::project_plugins::is_builtin(p.desc()));
+        if ours {
+            self.rescale_window(row, want);
+        } else {
+            self.no_fit.push(row);
+        }
+    }
+
+    /// The rows whose windows are on the screen in the panel.
+    #[cfg(plugin_windows)]
+    pub fn panel_shown(&self) -> &[usize] {
+        &self.panel_shown
+    }
+
+    /// Takes the panel's windows off the screen but those of `keep`.
+    #[cfg(plugin_windows)]
+    pub fn unpin_except(&mut self, keep: &[usize]) {
+        for row in std::mem::take(&mut self.panel_shown) {
+            if keep.contains(&row) {
+                self.panel_shown.push(row);
+            } else if let Some(w) = self.hosted.get(&row).and_then(|h| h.window.as_ref()) {
+                w.hide();
+            }
+        }
+    }
+
+    /// Takes row `row`'s window off the screen (another tab is showing).
+    #[cfg(plugin_windows)]
+    pub fn hide_frame(&mut self, row: usize) {
+        if let Some(w) = self.hosted.get(&row).and_then(|h| h.window.as_ref()) {
+            w.hide();
+        }
+        self.panel_shown.retain(|&r| r != row);
+    }
+
+    /// Whether row `row` has an editor window open, and its size (logical px).
+    #[cfg(plugin_windows)]
+    pub fn window_size(&self, row: usize) -> Option<(f32, f32)> {
+        let k = self.scale.max(0.1);
+        self.hosted.get(&row)?.window.as_ref().map(|w| {
+            let (pw, ph) = w.size_px();
+            (pw as f32 / k, ph as f32 / k)
+        })
     }
 
     /// Clips row `row`'s docked window to `work` minus `covers` (main-window client px).
@@ -1404,6 +1507,7 @@ impl Plugins {
                             close.push(row);
                             Request::Close(row)
                         }
+                        FrameEvent::Fold => Request::Fold(row),
                         FrameEvent::ToggleOn => Request::ToggleOn(row),
                         FrameEvent::Volume(v) => Request::Volume(row, v),
                         FrameEvent::Pan(v) => Request::Pan(row, v),
@@ -1681,7 +1785,7 @@ pub const LEMON_EQ: &str = "Orange Parametric EQ";
 /// Lemon Studio's effects compiled in besides the EQ (`builtin_effects`, in this order). They have no file plugin of
 /// their own to be stored as, so a project stores them wrapped, as it stored their plugin files
 /// (`project_plugins::is_wrapped`).
-pub const LINKED_EFFECTS: [&str; 20] = [
+pub const LINKED_EFFECTS: [&str; 21] = [
     "Orange Limiter",
     "Orange Reverb",
     "Orange Delay",
@@ -1702,6 +1806,7 @@ pub const LINKED_EFFECTS: [&str; 20] = [
     "Orange 12",
     LEMON_PEAK_CONTROLLER,
     LEMON_FORMULA_CONTROLLER,
+    "Orange Master",
 ];
 /// Lemon Studio's effects compiled in that a project stores under the FL plugin they recreate, with that plugin's
 /// state (`new_slot`, `store_builtin_states`), so they are never saved wrapped.
@@ -2419,6 +2524,66 @@ mod linux_tests {
             plugins.set_scale(scale);
             assert_eq!(plugins.scale, 1.25);
         }
+    }
+
+    /// In the panel a plugin's window opens where the panel says, can't be detached, shows and hides with its tab, and
+    /// goes where the app puts it.
+    #[test]
+    #[ignore = "requires an X11 display"]
+    fn a_pinned_window_follows_the_panel() {
+        use x11rb::protocol::xproto::MapState;
+        let (connection, screen) = x11rb::connect(None).expect("X11 test display");
+        let parent = connection.generate_id().unwrap();
+        connection.create_window(
+            x11rb::COPY_DEPTH_FROM_PARENT, parent, connection.setup().roots[screen].root, 0, 0, 1920, 1080, 0,
+            WindowClass::INPUT_OUTPUT, x11rb::COPY_FROM_PARENT, &CreateWindowAux::new(),
+        ).unwrap().check().unwrap();
+        let mut plugins = Plugins { available: builtin(), owner: parent as isize, scale: 1.0, rate: 48000, panel_mode: true, panel_at: (100, 200), ..Plugins::default() };
+        let index = plugins.index_of(LEMON_SAMPLER).expect("built-in Lemon Sampler");
+        plugins.create_with(0, index, None).unwrap();
+        plugins.hosted.get_mut(&0).unwrap().detached = true;
+        let info = ChannelInfo { name: LEMON_SAMPLER.into(), target: "Insert 1".into(), enabled: true, volume: 0.78, pan: 0.0, pitch_cents: 0, range: 2, track: 1, max_track: 125, misc: None };
+        plugins.open_window(0, info).unwrap();
+        let frame = |p: &Plugins| p.hosted[&0].window.as_ref().unwrap().hwnd() as u32;
+        let geometry = |win: u32| connection.get_geometry(win).unwrap().reply().unwrap();
+        let mapped = |win: u32| connection.get_window_attributes(win).unwrap().reply().unwrap().map_state != MapState::UNMAPPED;
+        assert!(!plugins.hosted[&0].window.as_ref().unwrap().detached(), "no detached windows in the panel");
+        let g = geometry(frame(&plugins));
+        assert_eq!((g.x, g.y), (100, 200), "it opens where the panel says");
+        assert_eq!(connection.query_tree(frame(&plugins)).unwrap().reply().unwrap().parent, parent);
+        // Pinned in the middle of a panel, clipped to it.
+        let panel = [0, 100, 1920, 700];
+        let at = move |_: (i32, i32)| (panel[0], panel[1]);
+        let fill = (1920.0, 600.0);
+        plugins.pin_to(0, &at, panel, &[], fill);
+        connection.flush().unwrap();
+        let g = geometry(frame(&plugins));
+        assert_eq!((g.x, g.y, g.width, g.height), (0, 100, 1920, 600), "it fills the panel");
+        // The editor sits in the middle of it, under the title bar.
+        let area = geometry(plugins.hosted[&0].window.as_ref().unwrap().area() as usize as u32);
+        assert_eq!(i32::from(area.x) * 2 + i32::from(area.width), 1920, "the editor is centred");
+        assert!(mapped(frame(&plugins)) && plugins.panel_shown() == [0]);
+        // Another tab: off the screen; back: on it, at the same place.
+        plugins.hide_frame(0);
+        connection.flush().unwrap();
+        assert!(!mapped(frame(&plugins)) && plugins.panel_shown().is_empty());
+        plugins.pin_to(0, &at, panel, &[], fill);
+        connection.flush().unwrap();
+        assert!(mapped(frame(&plugins)));
+        assert_eq!(geometry(frame(&plugins)).y, 100);
+        // A hidden window is not where a drop would go.
+        plugins.hide_frame(0);
+        connection.flush().unwrap();
+        assert!(!plugins.hosted[&0].window.as_ref().unwrap().visible());
+        plugins.pin_to(0, &at, panel, &[], fill);
+        connection.flush().unwrap();
+        assert!(plugins.hosted[&0].window.as_ref().unwrap().visible());
+        // Detaching is refused.
+        plugins.set_detached(0, true);
+        assert!(!plugins.hosted[&0].window.as_ref().unwrap().detached());
+        // Closed: nothing is shown.
+        plugins.close_window(0);
+        assert!(plugins.panel_shown().is_empty());
     }
 
     #[test]

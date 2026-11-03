@@ -499,6 +499,58 @@ impl FrameWindow {
         self.f.apply_clip();
     }
 
+    /// Pins the window into the bottom panel's Plugin tab (the app places it with `move_to` and hides it with `hide`), or
+    /// lets it be a free window again.
+    pub fn set_pinned(&self, on: bool) {
+        let changed = std::mem::replace(&mut self.f.state.borrow_mut().pinned, on) != on;
+        super::set_pin_look(on);
+        if changed {
+            self.f.layout();
+        }
+    }
+
+    /// The window's own size around its editor (logical px), whatever it is pinned to fill.
+    pub fn natural_size(&self) -> (f32, f32) {
+        self.f.state.borrow().natural()
+    }
+
+    /// Pinned: the frame fills `size` (logical px), the editor centred across it. None: its own size.
+    pub fn set_fill(&self, size: Option<(f32, f32)>) {
+        let changed = {
+            let mut st = self.f.state.borrow_mut();
+            std::mem::replace(&mut st.fill, size) != size
+        };
+        if changed {
+            self.f.layout();
+        }
+    }
+
+    /// The window's size (physical px).
+    pub fn size_px(&self) -> (i32, i32) {
+        let k = self.f.main_scale();
+        let fr = self.f.view.frame();
+        ((fr.size.width * k).round() as i32, (fr.size.height * k).round() as i32)
+    }
+
+    /// Moves a docked window to `at`, in the main window (physical px), and clips it again for the place.
+    pub fn move_to(&self, at: (i32, i32)) {
+        let f = &self.f;
+        if f.state.borrow().detached || f.panel.borrow().is_some() {
+            return;
+        }
+        let k = f.main_scale();
+        f.view.setFrameOrigin(NSPoint::new(f64::from(at.0) / k, f64::from(at.1) / k));
+        f.apply_clip();
+    }
+
+    /// Takes the window off the screen (`raise` shows it again).
+    pub fn hide(&self) {
+        match self.f.panel.borrow().as_ref() {
+            Some(p) => p.orderOut(None),
+            None => self.f.view.setHidden(true),
+        }
+    }
+
     /// The frame's view (the same docked and detached; drops find their plugin by it).
     pub fn hwnd(&self) -> isize {
         Retained::as_ptr(&self.f.view) as isize
@@ -586,8 +638,11 @@ impl FrameWindow {
     /// A point of the editor (logical px from its top-left) on the screen (screen px): where a menu the plugin asked
     /// for opens (spec: plugins/vst3-hosting.md §9).
     pub fn editor_to_screen(&self, x: f32, y: f32) -> (i32, i32) {
-        let ay = self.f.state.borrow().area_y();
-        self.f.to_screen(BORDER + x, ay + y)
+        let (ax, ay) = {
+            let st = self.f.state.borrow();
+            (st.area_x(), st.area_y())
+        };
+        self.f.to_screen(ax + x, ay + y)
     }
 
     /// Redraws the frame at another backing scale (same size in points). The editor inside is the caller's: it reopens
@@ -727,7 +782,7 @@ impl Frame {
     fn layout(&self) {
         let st = self.state.borrow();
         let (fw, fh) = st.size();
-        let (ay, ed, show) = (st.area_y(), st.editor, !st.misc);
+        let (ay, ed, show, ax) = (st.area_y(), st.editor, !st.misc, st.area_x());
         drop(st);
         let (w, h) = (f64::from(fw), f64::from(fh));
         match self.panel.borrow().as_ref() {
@@ -739,7 +794,7 @@ impl Frame {
             // Docked: the main window's view is flipped, the top-left stays.
             None => self.view.setFrameSize(NSSize::new(w, h)),
         }
-        self.area.setFrame(rect(f64::from(BORDER), f64::from(ay), f64::from(ed.0), f64::from(ed.1)));
+        self.area.setFrame(rect(f64::from(ax), f64::from(ay), f64::from(ed.0), f64::from(ed.1)));
         self.pin_editor();
         self.area.setHidden(!show);
         let k = self.scale.get();

@@ -1205,7 +1205,7 @@ pub fn options_menu(s: &State, x: f32, y: f32) -> Popup {
     width.push(PItem::new(if custom { format!("Custom ({}%)", r.name_pct) } else { "Custom".into() }, Cmd::Nothing).mark(Mark::Radio(custom)).off());
     width.push(PItem::sep());
     width.push(it("Size to fit", RCmd::SizeToFit));
-    let items = vec![
+    let mut items = vec![
         PItem::sub("Add one", add_one_items(s)),
         PItem::not_yet("Loop starter").mark(Mark::Check(false)),
         it("Purge unused audio clips", RCmd::Purge),
@@ -1268,13 +1268,15 @@ pub fn options_menu(s: &State, x: f32, y: f32) -> Popup {
         it("Show mixer track selectors", RCmd::ShowMixer).key("Alt+M").mark(Mark::Check(r.show_mixer)),
         opt(s, "Show complete piano roll preview"),
         opt(s, "Show a mute button on the piano roll preview"),
-        opt(s, "Detached"),
         PItem::head("Switch"),
         PItem::not_yet("Switch smart disable for all plugins"),
         PItem::sub(crate::views::menus::CLIPS_ALL_LABEL, stretch_items(true)),
         PItem::sub(crate::views::menus::CLIPS_SEL_LABEL, stretch_items(false)),
-        PItem::sub(crate::views::menus::EDITORS_LABEL, editor_items()),
     ];
+    // Plugin editors live in the panel in the docked layout: nothing to switch between attached and detached.
+    if !s.docked_ui {
+        items.push(PItem::sub(crate::views::menus::EDITORS_LABEL, editor_items()));
+    }
     Popup { x, y, items, sub: None, scroll: [0; 2] }
 }
 

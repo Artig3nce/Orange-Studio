@@ -1250,7 +1250,6 @@ pub fn options_menu(s: &State, x: f32, y: f32) -> Popup {
         PItem::sub("Plugin delay compensation", vec![PItem::not_yet("Automatic")]),
         PItem::not_yet("Link all parameters..."),
         PItem::sub("View", vec![PItem::not_yet("Waveforms"), PItem::not_yet("Extra properties")]),
-        PItem::not_yet("Detached").mark(Mark::Check(false)),
         PItem::sep(),
         PItem::sub("Trim unused tracks", trim_items(s)),
         PItem::not_yet("Switch smart disable for all plugins"),

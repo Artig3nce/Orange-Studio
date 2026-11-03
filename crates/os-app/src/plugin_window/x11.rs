@@ -245,7 +245,7 @@ impl FrameWindow {
                 x11rb::COPY_DEPTH_FROM_PARENT,
                 area,
                 win,
-                px(BORDER, k) as i16,
+                px(state.area_x(), k) as i16,
                 px(ay, k) as i16,
                 px(editor.0, k),
                 px(editor.1, k),
@@ -386,6 +386,66 @@ impl FrameWindow {
         self.f.apply_clip();
     }
 
+    /// Pins the window into the bottom panel's Plugin tab (the app places it with `move_to` and hides it with `hide`), or
+    /// lets it be a free window again.
+    pub fn set_pinned(&self, on: bool) {
+        let changed = {
+            let mut st = self.f.state.borrow_mut();
+            std::mem::replace(&mut st.pinned, on) != on
+        };
+        super::set_pin_look(on);
+        if changed {
+            self.f.layout();
+        }
+    }
+
+    /// The window's own size around its editor (logical px), whatever it is pinned to fill.
+    pub fn natural_size(&self) -> (f32, f32) {
+        self.f.state.borrow().natural()
+    }
+
+    /// The window is mapped (a hidden one, in the panel behind another tab or minimized, takes no clicks or drops).
+    pub fn visible(&self) -> bool {
+        self.f.conn.c.get_window_attributes(self.f.win).ok().and_then(|r| r.reply().ok()).is_some_and(|a| a.map_state != xproto::MapState::UNMAPPED)
+    }
+
+    /// The window's size (physical px).
+    pub fn size_px(&self) -> (i32, i32) {
+        let c = self.f.canvas.borrow();
+        (c.pixmap.width() as i32, c.pixmap.height() as i32)
+    }
+
+    /// Pinned: the frame fills `size` (logical px), the editor centred across it. None: its own size.
+    pub fn set_fill(&self, size: Option<(f32, f32)>) {
+        let changed = {
+            let mut st = self.f.state.borrow_mut();
+            std::mem::replace(&mut st.fill, size) != size
+        };
+        if changed {
+            self.f.layout();
+        }
+    }
+
+    /// Moves a docked window to `at`, in the main window (physical px), and clips it again for the place.
+    pub fn move_to(&self, at: (i32, i32)) {
+        let f = &self.f;
+        if f.state.borrow().detached || f.pos.get() == at {
+            return;
+        }
+        f.pos.set(at);
+        let _ = f.conn.c.configure_window(f.win, &ConfigureWindowAux::new().x(at.0).y(at.1));
+        f.apply_clip();
+        let _ = f.conn.c.flush();
+        expose();
+    }
+
+    /// Takes the window off the screen (`raise` shows it again).
+    pub fn hide(&self) {
+        let _ = self.f.conn.c.unmap_window(self.f.win);
+        let _ = self.f.conn.c.flush();
+        expose();
+    }
+
     /// The native frame window (an X11 window id).
     pub fn hwnd(&self) -> isize {
         self.f.win as isize
@@ -513,8 +573,11 @@ impl FrameWindow {
     /// A point of the editor (logical px from its top-left) on the screen (screen px): where a menu the plugin asked
     /// for opens (spec: plugins/vst3-hosting.md §9).
     pub fn editor_to_screen(&self, x: f32, y: f32) -> (i32, i32) {
-        let ay = self.f.state.borrow().area_y();
-        self.f.to_screen(BORDER + x, ay + y)
+        let (ax, ay) = {
+            let st = self.f.state.borrow();
+            (st.area_x(), st.area_y())
+        };
+        self.f.to_screen(ax + x, ay + y)
     }
 
     /// Follows a new editor size (plugins may resize).
@@ -600,13 +663,13 @@ impl Frame {
     fn layout(&self) {
         let st = self.state.borrow();
         let (fw, fh) = st.size();
-        let (ay, ed, show) = (st.area_y(), st.editor, !st.misc);
+        let (ay, ed, show, ax) = (st.area_y(), st.editor, !st.misc, st.area_x());
         drop(st);
         let (k, c) = (self.scale.get(), &self.conn.c);
         let (w, h) = (px(fw, k), px(fh, k));
         let _ = fixed_size(c, self.win, w, h);
         let _ = c.configure_window(self.win, &ConfigureWindowAux::new().width(u32::from(w)).height(u32::from(h)));
-        let area = ConfigureWindowAux::new().x(i32::from(px(BORDER, k))).y(i32::from(px(ay, k))).width(u32::from(px(ed.0, k))).height(u32::from(px(ed.1, k)));
+        let area = ConfigureWindowAux::new().x(i32::from(px(ax, k))).y(i32::from(px(ay, k))).width(u32::from(px(ed.0, k))).height(u32::from(px(ed.1, k)));
         let _ = c.configure_window(self.area, &area);
         let _ = if show { c.map_window(self.area) } else { c.unmap_window(self.area) };
         self.canvas.borrow_mut().resize(u32::from(w), u32::from(h), k);

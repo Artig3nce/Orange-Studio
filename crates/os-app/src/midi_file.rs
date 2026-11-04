@@ -682,6 +682,7 @@ impl App {
             let tempo = imp.tempo.unwrap_or(120.0);
             let s = &mut self.state;
             s.project = crate::app::empty_project();
+            s.pattern_lens.clear();
             s.project.ppq = ppq;
             s.project.tempo = Some(tempo);
             crate::project_info::created(s);

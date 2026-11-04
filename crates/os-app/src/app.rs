@@ -1159,6 +1159,8 @@ pub struct State {
     pub selected_channel: usize,
     pub selected_mixer: u16,
     pub pattern: u16,
+    /// The length each pattern had when last looked at (`playlist::follow_pattern_length`).
+    pub pattern_lens: std::collections::HashMap<u16, u32>,
     pub pattern_mixer_filter: Option<u16>,
     pub song_mode: bool,
     pub menu_open: Option<usize>,
@@ -1719,6 +1721,7 @@ impl App {
                 selected_mixer: 1,
                 mixer: Default::default(),
                 pattern: 1,
+                pattern_lens: std::collections::HashMap::new(),
                 pattern_mixer_filter: None,
                 song_mode: false,
                 menu_open: None,
@@ -1985,6 +1988,7 @@ impl App {
                 // "Project").
                 s.song_mode = project.song_mode.unwrap_or(true);
                 s.project = project;
+                s.pattern_lens.clear();
                 // Opening in song mode sets the initial values, as FL 26 does (spec: flp/engine-events.md "Event
                 // 216"); the project is opened with them, not changed.
                 crate::init::apply(s);
@@ -2555,6 +2559,7 @@ impl App {
         self.state.roll = Default::default();
         let s = &mut self.state;
         s.project = default_project();
+        s.pattern_lens.clear();
         crate::project_info::created(s);
         s.file = None;
         s.path = None;
@@ -4666,6 +4671,11 @@ impl App {
     /// Periodic housekeeping; returns whether a repaint is needed.
     pub fn tick(&mut self) -> bool {
         self.plugin_tick();
+        // Notes added past the pattern's end lengthen its clips in the playlist.
+        if crate::playlist::follow_pattern_length(&mut self.state) {
+            self.state.piano.dirty = true;
+            self.invalidate();
+        }
         self.tab_dwell();
         // Playback loops over the time selection, as it is now (spec: ui/recording.md §5).
         self.sync_loop_range();
@@ -19965,6 +19975,33 @@ mod tests {
         assert!(crate::playlist::arr_mut(&mut app.state).tracks[0].color.is_none());
         app.state.docked_ui = false;
         assert_eq!(track_color(&app.state, 0), None);
+    }
+
+    /// Notes added past a pattern's end lengthen its clips in the playlist (those that show all of it), so they need no
+    /// stretching by hand; a clip trimmed to part of it keeps its length.
+    #[test]
+    fn a_pattern_clip_follows_the_pattern_as_notes_are_added() {
+        use crate::playlist as pl;
+        use os_model::ClipSource;
+        let mut app = App::new(None);
+        app.state.project = test_project();
+        let n = app.state.pattern;
+        app.state.playlist.source = Some(ClipSource::Pattern(n));
+        pl::follow_pattern_length(&mut app.state);
+        let whole = pl::place(&mut app.state, 0, 0);
+        let trimmed = pl::place(&mut app.state, 1, 0);
+        pl::arr_mut(&mut app.state).clips[trimmed].window = Some((0.0, 10.0));
+        pl::arr_mut(&mut app.state).clips[trimmed].length = 10;
+        let (ch, bar) = (app.state.project.channels[0].index, app.state.project.pattern_length(n));
+        let before = pl::clips(&app.state)[whole].length;
+        // A note in the next bar.
+        crate::piano::pattern_mut(&mut app.state).notes.push(os_model::Note::step(ch, bar + 4));
+        assert!(pl::follow_pattern_length(&mut app.state));
+        let after = app.state.project.pattern_length(n);
+        assert!(after > before);
+        assert_eq!(pl::clips(&app.state)[whole].length, after, "it rose by itself");
+        assert_eq!(pl::clips(&app.state)[trimmed].length, 10, "a trimmed clip stays");
+        assert!(!pl::follow_pattern_length(&mut app.state), "nothing more to follow");
     }
 
     /// A panel nobody has sized leaves a smaller screen room for the Playlist; a dragged one stays as dragged.

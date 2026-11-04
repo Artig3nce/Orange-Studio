@@ -903,6 +903,7 @@ mod tests {
             }
             let mut a = App::new(None);
             a.state.project = project;
+            a.state.pattern_lens.clear();
             a.reset_hosted();
             a.plugins.effects = crate::plugins::builtin_effects();
             a.sync_effects();

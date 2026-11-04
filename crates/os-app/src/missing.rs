@@ -332,6 +332,7 @@ pub(crate) mod tests {
         std::fs::write(dir.join("Here.wav"), &wav).unwrap();
         let mut app = App::new(None);
         app.state.project = crate::app::default_project();
+        app.state.pattern_lens.clear();
         let a = crate::app::add_channel(&mut app.state.project);
         let b = crate::app::add_channel(&mut app.state.project);
         app.state.project.channels[a].sample_path = Some(r"C:\Users\someone\AppData\Local\Temp\Image-Line\x\Here.wav".into());

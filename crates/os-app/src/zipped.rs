@@ -432,6 +432,7 @@ mod tests {
         std::fs::write(d.join("two/Kick.wav"), &wav[..wav.len() - 2]).unwrap();
         let mut app = App::new(None);
         app.state.project = crate::app::default_project();
+        app.state.pattern_lens.clear();
         let rows: Vec<usize> = (0..4).map(|_| crate::app::add_channel(&mut app.state.project)).collect();
         let one = d.join("one/Kick.wav").to_string_lossy().into_owned();
         let two = d.join("two/Kick.wav").to_string_lossy().into_owned();

@@ -1559,6 +1559,28 @@ pub fn place(s: &mut State, track: u16, tick: u32) -> usize {
     clips(s).len() - 1
 }
 
+/// The current pattern grew or shrank (notes past its end, or taken away): the clips of it that show all of it follow, so
+/// what was added is seen without stretching them by hand. A clip trimmed to part of the pattern keeps its length.
+/// Whether any clip changed.
+pub fn follow_pattern_length(s: &mut State) -> bool {
+    let n = s.pattern;
+    let new = s.project.pattern_length(n);
+    let Some(old) = s.pattern_lens.insert(n, new).filter(|&o| o != new) else { return false };
+    let mut changed = false;
+    for a in &mut s.project.arrangements {
+        for c in a.clips.iter_mut().filter(|c| c.source == ClipSource::Pattern(n) && c.length == old) {
+            match c.window {
+                None => {}
+                Some((from, to)) if from == 0.0 && to == f64::from(old) => c.window = Some((0.0, f64::from(new))),
+                Some(_) => continue,
+            }
+            c.length = new;
+            changed = true;
+        }
+    }
+    changed
+}
+
 /// The clip `place` and painting add at `tick`: the kept trimmed clip of the current source if there is one.
 fn new_clip(s: &State, track: u16, tick: u32) -> Clip {
     let src = source(s);

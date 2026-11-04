@@ -2593,17 +2593,19 @@ impl App {
         self.master_into_new_project();
     }
 
-    /// A new project starts with Orange Master in the master's first slot: it changes nothing until Auto Master (or a knob)
-    /// does. The project still counts as untouched, and undo does not take it out.
+    /// A new project starts with the master selected and Orange Master in its first slot: it changes nothing until Auto Master
+    /// (or a knob) does. The project still counts as untouched, and undo does not take it out.
     pub(crate) fn master_into_new_project(&mut self) {
+        // The mixer shows the master, where Orange Master is.
+        self.state.selected_mixer = 0;
+        if self.state.docked_ui {
+            self.state.raise(Win::Mixer);
+        }
         let Some(index) = self.plugins.effect_index("Orange Master") else { return };
         if self.state.project.mixer.iter().find(|m| m.index == 0).is_none_or(|m| m.slots[0].is_some()) {
             return;
         }
-        let keep = self.state.selected_mixer;
-        self.state.selected_mixer = 0;
         let _ = crate::mixer::run(self, crate::mixer::MCmd::AddEffect(0, index));
-        self.state.selected_mixer = keep;
         self.state.history.reset();
         self.mark_saved();
     }
@@ -20014,7 +20016,7 @@ mod tests {
         assert_eq!(slot.name, "Orange Master");
         assert!(app.state.mixer.pending.iter().any(|r| matches!(r, crate::mixer::FxReq::Create { track: 0, slot: 0, .. })), "asked to host it");
         assert!(!app.unsaved(), "still an untouched project");
-        assert_eq!(app.state.selected_mixer, 1, "the selection stays");
+        assert_eq!(app.state.selected_mixer, 0, "the mixer shows the master");
         // Another project is left alone.
         let mut other = App::new(None);
         other.plugins.effects = crate::plugins::builtin_effects();

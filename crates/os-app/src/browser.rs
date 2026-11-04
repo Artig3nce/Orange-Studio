@@ -392,6 +392,27 @@ impl App {
         for r in old_ghost.into_iter().chain([view::ghost_rect(x, y)]) {
             self.damage_rect(r.outset(1.0));
         }
+        self.tab_dwell();
+    }
+
+    /// A dragged item resting on a panel tab opens it, so it can be dropped into that tab (a plugin onto the Channel
+    /// rack tab, then onto the rack).
+    pub(crate) fn tab_dwell(&mut self) {
+        const REST: std::time::Duration = std::time::Duration::from_millis(400);
+        let over = match (&self.drag, self.top_hit(self.mouse.0, self.mouse.1).map(|h| &h.action)) {
+            (Some(Drag::Browser { started: true, .. }), Some(&Action::PanelTab(w))) if w != self.state.panel => Some(w),
+            _ => None,
+        };
+        match (over, self.tab_dwell) {
+            (None, _) => self.tab_dwell = None,
+            (Some(w), Some((t, since))) if t == w => {
+                if since.elapsed() >= REST {
+                    self.tab_dwell = None;
+                    self.act(Action::PanelTab(w));
+                }
+            }
+            (Some(w), _) => self.tab_dwell = Some((w, std::time::Instant::now())),
+        }
     }
 }
 
@@ -1305,4 +1326,23 @@ mod tests {
         assert_eq!(row.map(|r| r.label), Some("A Kick".into()));
         let _ = std::fs::remove_dir_all(&dir);
     }
+    /// A dragged item resting on a panel tab opens it (a plugin goes onto the Channel rack tab, then the rack).
+    #[test]
+    fn a_dragged_item_opens_the_tab_it_rests_on() {
+        use crate::app::{App, Action, Win};
+        let Ok(mut c) = os_ui::Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.state.docked_ui = true;
+        app.state.z = vec![Win::Mixer];
+        app.paint(&mut c, None);
+        let tab = app.hits.iter().find(|h| h.action == Action::PanelTab(Win::ChannelRack)).map(|h| h.rect).expect("the tab");
+        app.drag = Some(Drag::Browser { item: Item::Generator(0), label: "x".into(), m0: (0.0, 0.0), started: true });
+        app.mouse_move(tab.cx(), tab.cy());
+        assert!(app.state.shown(Win::Mixer) && !app.state.shown(Win::ChannelRack), "not at once: a drag passing over the tab leaves it");
+        app.tab_dwell = app.tab_dwell.map(|(w, t)| (w, t - std::time::Duration::from_millis(500)));
+        app.tab_dwell();
+        app.paint(&mut c, None);
+        assert!(app.state.shown(Win::ChannelRack) && !app.state.shown(Win::Mixer), "after a rest");
+    }
+
 }

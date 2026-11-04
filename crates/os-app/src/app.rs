@@ -1587,6 +1587,8 @@ pub struct App {
     pub over_clip: bool,
     /// The mouse is on a clip's menu icon (the title strip's left end): the hand shows, not the grab.
     pub over_clip_icon: bool,
+    /// A browser item dragged over a panel tab, and since when: the tab opens after a short rest (`tab_dwell`).
+    pub(crate) tab_dwell: Option<(Win, std::time::Instant)>,
     /// Modifier keys held (set by the shell).
     pub ctrl: bool,
     pub shift: bool,
@@ -1857,6 +1859,7 @@ impl App {
             resize_cursor: false,
             over_clip: false,
             over_clip_icon: false,
+            tab_dwell: None,
             ctrl: false,
             shift: false,
             alt: false,
@@ -4651,6 +4654,7 @@ impl App {
     /// Periodic housekeeping; returns whether a repaint is needed.
     pub fn tick(&mut self) -> bool {
         self.plugin_tick();
+        self.tab_dwell();
         // Playback loops over the time selection, as it is now (spec: ui/recording.md §5).
         self.sync_loop_range();
         #[cfg(all(plugin_windows, not(windows)))]

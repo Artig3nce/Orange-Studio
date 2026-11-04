@@ -329,13 +329,19 @@ fn device_chain(ui: &mut Ui, s: &State) {
         // The fold button, and for an effect its menu (replace, delete, move).
         let close_w = if slot.is_some() { 46.0 } else { 24.0 };
         let bar_w = if slot.is_some() && c.w >= 380.0 { 104.0 } else { 0.0 };
-        let lead = if slot.is_some() { 22.0 } else { 0.0 };
+        let lead = if slot.is_some() { 32.0 } else { 0.0 };
         let name_w = (c.w - 16.0 - lead - box_w - close_w - bar_w).max(0.0);
         if let Some((tr, k)) = slot {
             let on = s.project.mixer.iter().find(|m| m.index == tr).is_some_and(|m| m.slot_on[usize::from(k)]);
-            let sw = Rect::new(r.x + 4.0, r.y, 20.0, r.h);
-            ui.hit(sw, Action::Mix(crate::mixer::MHit::SlotLed(k)), if on { "Effect on (click: bypass)" } else { "Effect bypassed (click: on)" });
-            led_small(ui, sw.cx(), sw.cy(), on);
+            // A power button, lit orange while the effect is on and dark while it is bypassed.
+            let sw = Rect::new(r.x + 4.0, r.cy() - 9.0, 24.0, 18.0);
+            let hov = ui.hit(sw, Action::Mix(crate::mixer::MHit::SlotLed(k)), if on { "Effect on (click: bypass)" } else { "Effect bypassed (click: on)" });
+            let face = if on { Color::rgb(if hov { 0xffb957 } else { 0xffa83a }) } else { Color::rgb(if hov { 0x3a3a3a } else { 0x2a2a2a }) };
+            ui.c.fill_rrect(sw, 6.0, face);
+            let ink = if on { Color::rgb(0x1a1200) } else if hov { t.text } else { t.text_dim };
+            let (cx, cy) = (sw.cx(), sw.cy() + 0.5);
+            ui.c.arc(cx, cy, 4.8, -std::f32::consts::FRAC_PI_2 + 0.65, std::f32::consts::TAU - 1.3, 1.7, ink);
+            ui.c.line(cx, cy - 6.0, cx, cy - 1.0, 1.7, ink);
         }
         ui.c.text_clip(font, r.x + 8.0 + lead, r.y + 1.0, name_w, t.text_dim, &c.name);
         let mut right = r.right() - 4.0;

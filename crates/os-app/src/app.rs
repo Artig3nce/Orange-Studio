@@ -306,6 +306,9 @@ pub enum Action {
     PanelCollapse,
     /// A folded device card of the Devices tab: opens it.
     DeviceFold(usize),
+    /// A device card's caption: its Presets box, and the close that folds it up.
+    DevicePresets(usize),
+    DeviceClose(usize),
     /// The Devices tab's chain scrolls a step left (-1) or right (1).
     DeviceScroll(i8),
     /// The plugin browser (Plugin database tab): filter button `i` (`views::plugin_panel::FILTERS`), a category
@@ -1476,6 +1479,9 @@ impl State {
         if self.is_max(w) { self.docked() == Some(w) } else { self.z.last() == Some(&w) }
     }
 }
+
+/// The height of the row above a device card, where its name and actions are (logical px).
+pub const DEVICE_CAPTION_H: f32 = 22.0;
 
 /// One card of the device chain: where it is across the panel (logical px) and whether it is folded up.
 #[derive(Clone, Debug, PartialEq)]
@@ -3358,7 +3364,7 @@ impl App {
         }
         // Our own plugins' editors scale down to the panel's height.
         for &row in &open {
-            self.plugins.fit_scale(row, panel.h);
+            self.plugins.fit_scale(row, panel.h - DEVICE_CAPTION_H);
         }
         // Where each card goes.
         let mut x = panel.x + 4.0 - self.state.device_scroll;
@@ -3394,8 +3400,10 @@ impl App {
         let over: Vec<[i32; 4]> = self.overlays.iter().map(|&r| px(r.outset(2.0))).collect();
         let mut shown = Vec::new();
         for c in cards.iter().filter(|c| !c.folded && c.x + c.w > panel.x && c.x < panel.right()) {
-            let at = (px(Rect::new(c.x, panel.y, c.w, panel.h))[0], ppx[1]);
-            self.plugins.pin_to(c.row, &move |_| at, ppx, &over, (MIN_W, panel.h));
+            // Under the card's caption row (the name and its actions, drawn by the panel).
+            let at = px(Rect::new(c.x, panel.y + DEVICE_CAPTION_H, c.w, panel.h - DEVICE_CAPTION_H));
+            let at = (at[0], at[1]);
+            self.plugins.pin_to(c.row, &move |_| at, ppx, &over, (MIN_W, panel.h - DEVICE_CAPTION_H));
             shown.push(c.row);
         }
         self.plugins.unpin_except(&shown);
@@ -9471,6 +9479,15 @@ impl App {
             Action::PanelTab(w) => {
                 self.set_panel_collapsed(false);
                 self.state.raise(w);
+                self.invalidate();
+            }
+            Action::DevicePresets(row) => {
+                let (x, y) = self.mouse;
+                self.state.playlist.popup = Some(crate::presets::popup(self, row, x, y));
+                self.invalidate();
+            }
+            Action::DeviceClose(row) => {
+                self.state.device_fold.insert(row);
                 self.invalidate();
             }
             Action::DeviceFold(row) => {
@@ -19879,6 +19896,10 @@ mod tests {
         frame(&mut app, &mut c, None);
         assert_eq!(app.state.panel, Win::PianoRoll);
         assert_eq!(app.state.panel_plugin, Some(0));
+        // A card's caption closes it (folds it up), as the title bar's close did.
+        app.act(Action::DeviceClose(5));
+        assert!(app.state.device_fold.contains(&5));
+        app.state.device_fold.remove(&5);
         // A folded card opens by its strip.
         app.state.device_fold.insert(7);
         app.act(Action::DeviceFold(7));

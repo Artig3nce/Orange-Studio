@@ -314,6 +314,26 @@ fn device_chain(ui: &mut Ui, s: &State) {
         ui.c.text_center(fnt(16.0), Rect::new(panel.x, panel.cy() - 22.0, panel.w, 22.0), t.text_dim, lines[0]);
         ui.c.text_center(fnt(13.0), Rect::new(panel.x, panel.cy(), panel.w, 18.0), t.text_faint, lines[1]);
     }
+    // An open card's caption: its name, and on the mouse's card the Presets box and the close (folds it up), instead of a
+    // title bar on the plugin: the plugin's own design fills the card.
+    for c in s.device_cards.iter().filter(|c| !c.folded) {
+        let r = Rect::new(c.x, panel.y + 2.0, c.w, crate::app::DEVICE_CAPTION_H - 2.0);
+        let over = ui.hovering(Rect::new(c.x, panel.y, c.w, panel.h));
+        let font = fnt(13.0);
+        let name_w = (c.w - 12.0 - if over { 118.0 } else { 0.0 }).max(0.0);
+        ui.c.text_clip(font, r.x + 8.0, r.y + 2.0, name_w, if over { t.text } else { t.text_dim }, &c.name);
+        if over {
+            let close = Rect::new(r.right() - 24.0, r.y, 20.0, r.h);
+            let cov = ui.hit(close, Action::DeviceClose(c.row), format!("{}: fold up", c.name));
+            let ink = if cov { t.text } else { t.text_dim };
+            ui.c.line(close.cx() - 4.0, close.cy() - 4.0, close.cx() + 4.0, close.cy() + 4.0, 1.5, ink);
+            ui.c.line(close.cx() + 4.0, close.cy() - 4.0, close.cx() - 4.0, close.cy() + 4.0, 1.5, ink);
+            let pr = Rect::new(close.x - 86.0, r.y, 82.0, r.h);
+            let pov = ui.hit(pr, Action::DevicePresets(c.row), "Presets");
+            ui.c.fill_rrect(pr.inset(1.0), 6.0, Color::rgb(if pov { 0x2a2a2a } else { 0x1c1c1c }));
+            ui.c.text_center(fnt(12.0), pr, if pov { t.text } else { t.text_dim }, "Presets");
+        }
+    }
     for c in s.device_cards.iter().filter(|c| c.folded) {
         let r = Rect::new(c.x, panel.y + 4.0, c.w, panel.h - 8.0);
         let hov = ui.hit(r, Action::DeviceFold(c.row), format!("{}: click to open", c.name));

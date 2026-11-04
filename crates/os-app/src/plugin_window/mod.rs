@@ -458,6 +458,10 @@ impl State {
         (2.0 * self.border(), self.area_y() + self.border())
     }
     fn area_y(&self) -> f32 {
+        // A card in the panel has no title bar: the editor fills it (its name and actions are the panel's own row above).
+        if self.pinned {
+            return 0.0;
+        }
         TITLE_H + if self.strip { STRIP_H } else { 0.0 } + 1.0
     }
 }
@@ -539,6 +543,9 @@ fn strip_off(st: &State, w: f32) -> Vec<(Rect, &'static str)> {
 const CORNER: f32 = 16.0;
 
 fn parts(st: &State) -> Vec<(Rect, Part)> {
+    if st.pinned {
+        return Vec::new();
+    }
     let (w, h) = st.size();
     let p = presets_rect(st);
     let mut v = Vec::new();
@@ -647,9 +654,11 @@ fn paint(c: &mut Canvas, st: &State) {
         c.fill_rect(r, c_outline());
     }
     c.fill_rect(Rect::new(1.0, 1.0, w - 2.0, 1.0), c_top_light());
-    title_bar(c, st, w);
-    if st.strip {
-        strip(c, st, w);
+    if !st.pinned {
+        title_bar(c, st, w);
+        if st.strip {
+            strip(c, st, w);
+        }
     }
     // The editor's 1 px outline; the plugin's own window covers the inside.
     let ay = st.area_y();

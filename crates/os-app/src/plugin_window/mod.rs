@@ -344,11 +344,11 @@ struct State {
 }
 
 impl State {
-    /// A new frame's state: strip shown, the plug tab, no hint or preset.
+    /// A new frame's state: strip hidden (the gear shows it), the plug tab, no hint or preset.
     fn new(info: ChannelInfo, editor: (f32, f32), detached: bool) -> State {
         State {
             info,
-            strip: true,
+            strip: false,
             pages: vec![PageIcon::Plugin],
             page: 0,
             misc: false,

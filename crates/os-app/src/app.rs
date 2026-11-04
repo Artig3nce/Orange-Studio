@@ -308,6 +308,8 @@ pub enum Action {
     DeviceFold(usize),
     /// A device card's caption: its Presets box, and the close that folds it up.
     DevicePresets(usize),
+    /// The caption's previous / next preset arrows.
+    DevicePresetStep(usize, i32),
     DeviceClose(usize),
     /// The Devices tab's chain scrolls a step left (-1) or right (1).
     DeviceScroll(i8),
@@ -1491,6 +1493,8 @@ pub struct DeviceCard {
     pub w: f32,
     pub folded: bool,
     pub name: String,
+    /// The preset it holds (shown in the caption's Presets box).
+    pub preset: Option<String>,
 }
 
 pub struct App {
@@ -3373,7 +3377,8 @@ impl App {
             let size = self.plugins.window_size(row).filter(|_| !self.state.device_fold.contains(&row) && !self.plugins.external(row));
             let w = size.map_or(FOLD_W, |s| s.0.max(MIN_W));
             let name = self.plugins.descriptor(row).map(|d| d.name.clone()).unwrap_or_default();
-            cards.push(DeviceCard { row, x, w, folded: size.is_none(), name });
+            let preset = self.plugins.preset_name(row);
+            cards.push(DeviceCard { row, x, w, folded: size.is_none(), name, preset });
             x += w + GAP;
         }
         let total = x + self.state.device_scroll - panel.x + 4.0;
@@ -9484,6 +9489,10 @@ impl App {
             Action::DevicePresets(row) => {
                 let (x, y) = self.mouse;
                 self.state.playlist.popup = Some(crate::presets::popup(self, row, x, y));
+                self.invalidate();
+            }
+            Action::DevicePresetStep(row, d) => {
+                self.state.message = crate::presets::run(self, crate::presets::PCmd::Step(row, d));
                 self.invalidate();
             }
             Action::DeviceClose(row) => {

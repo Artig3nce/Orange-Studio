@@ -314,24 +314,47 @@ fn device_chain(ui: &mut Ui, s: &State) {
         ui.c.text_center(fnt(16.0), Rect::new(panel.x, panel.cy() - 22.0, panel.w, 22.0), t.text_dim, lines[0]);
         ui.c.text_center(fnt(13.0), Rect::new(panel.x, panel.cy(), panel.w, 18.0), t.text_faint, lines[1]);
     }
-    // An open card's caption: its name, and on the mouse's card the Presets box and the close (folds it up), instead of a
-    // title bar on the plugin: the plugin's own design fills the card.
+    // An open card's caption instead of a title bar on the plugin (the plugin's own design fills the card): its name, a
+    // Presets box with previous / next arrows (the preset it holds, or "Presets"), and on the mouse's card the close that
+    // folds it up.
     for c in s.device_cards.iter().filter(|c| !c.folded) {
-        let r = Rect::new(c.x, panel.y + 2.0, c.w, crate::app::DEVICE_CAPTION_H - 2.0);
+        let r = Rect::new(c.x, panel.y + 3.0, c.w, crate::app::DEVICE_CAPTION_H - 4.0);
         let over = ui.hovering(Rect::new(c.x, panel.y, c.w, panel.h));
         let font = fnt(13.0);
-        let name_w = (c.w - 12.0 - if over { 118.0 } else { 0.0 }).max(0.0);
-        ui.c.text_clip(font, r.x + 8.0, r.y + 2.0, name_w, if over { t.text } else { t.text_dim }, &c.name);
+        let box_w = if c.w >= 250.0 { 158.0 } else { 0.0 };
+        let close_w = if over { 24.0 } else { 0.0 };
+        let name_w = (c.w - 16.0 - box_w - close_w).max(0.0);
+        ui.c.text_clip(font, r.x + 8.0, r.y + 1.0, name_w, if over { t.text } else { t.text_dim }, &c.name);
+        let mut right = r.right() - 4.0;
         if over {
-            let close = Rect::new(r.right() - 24.0, r.y, 20.0, r.h);
+            let close = Rect::new(right - 20.0, r.y, 20.0, r.h);
             let cov = ui.hit(close, Action::DeviceClose(c.row), format!("{}: fold up", c.name));
             let ink = if cov { t.text } else { t.text_dim };
             ui.c.line(close.cx() - 4.0, close.cy() - 4.0, close.cx() + 4.0, close.cy() + 4.0, 1.5, ink);
             ui.c.line(close.cx() + 4.0, close.cy() - 4.0, close.cx() - 4.0, close.cy() + 4.0, 1.5, ink);
-            let pr = Rect::new(close.x - 86.0, r.y, 82.0, r.h);
-            let pov = ui.hit(pr, Action::DevicePresets(c.row), "Presets");
-            ui.c.fill_rrect(pr.inset(1.0), 6.0, Color::rgb(if pov { 0x2a2a2a } else { 0x1c1c1c }));
-            ui.c.text_center(fnt(12.0), pr, if pov { t.text } else { t.text_dim }, "Presets");
+            right = close.x - 4.0;
+        }
+        if box_w > 0.0 {
+            // ◂ [ preset name ▾ ] ▸ : one rounded box, the arrows at its ends, the name opening the list.
+            let bx = Rect::new(right - box_w, r.y, box_w, r.h);
+            ui.c.fill_rrect(bx, bx.h / 2.0, Color::rgb(0x1f1f1f));
+            let (prev, next) = (Rect::new(bx.x, bx.y, 22.0, bx.h), Rect::new(bx.right() - 22.0, bx.y, 22.0, bx.h));
+            let (name_r, hp, hn) = (Rect::span(prev.right(), next.x, bx.y, bx.bottom()), ui.hit(prev, Action::DevicePresetStep(c.row, -1), "Previous preset"), ui.hit(next, Action::DevicePresetStep(c.row, 1), "Next preset"));
+            let hl = ui.hit(name_r, Action::DevicePresets(c.row), "Presets");
+            if hl {
+                ui.c.fill_rrect(name_r.inset(1.0), 6.0, Color::rgb(0x2a2a2a));
+            }
+            let arrow = |ui: &mut Ui, r: Rect, left: bool, hov: bool| {
+                let ink = if hov { t.text } else { t.text_dim };
+                let (cx, cy, d) = (r.cx(), r.cy(), if left { -1.0 } else { 1.0 });
+                ui.c.fill_polygon(&[(cx + 3.0 * d, cy - 4.0), (cx + 3.0 * d, cy + 4.0), (cx - 3.0 * d, cy)], ink);
+            };
+            arrow(ui, prev, true, hp);
+            arrow(ui, next, false, hn);
+            let label = c.preset.as_deref().unwrap_or("Presets");
+            ui.c.text_clip(fnt(12.0), name_r.x + 6.0, name_r.y + 2.0, name_r.w - 18.0, if c.preset.is_some() || hl { t.text } else { t.text_dim }, label);
+            let (cx, cy) = (name_r.right() - 8.0, name_r.cy());
+            ui.c.fill_polygon(&[(cx - 3.5, cy - 1.5), (cx + 3.5, cy - 1.5), (cx, cy + 2.5)], t.text_dim);
         }
     }
     for c in s.device_cards.iter().filter(|c| c.folded) {

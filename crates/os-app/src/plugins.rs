@@ -233,8 +233,8 @@ impl Hosted {
 }
 
 /// The smallest scale (of their natural size) our own plugins' editors are shown at in the Devices tab: smaller, their text and
-/// bars are too small to read, so the panel grows to give them room instead (`App::layout_devices`).
-pub const FIT_MIN: f32 = 0.85;
+/// bars are too small to read. The panel's height (`PANEL_H`) gives them about 85 %.
+pub const FIT_MIN: f32 = 0.7;
 
 /// What a plugin window asks of the app.
 #[derive(Clone, Debug, PartialEq)]
@@ -1319,17 +1319,6 @@ impl Plugins {
             w.raise();
             self.panel_shown.push(row);
         }
-    }
-
-    /// The height (logical px) our own plugin `row`'s editor needs to be shown at `FIT_MIN`, if it is one of ours with an
-    /// editor open in the panel: what the panel has to give a card so its plugin stays readable.
-    #[cfg(plugin_windows)]
-    pub fn fit_need(&self, row: usize) -> Option<f32> {
-        if self.no_fit.contains(&row) {
-            return None;
-        }
-        let h = self.hosted.get(&row).filter(|h| !h.external)?;
-        Some(h.window.as_ref()?.natural_size().1 * FIT_MIN)
     }
 
     /// Our own plugins' editors in the device chain scale to the panel's height (between 60 % and 300 %), so every card is as

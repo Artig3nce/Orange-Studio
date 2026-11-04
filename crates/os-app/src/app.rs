@@ -108,7 +108,9 @@ impl CloseAll {
 /// The docked layout's bottom panel: its tab strip's height, its default and smallest height (the Mixer's minimum under
 /// the strip) and where its height is kept.
 pub const PANEL_TABS_H: f32 = 30.0;
-const PANEL_H: f32 = 300.0;
+/// The bottom panel's height when nobody has sized it: one height for every tab, tall enough for a plugin card at a readable
+/// size (our own plugins are 430 px tall; at this height they show at 85 %) and for the piano roll.
+const PANEL_H: f32 = 420.0;
 /// The most of the workspace a panel nobody has sized takes, so a smaller screen keeps room for the Playlist.
 const PANEL_SHARE: f32 = 0.55;
 /// The smallest panel, the same on every tab (the mixer has a short layout for it).
@@ -1490,12 +1492,6 @@ impl State {
     pub fn in_front(&self, w: Win) -> bool {
         if self.is_max(w) { self.docked() == Some(w) } else { self.z.last() == Some(&w) }
     }
-}
-
-/// The panel height a Devices card needs for an editor `editor_h` tall (its readable height): the tabs, the caption row and
-/// the editor.
-pub fn device_panel_h(editor_h: f32) -> f32 {
-    editor_h + DEVICE_CAPTION_H + PANEL_TABS_H
 }
 
 /// The height of the row above a device card, where its name and actions are (logical px).
@@ -3384,13 +3380,6 @@ impl App {
             if info.map(|info| self.plugins.open_window(row, info)).is_none_or(|r| r.is_err()) {
                 self.state.device_failed.insert(row);
             }
-        }
-        // A built-in editor too tall for the panel at a readable size makes an unsized panel grow (within its share of the
-        // window): a laptop's panel would otherwise show Orange Master at half size, its text unreadable.
-        let need = open.iter().filter_map(|&r| self.plugins.fit_need(r)).fold(0.0_f32, f32::max);
-        if need > 0.0 && self.state.panel_auto && device_panel_h(need) > self.state.panel_h {
-            self.state.panel_h = device_panel_h(need);
-            self.invalidate();
         }
         // Our own plugins' editors scale down to the panel's height.
         for &row in &open {
@@ -19993,7 +19982,7 @@ mod tests {
     }
 
     /// A laptop's window (1536 x 864 logical px, a 1920 x 1080 screen at 125 %): Orange Master in the Devices tab keeps to a
-    /// readable size (`FIT_MIN` of its own), the panel growing for it within its share of the window.
+    /// readable size (the panel's one height gives it about 85 % of its own).
     #[test]
     #[cfg(target_os = "linux")]
     #[ignore = "requires an X11 display"]
@@ -20026,6 +20015,7 @@ mod tests {
         let panel = app.state.panel_area();
         let work = app.state.work_rect();
         assert!(scale >= crate::plugins::FIT_MIN - 0.02, "readable: {scale} of its own size (natural {natural})");
+        assert!(scale >= 0.8, "about 85 %: {scale}");
         assert!(panel.h <= (work.h * PANEL_SHARE).round() + 1.0, "within its share: {} of {}", panel.h, work.h);
     }
 

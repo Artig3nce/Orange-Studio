@@ -110,7 +110,7 @@ impl CloseAll {
 pub const PANEL_TABS_H: f32 = 30.0;
 const PANEL_H: f32 = 300.0;
 /// The most of the workspace a panel nobody has sized takes, so a smaller screen keeps room for the Playlist.
-const PANEL_SHARE: f32 = 0.5;
+const PANEL_SHARE: f32 = 0.55;
 /// The smallest panel, the same on every tab (the mixer has a short layout for it).
 const PANEL_MIN_H: f32 = 230.0 + PANEL_TABS_H;
 /// One height for all the tabs, as Ableton's detail view has (the key kept from when the Devices tab had its own).
@@ -1490,6 +1490,12 @@ impl State {
     pub fn in_front(&self, w: Win) -> bool {
         if self.is_max(w) { self.docked() == Some(w) } else { self.z.last() == Some(&w) }
     }
+}
+
+/// The panel height a Devices card needs for an editor `editor_h` tall (its readable height): the tabs, the caption row and
+/// the editor.
+pub fn device_panel_h(editor_h: f32) -> f32 {
+    editor_h + DEVICE_CAPTION_H + PANEL_TABS_H
 }
 
 /// The height of the row above a device card, where its name and actions are (logical px).
@@ -3378,6 +3384,13 @@ impl App {
             if info.map(|info| self.plugins.open_window(row, info)).is_none_or(|r| r.is_err()) {
                 self.state.device_failed.insert(row);
             }
+        }
+        // A built-in editor too tall for the panel at a readable size makes an unsized panel grow (within its share of the
+        // window): a laptop's panel would otherwise show Orange Master at half size, its text unreadable.
+        let need = open.iter().filter_map(|&r| self.plugins.fit_need(r)).fold(0.0_f32, f32::max);
+        if need > 0.0 && self.state.panel_auto && device_panel_h(need) > self.state.panel_h {
+            self.state.panel_h = device_panel_h(need);
+            self.invalidate();
         }
         // Our own plugins' editors scale down to the panel's height.
         for &row in &open {
@@ -19979,6 +19992,43 @@ mod tests {
         assert!(!app.state.panel_collapsed);
     }
 
+    /// A laptop's window (1536 x 864 logical px, a 1920 x 1080 screen at 125 %): Orange Master in the Devices tab keeps to a
+    /// readable size (`FIT_MIN` of its own), the panel growing for it within its share of the window.
+    #[test]
+    #[cfg(target_os = "linux")]
+    #[ignore = "requires an X11 display"]
+    fn orange_master_stays_readable_on_a_laptop_window() {
+        use x11rb::connection::Connection;
+        use x11rb::protocol::xproto::{ConnectionExt, CreateWindowAux, WindowClass};
+        let Ok(mut c) = Canvas::new(1536, 864, 1.0) else { return };
+        let (connection, screen) = x11rb::connect(None).expect("X11 test display");
+        let parent = connection.generate_id().unwrap();
+        connection.create_window(x11rb::COPY_DEPTH_FROM_PARENT, parent, connection.setup().roots[screen].root, 0, 0, 1536, 864, 0, WindowClass::INPUT_OUTPUT, x11rb::COPY_FROM_PARENT, &CreateWindowAux::new()).unwrap().check().unwrap();
+        let mut app = App::new(None);
+        app.state.docked_ui = true;
+        app.state.project = test_project();
+        app.plugins.owner = parent as isize;
+        app.plugins.scale = 1.0;
+        app.plugins.effects = crate::plugins::builtin_effects();
+        let index = app.plugins.effect_index("Orange Master").expect("built in");
+        app.state.project.mixer[1].slots[0] = Some(crate::plugins::new_slot("Orange Master"));
+        app.plugins.create_effect(1, 0, index, None).unwrap();
+        let row = crate::plugins::fx_key(1, 0);
+        app.state.selected_mixer = 1;
+        app.act(Action::PanelTab(Win::PluginTab));
+        for _ in 0..4 {
+            frame(&mut app, &mut c, None);
+            app.layout_devices();
+        }
+        connection.flush().unwrap();
+        let natural = app.plugins.hosted[&row].window.as_ref().unwrap().natural_size().1;
+        let scale = app.plugins.hosted[&row].window.as_ref().unwrap().scale();
+        let panel = app.state.panel_area();
+        let work = app.state.work_rect();
+        assert!(scale >= crate::plugins::FIT_MIN - 0.02, "readable: {scale} of its own size (natural {natural})");
+        assert!(panel.h <= (work.h * PANEL_SHARE).round() + 1.0, "within its share: {} of {}", panel.h, work.h);
+    }
+
     /// The device chain on a real X display: the selected track's plugins are cards side by side, each a window of its own
     /// width as tall as the panel; folding one closes its editor and the next card moves up to its strip.
     #[test]
@@ -20021,12 +20071,12 @@ mod tests {
         };
         let panel = app.state.panel_area();
         let (g1, g2) = (geometry(&app, first), geometry(&app, second));
-        let avail = panel.h - PANEL_TABS_H;
+        let avail = panel.h - PANEL_TABS_H - DEVICE_CAPTION_H;
         assert!(f32::from(g1.height) >= avail - 0.5 && f32::from(g1.height) <= avail + 0.5, "our plugins scale to the panel's height: {} in {avail}", g1.height);
         let scale = |row: usize| app.plugins.hosted[&row].window.as_ref().unwrap().scale();
         // Small and large plugins alike come out as tall as the panel.
         assert!((f32::from(g2.height) - avail).abs() <= 0.5, "the second card too: {} in {avail}", g2.height);
-        assert!((0.6..=3.0).contains(&scale(first)) && (0.6..=3.0).contains(&scale(second)));
+        assert!((crate::plugins::FIT_MIN..=3.0).contains(&scale(first)) && (crate::plugins::FIT_MIN..=3.0).contains(&scale(second)));
         assert_eq!(i32::from(g2.x) - i32::from(g1.x), (cards[1].x - cards[0].x).round() as i32, "where the cards are");
         // Folded: the editor closes, the strip is thin and the next card moves up to it.
         app.state.device_fold.insert(first);

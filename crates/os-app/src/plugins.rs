@@ -232,6 +232,10 @@ impl Hosted {
     }
 }
 
+/// The smallest scale (of their natural size) our own plugins' editors are shown at in the Devices tab: smaller, their text and
+/// bars are too small to read, so the panel grows to give them room instead (`App::layout_devices`).
+pub const FIT_MIN: f32 = 0.85;
+
 /// What a plugin window asks of the app.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Request {
@@ -1317,6 +1321,17 @@ impl Plugins {
         }
     }
 
+    /// The height (logical px) our own plugin `row`'s editor needs to be shown at `FIT_MIN`, if it is one of ours with an
+    /// editor open in the panel: what the panel has to give a card so its plugin stays readable.
+    #[cfg(plugin_windows)]
+    pub fn fit_need(&self, row: usize) -> Option<f32> {
+        if self.no_fit.contains(&row) {
+            return None;
+        }
+        let h = self.hosted.get(&row).filter(|h| !h.external)?;
+        Some(h.window.as_ref()?.natural_size().1 * FIT_MIN)
+    }
+
     /// Our own plugins' editors in the device chain scale to the panel's height (between 60 % and 300 %), so every card is as
     /// tall as the panel and the whole plugin shows; others keep their size. Reopens the editor at the new scale only when
     /// it changes by a real step.
@@ -1326,7 +1341,7 @@ impl Plugins {
             return;
         }
         let Some(w) = self.hosted.get(&row).and_then(|h| h.window.as_ref()) else { return };
-        let want = self.scale * (avail_h / w.natural_size().1.max(1.0)).clamp(0.6, 3.0);
+        let want = self.scale * (avail_h / w.natural_size().1.max(1.0)).clamp(FIT_MIN, 3.0);
         if (w.scale() - want).abs() <= 0.03 {
             return;
         }

@@ -323,8 +323,19 @@ fn device_chain(ui: &mut Ui, s: &State) {
         let font = fnt(13.0);
         let box_w = if c.w >= 250.0 { 158.0 } else { 0.0 };
         let close_w = if over { 24.0 } else { 0.0 };
-        let name_w = (c.w - 16.0 - box_w - close_w).max(0.0);
-        ui.c.text_clip(font, r.x + 8.0, r.y + 1.0, name_w, if over { t.text } else { t.text_dim }, &c.name);
+        // A mixer slot's effect: its on / off switch before the name, its dry / wet bar before the Presets box (what the
+        // slot list shows; an instrument has no slot).
+        let slot = crate::plugins::fx_of(c.row).filter(|&(tr, k)| s.project.mixer.iter().any(|m| m.index == tr && usize::from(k) < m.slots.len()));
+        let bar_w = if slot.is_some() && c.w >= 340.0 { 44.0 } else { 0.0 };
+        let lead = if slot.is_some() { 22.0 } else { 0.0 };
+        let name_w = (c.w - 16.0 - lead - box_w - close_w - bar_w).max(0.0);
+        if let Some((tr, k)) = slot {
+            let on = s.project.mixer.iter().find(|m| m.index == tr).is_some_and(|m| m.slot_on[usize::from(k)]);
+            let sw = Rect::new(r.x + 4.0, r.y, 20.0, r.h);
+            ui.hit(sw, Action::Mix(crate::mixer::MHit::SlotLed(k)), if on { "Effect on (click: bypass)" } else { "Effect bypassed (click: on)" });
+            led_small(ui, sw.cx(), sw.cy(), on);
+        }
+        ui.c.text_clip(font, r.x + 8.0 + lead, r.y + 1.0, name_w, if over { t.text } else { t.text_dim }, &c.name);
         let mut right = r.right() - 4.0;
         if over {
             let close = Rect::new(right - 20.0, r.y, 20.0, r.h);
@@ -335,8 +346,18 @@ fn device_chain(ui: &mut Ui, s: &State) {
             right = close.x - 4.0;
         }
         if box_w > 0.0 {
+            right -= box_w + 6.0;
+        }
+        if let (Some((tr, k)), true) = (slot, bar_w > 0.0) {
+            // The dry / wet level: drag across the bar.
+            let id = crate::knobs::KnobId::SlotMix(tr, k);
+            let cx = right - bar_w / 2.0 - 2.0;
+            ui.hit(Rect::new(cx - bar_w / 2.0, r.y, bar_w, r.h), Action::Knob(id), s.knob_text(id));
+            mixer::centre_bar(ui, cx, r.cy(), 16.0, 8.0, s.knob(id), mixer::Bar::Level);
+        }
+        if box_w > 0.0 {
             // ◂ [ preset name ▾ ] ▸ : one rounded box, the arrows at its ends, the name opening the list.
-            let bx = Rect::new(right - box_w, r.y, box_w, r.h);
+            let bx = Rect::new(r.right() - 4.0 - close_w - box_w, r.y, box_w, r.h);
             ui.c.fill_rrect(bx, bx.h / 2.0, Color::rgb(0x1f1f1f));
             let (prev, next) = (Rect::new(bx.x, bx.y, 22.0, bx.h), Rect::new(bx.right() - 22.0, bx.y, 22.0, bx.h));
             let (name_r, hp, hn) = (Rect::span(prev.right(), next.x, bx.y, bx.bottom()), ui.hit(prev, Action::DevicePresetStep(c.row, -1), "Previous preset"), ui.hit(next, Action::DevicePresetStep(c.row, 1), "Next preset"));
@@ -347,7 +368,7 @@ fn device_chain(ui: &mut Ui, s: &State) {
             let arrow = |ui: &mut Ui, r: Rect, left: bool, hov: bool| {
                 let ink = if hov { t.text } else { t.text_dim };
                 let (cx, cy, d) = (r.cx(), r.cy(), if left { -1.0 } else { 1.0 });
-                ui.c.fill_polygon(&[(cx + 3.0 * d, cy - 4.0), (cx + 3.0 * d, cy + 4.0), (cx - 3.0 * d, cy)], ink);
+                ui.c.fill_polygon(&[(cx - 3.0 * d, cy - 4.0), (cx - 3.0 * d, cy + 4.0), (cx + 3.0 * d, cy)], ink);
             };
             arrow(ui, prev, true, hp);
             arrow(ui, next, false, hn);

@@ -20123,6 +20123,34 @@ mod tests {
         assert!(app.state.playlist.solo.as_ref().is_some_and(|x| x.0 == 1), "soloed");
     }
 
+    /// A Devices card of a mixer slot's effect has its on / off switch and dry / wet bar in its caption (what the slot list
+    /// shows): the switch bypasses the effect, the bar is the slot's mix.
+    #[test]
+    fn a_device_card_has_the_slots_switch_and_mix() {
+        use crate::knobs::KnobId;
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.state.docked_ui = true;
+        app.state.z = vec![Win::PluginTab];
+        app.state.panel = Win::PluginTab;
+        app.state.selected_mixer = 1;
+        let (t, k) = (1u16, 0u8);
+        let m = app.state.project.mixer.iter_mut().find(|m| m.index == t).unwrap();
+        m.slots[usize::from(k)] = Some(crate::plugins::new_slot("Orange Master"));
+        m.slot_on[usize::from(k)] = true;
+        let row = crate::plugins::fx_key(t, k);
+        app.state.device_cards = vec![DeviceCard { row, x: 8.0, w: 520.0, folded: false, name: "Orange Master".into(), preset: None }];
+        app.paint(&mut c, None);
+        let sw = hit_rect(&app, &Action::Mix(crate::mixer::MHit::SlotLed(k)));
+        let bar = hit_rect(&app, &Action::Knob(KnobId::SlotMix(t, k)));
+        assert!(sw.x < bar.x, "the switch first, the bar toward the Presets box");
+        app.mouse_move(sw.cx(), sw.cy());
+        app.mouse_down();
+        app.mouse_up();
+        let on = app.state.project.mixer.iter().find(|m| m.index == t).unwrap().slot_on[usize::from(k)];
+        assert!(!on, "bypassed");
+    }
+
     /// A docked track holding an audio clip says so in its header (the waveform tile, the clip's name).
     #[test]
     fn a_track_with_audio_says_so() {

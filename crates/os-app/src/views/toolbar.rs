@@ -362,8 +362,10 @@ fn docked_transport(ui: &mut Ui, c: &Ctx) {
     let down = ui.down(play, &Action::Play);
     // Green, from the old logo's leaf: Play stands apart from the orange of everything selected.
     let green = Color::rgb(0x5cb85c);
-    ui.c.fill_circle(play.cx(), play.cy(), 14.0, if down { green.shade(-0.15) } else if hov { green.shade(0.12) } else { green });
-    let g = play.inset(8.0);
+    // A little smaller than it was and clear of the Pat / Song switch (it nearly touched it), the same distance from the stop.
+    let pc = (play.cx() + 1.5, play.cy());
+    ui.c.fill_circle(pc.0, pc.1, 13.0, if down { green.shade(-0.15) } else if hov { green.shade(0.12) } else { green });
+    let g = Rect::new(play.x + 1.5, play.y, play.w, play.h).inset(8.0);
     let on_green = Color::rgb(0x0f2a10);
     if s.rec.waiting {
         // Waiting for input (spec: ui/recording.md §3): three dots.
@@ -374,7 +376,9 @@ fn docked_transport(ui: &mut Ui, c: &Ctx) {
         ui.c.fill_rrect(Rect::new(g.cx() - 4.5, g.y + 1.0, 3.0, g.h - 2.0), 1.0, on_green);
         ui.c.fill_rrect(Rect::new(g.cx() + 1.5, g.y + 1.0, 3.0, g.h - 2.0), 1.0, on_green);
     } else {
-        icons::draw(ui.c, Icon::Play, g, on_green);
+        // A triangle's weight sits left of its box: drawn a little larger and nudged right to look centred in the circle.
+        let tri = Rect::new(play.x + 1.5, play.y, play.w, play.h).inset(7.5);
+        icons::draw(ui.c, Icon::Play, Rect::new(tri.x + 1.0, tri.y, tri.w, tri.h), on_green);
     }
     let stop = a.span(479.0, 503.0, 8.0, 32.0);
     let hov = ui.hit(stop, Action::Stop, "Stop (Space)");

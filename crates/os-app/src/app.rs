@@ -20237,6 +20237,24 @@ mod tests {
         assert!(!menu.items.is_empty());
     }
 
+    /// A docked mixer strip has its own input and output buttons: a click makes the strip current and opens the output list.
+    #[test]
+    fn a_docked_strip_has_input_and_output_buttons() {
+        use crate::mixer::MHit;
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.state.docked_ui = true;
+        app.state.z = vec![Win::Mixer];
+        app.state.selected_mixer = 1;
+        frame(&mut app, &mut c, None);
+        let out = hit_rect(&app, &Action::Mix(MHit::OutputOf(3)));
+        let inp = hit_rect(&app, &Action::Mix(MHit::InputOf(3)));
+        assert!(inp.right() < out.x, "input left of output");
+        click(&mut app, &mut c, out);
+        assert_eq!(app.state.selected_mixer, 3, "the strip is current");
+        assert!(app.state.playlist.popup.as_ref().is_some_and(|p| !p.items.is_empty()), "the output list");
+    }
+
     /// A docked track holding an audio clip says so in its header (the waveform tile, the clip's name).
     #[test]
     fn a_track_with_audio_says_so() {

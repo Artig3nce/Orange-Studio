@@ -487,6 +487,9 @@ fn strip(ui: &mut Ui, s: &State, n: u16, left: f32, bottom: f32, f: &FrameInfo, 
     io_icons(ui, n, (sx, bottom - 146.0), (sx, bottom - 117.0), Rect::new(sx - 9.0, bottom - 149.0, 18.0, 38.0), body);
     arm(ui, track, n, sx, bottom - 100.0);
     routing(ui, s, n, kx, bottom - 38.0, 1.0);
+    if s.is_fixed(Win::Mixer) {
+        io_chips(ui, s, n, left, STRIP_W, bottom - 17.0);
+    }
 }
 
 /// Where a layout other than Wide puts a strip's parts, measured from the owner's FL screenshots of each layout. A y
@@ -824,6 +827,27 @@ fn strip_geo(ui: &mut Ui, s: &State, n: u16, left: f32, top: f32, bottom: f32, f
     }
     arm(ui, track, n, left + g.dot.0, at(g.dot.1));
     routing(ui, s, n, left + w / 2.0, bottom - 38.0, g.send);
+    if s.is_fixed(Win::Mixer) {
+        io_chips(ui, s, n, left, w, bottom - 17.0);
+    }
+}
+
+/// The docked strip's input and output: two small buttons under the routing arrow, showing what the track records from and
+/// plays to (lit when an input is chosen); their menus are the slot panel's boxes'.
+fn io_chips(ui: &mut Ui, s: &State, n: u16, left: f32, w: f32, cy: f32) {
+    let t = ui.t;
+    let track = s.project.mixer.iter().find(|m| m.index == n);
+    let input_on = track.is_some_and(|m| m.audio_in >= 0);
+    let cw = ((w - 8.0) / 2.0).floor();
+    for (r, label, action, hint, lit) in [
+        (Rect::new(left + 3.0, cy - 7.0, cw, 14.0), "IN", MHit::InputOf(n), format!("Input: {}", mx::input_label(s, n).0), input_on),
+        (Rect::new(left + w - 3.0 - cw, cy - 7.0, cw, 14.0), "OUT", MHit::OutputOf(n), format!("Output: {}", mx::output_label(s, n)), false),
+    ] {
+        let hov = ui.hit(r, Action::Mix(action), hint);
+        ui.c.fill_rrect(r, 5.0, Color::rgb(if hov { 0x2c2c2c } else { 0x1c1c1c }));
+        let ink = if lit { ui.t.h(0xffa83a) } else if hov { t.text } else { t.text_dim };
+        ui.c.text_center(Font::new(9), r, ink, label);
+    }
 }
 
 /// The strip's body (a card in the Orange skin), its selecting hit and the header number; the body colour and whether

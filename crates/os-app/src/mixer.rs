@@ -48,6 +48,9 @@ pub enum MHit {
     RecSource,
     Input,
     Output,
+    /// A docked strip's input and output buttons.
+    InputOf(u16),
+    OutputOf(u16),
     /// A strip's disk-record button: arms / disarms the track.
     Arm(u16),
     /// Clear pattern mixer focus badge.
@@ -435,6 +438,18 @@ pub fn hit(app: &mut App, h: MHit) -> Option<String> {
         }
         MHit::Input => {
             s.playlist.popup = input_menu(s, at.0, at.1 + 10.0);
+            None
+        }
+        // A strip's own input and output buttons (the docked mixer): the strip becomes the current one, then as the slot
+        // panel's boxes do.
+        MHit::InputOf(n) => {
+            s.selected_mixer = n;
+            s.playlist.popup = input_menu(s, at.0, at.1 + 10.0);
+            None
+        }
+        MHit::OutputOf(n) => {
+            s.selected_mixer = n;
+            s.playlist.popup = Some(output_menu(s, at.0, at.1 + 10.0));
             None
         }
         MHit::Output => {

@@ -205,7 +205,8 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
     ui.hit(grid, Action::PlaylistArea, "Playlist");
     let mut visible = Vec::new();
     let mut row = g.track_at(grid.y);
-    while row < TRACKS && g.y_of(row) < grid.bottom() {
+    let count = pl::visible_tracks(s);
+    while row < count.min(TRACKS) && g.y_of(row) < grid.bottom() {
         visible.push(row);
         row += 1;
     }
@@ -303,6 +304,20 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
     ui.c.push_clip(heads);
     for &row in &visible {
         header(ui, s, &g, row, head_x, head_w);
+    }
+    // Docked: the next track is made here (the playlist starts with one).
+    if docked && count < TRACKS {
+        let y = g.y_of(count);
+        if y < grid.bottom() {
+            let r = Rect::new(head_x, y + 2.0, head_w, 34.0);
+            let hov = ui.hit(r, Action::PlAddTrack, "Add a track");
+            ui.c.fill_rrect(r, 8.0, Color::rgb(if hov { 0x2a2a2a } else { 0x1c1c1c }));
+            let ink = if hov { ui.t.h(0xffc63b) } else { ui.t.tx(0xc4ccd0) };
+            ui.c.fill_rect(Rect::new(r.x + 18.0, r.cy() - 1.0, 12.0, 2.0), ink);
+            ui.c.fill_rect(Rect::new(r.x + 23.0, r.cy() - 6.0, 2.0, 12.0), ink);
+            let lh = ui.c.line_height(Font::new(14));
+            ui.c.text(Font::new(14), r.x + 40.0, (r.cy() - lh / 2.0).round(), ink, "Add track");
+        }
     }
     ui.c.pop_clip();
     resize_zones(ui, s, Win::Playlist, outer);

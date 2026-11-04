@@ -506,6 +506,7 @@ mod tests {
         let mut a = App::new(None);
         a.state.docked_ui = true;
         a.state.z = vec![Win::Mixer];
+        a.state.playlist.shown_tracks = 10;
         a.plugins.available = crate::plugins::builtin();
         a.state.plugdb.rebuild(&a.plugins);
         a.paint(&mut c, None);

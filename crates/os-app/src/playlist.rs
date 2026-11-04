@@ -39,6 +39,16 @@ pub const EDGE: f32 = 6.0;
 /// Number of tracks (flp playlist.md).
 pub const TRACKS: u16 = 500;
 
+/// How many tracks the playlist shows: all of them in the floating layout; in the docked one the ones made so far (it
+/// starts with one, and the Add track button makes more), never fewer than the ones clips are on.
+pub fn visible_tracks(s: &State) -> u16 {
+    if !s.docked_ui {
+        return TRACKS;
+    }
+    let used = clips(s).iter().map(|c| c.track + 1).max().unwrap_or(0);
+    s.playlist.shown_tracks.max(used).clamp(1, TRACKS)
+}
+
 /// Playlist tools (§3) and their letters.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PlTool {
@@ -697,6 +707,8 @@ pub(crate) type Snapshot = (Vec<Clip>, Vec<TimeMarker>, Vec<PlaylistTrack>, Vec<
 
 pub struct PlaylistState {
     pub tool: PlTool,
+    /// The docked playlist's tracks made so far (`visible_tracks`).
+    pub shown_tracks: u16,
     /// The magnet's setting (§4); Main follows the global snap (spec: ui/global-snap.md).
     pub snap: EditorSnap,
     /// The current clip source (what Draw / Paint place); `None` = the current pattern.
@@ -770,6 +782,7 @@ pub struct PlaylistState {
 impl Default for PlaylistState {
     fn default() -> Self {
         PlaylistState {
+            shown_tracks: 1,
             tool: PlTool::Draw,
             snap: EditorSnap::Main,
             source: None,
@@ -888,6 +901,8 @@ pub const TRACK_MIN: f32 = 20.0;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Rows {
     top: Vec<f32>,
+    /// How many tracks are shown (`visible_tracks`): the scroll range ends there, and the rows below are one to add.
+    count: u16,
     /// Members of a collapsed group, drawn as strips.
     strips: Vec<bool>,
     pub row_h: f32,
@@ -915,7 +930,7 @@ impl Rows {
             y += if strip { STRIP_H } else if own == 1.0 { row_h } else { snap(f64::from((row_h * own).max(TRACK_MIN))) };
         }
         top.push(y);
-        Rows { top, strips, row_h }
+        Rows { top, strips, row_h, count: visible_tracks(s) }
     }
 
     /// A clip's height on track `t`: its row less the 3 px gap.
@@ -939,11 +954,12 @@ impl Rows {
 
     /// The track at content height `y`.
     pub fn at(&self, y: f32) -> u16 {
-        self.top.partition_point(|&v| v <= y).saturating_sub(1).min(usize::from(TRACKS) - 1) as u16
+        // Below the last shown track is the next one (a clip drawn there makes it).
+        self.top.partition_point(|&v| v <= y).saturating_sub(1).min(usize::from(self.count.min(TRACKS - 1))) as u16
     }
 
     pub fn total(&self) -> f32 {
-        self.top[usize::from(TRACKS)]
+        self.top[usize::from(self.count.min(TRACKS))]
     }
 }
 

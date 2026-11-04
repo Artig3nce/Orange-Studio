@@ -367,6 +367,8 @@ pub enum Action {
     PlRuler,
     PlMarkers,
     PlHeader(u16),
+    /// The docked playlist's "Add track" button.
+    PlAddTrack,
     PlLed(u16),
     /// A playlist track header's "..." handle: drag to size the track, click to shrink it or bring it back.
     PlTrackSize(u16),
@@ -8963,6 +8965,13 @@ impl App {
                 let at = self.top_hit(self.mouse.0, self.mouse.1).map_or(self.mouse, |h| (h.rect.x, h.rect.y));
                 pl::press_header(self, t, right, at);
             }
+            Action::PlAddTrack if !right => {
+                let n = pl::visible_tracks(&self.state);
+                self.state.playlist.shown_tracks = n + 1;
+                self.state.playlist.track = n;
+                self.invalidate();
+            }
+            Action::PlAddTrack => {}
             Action::PlLed(t) => pl::press_led(self, t, right),
             Action::PlTrackSize(t) if !right => pl::press_track_size(self, t),
             Action::PlTrackSize(_) => {}
@@ -9599,6 +9608,7 @@ impl App {
             | Action::PlRuler
             | Action::PlMarkers
             | Action::PlHeader(_)
+            | Action::PlAddTrack
             | Action::PlLed(_)
             | Action::PlTrackSize(_)
             | Action::PlGroupArrow(_)
@@ -20031,6 +20041,32 @@ mod tests {
         assert!(other.state.project.mixer[0].slots[0].is_none());
     }
 
+    /// The docked playlist starts with one track, and the Add track button below it makes the next; clips on later tracks
+    /// show theirs (the floating one has them all).
+    #[test]
+    fn the_docked_playlist_starts_with_one_track() {
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.state.docked_ui = true;
+        app.state.z = vec![Win::Mixer];
+        frame(&mut app, &mut c, None);
+        let has = |app: &App, t: u16| app.hits.iter().any(|h| h.action == Action::PlHeader(t));
+        assert!(has(&app, 0) && !has(&app, 1), "one track");
+        let add = hit_rect(&app, &Action::PlAddTrack);
+        click(&mut app, &mut c, add);
+        frame(&mut app, &mut c, None);
+        assert!(has(&app, 1) && !has(&app, 2), "two tracks now");
+        assert_eq!(app.state.playlist.track, 1, "the new one is selected");
+        // A clip on a later track shows the tracks up to it.
+        app.state.playlist.source = Some(os_model::ClipSource::Pattern(1));
+        crate::playlist::place(&mut app.state, 4, 0);
+        frame(&mut app, &mut c, None);
+        assert!(has(&app, 4) && !has(&app, 5));
+        // The floating layout has them all.
+        app.state.docked_ui = false;
+        assert_eq!(crate::playlist::visible_tracks(&app.state), crate::playlist::TRACKS);
+    }
+
     /// Tracks without a colour of their own get one from a palette in the docked layout, each different from its neighbours;
     /// a colour chosen for a track wins, and the old layout stays as it was.
     #[test]
@@ -21509,6 +21545,7 @@ mod tests {
         let mut app = App::new(None);
         app.state.docked_ui = true;
         app.state.z = vec![Win::ChannelRack, Win::Mixer, Win::Perf];
+        app.state.playlist.shown_tracks = 20;
         app.paint(&mut c, None);
         assert!(app.state.shown(Win::Playlist) && app.state.shown(Win::Mixer) && !app.state.shown(Win::ChannelRack));
         let (pl, mx, work) = (app.state.win_rect(Win::Playlist), app.state.win_rect(Win::Mixer), app.state.work_rect());

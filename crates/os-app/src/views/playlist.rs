@@ -1088,8 +1088,6 @@ fn clip_paint(ui: &mut Ui, s: &State, g: &PGeom, i: usize, c: &Clip) {
         // Audio and automation channels get a colour when they are made: only the track's counts here, so those clips
         // otherwise keep the logo's.
         let own = pl::track_color(s, c.track).map(rgb);
-        // An audio clip is blue unless its track was given a colour of its own (as GarageBand's are).
-        let own = if kind == PickKind::Audio { pl::track_info(s, c.track).and_then(|i| i.color).map(rgb) } else { own };
         return docked_clip(ui, s, g, i, c, kind, if kind == PickKind::Pattern { tint.or(color) } else { own });
     }
 
@@ -1240,7 +1238,7 @@ fn docked_clip(ui: &mut Ui, s: &State, g: &PGeom, i: usize, c: &Clip, kind: Pick
             (o, None, o.mix(hex(0x000000), 0.55), if light { o.mix(hex(0x000000), 0.8) } else { hex(0xffffff) })
         }
         (_, PickKind::Automation, _) => (hex(0x2a2118), Some(hex(0xffb02e)), hex(0xffb02e), hex(0xffd27a)),
-        (_, PickKind::Audio, _) => (hex(0x4c9fe6), None, hex(0x123f6b), hex(0x0b2a4a)),
+        (_, PickKind::Audio, _) => (hex(0xffd27a), None, hex(0x7a5200), dark_ink),
         _ => (hex(0xffb02e), None, hex(0x6e4500), dark_ink),
     };
     let (fill, ink, name_ink) = (dim(fill), dim(ink), dim(name_ink));

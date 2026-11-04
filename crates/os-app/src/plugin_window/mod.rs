@@ -111,7 +111,9 @@ pub fn take_link() -> Vec<(isize, LinkMsg)> {
 }
 
 /// Title bar height (outline row included); the strip, or the editor's outline, starts here.
-pub const TITLE_H: f32 = 27.0;
+pub const TITLE_H: f32 = 27.0 - TB;
+/// How much slimmer the title bar is than FL's 27 px: the things in it sit this much higher.
+const TB: f32 = 6.0;
 /// Strip height, its outline included (y 27..72).
 pub const STRIP_H: f32 = 46.0;
 /// Left / right / bottom inset of the editor: 1 px outline, 5 px frame, 1 px editor outline.
@@ -550,7 +552,7 @@ fn parts(st: &State) -> Vec<(Rect, Part)> {
     let p = presets_rect(st);
     let mut v = Vec::new();
     if max_w(st) > 0.0 {
-        v.push((Rect::new(w - 42.0, 7.0, 17.0, 17.0), Part::Maximize));
+        v.push((Rect::new(w - 42.0, 7.0 - TB, 17.0, 17.0), Part::Maximize));
     }
     if st.resizable() && !st.pinned {
         // The corner first (it overlaps both edges); below the title bar, so the close button stays a button.
@@ -559,10 +561,10 @@ fn parts(st: &State) -> Vec<(Rect, Part)> {
         v.push((Rect::new(0.0, h - BORDER, w, BORDER), Part::Edge { right: false, bottom: true }));
     }
     if !st.pinned {
-        v.push((Rect::new(w - 42.0 - max_w(st), 7.0, 17.0, 17.0), Part::Minimize));
+        v.push((Rect::new(w - 42.0 - max_w(st), 7.0 - TB, 17.0, 17.0), Part::Minimize));
     }
     v.extend([
-        (Rect::new(w - 23.0, 7.0, 17.0, 17.0), Part::Close),
+        (Rect::new(w - 23.0, 7.0 - TB, 17.0, 17.0), Part::Close),
         (MENU_RECT, Part::Menu),
         (GEAR_RECT, Part::Gear),
         (Rect::new(p.right() - 33.0, p.y, 17.0, p.h), Part::PresetPrev),
@@ -576,12 +578,12 @@ fn parts(st: &State) -> Vec<(Rect, Part)> {
         }
         v.extend(strip_off(st, w).into_iter().map(|(r, name)| (r, Part::Off(name))));
         if st.channel() {
-            v.push((Rect::new(340.0 + dx, 38.0, 18.0, 18.0), Part::On));
+            v.push((Rect::new(340.0 + dx, 38.0 - TB, 18.0, 18.0), Part::On));
             for (i, x) in [383.0, 417.0, 455.0].into_iter().enumerate() {
-                v.push((Rect::new(x + dx - 14.0, 33.0, 28.0, 28.0), Part::Knob(i as u8)));
+                v.push((Rect::new(x + dx - 14.0, 33.0 - TB, 28.0, 28.0), Part::Knob(i as u8)));
             }
-            v.push((range_rect(dx), Part::Range));
-            v.push((track_rect(dx), Part::Track));
+            v.push((Rect::new(range_rect(dx).x, range_rect(dx).y - TB, range_rect(dx).w, range_rect(dx).h), Part::Range));
+            v.push((Rect::new(track_rect(dx).x, track_rect(dx).y - TB, track_rect(dx).w, track_rect(dx).h), Part::Track));
         }
     }
     v.push((Rect::new(0.0, 0.0, w, TITLE_H), Part::Caption));
@@ -615,12 +617,12 @@ fn tab_rect(i: usize) -> Rect {
 const STRIP_RIGHT: f32 = 570.0;
 
 /// The title bar's menu arrow and gear (always in the title bar, whether the strip is shown or not).
-const MENU_RECT: Rect = Rect { x: 8.0, y: 5.0, w: 14.0, h: 21.0 };
-const GEAR_RECT: Rect = Rect { x: 24.0, y: 5.0, w: 21.0, h: 21.0 };
+const MENU_RECT: Rect = Rect { x: 8.0, y: 1.0, w: 14.0, h: 19.0 };
+const GEAR_RECT: Rect = Rect { x: 24.0, y: 1.0, w: 21.0, h: 19.0 };
 
 /// The Presets box: right side of the title bar, left of minimize.
 fn presets_rect(st: &State) -> Rect {
-    Rect::new(st.size().0 - 49.0 - max_w(st) - PRESETS_W, 6.0, PRESETS_W, 19.0)
+    Rect::new(st.size().0 - 49.0 - max_w(st) - PRESETS_W, 6.0 - TB, PRESETS_W, 17.0)
 }
 
 /// The room the maximize button takes in the title bar: a resizable editor's frame has one.
@@ -677,7 +679,7 @@ fn paint(c: &mut Canvas, st: &State) {
 /// Title bar, left to right: menu arrow, gear (boxed while the strip is shown), channel name, "(mixer target)", the
 /// plugin's hint; right side: Presets box with previous / next arrows, minimize, close.
 fn title_bar(c: &mut Canvas, st: &State, w: f32) {
-    icon_at(c, &tb::CARET_RIGHT, 14.4, 15.5, 15.4, c_arrow());
+    icon_at(c, &tb::CARET_RIGHT, 14.4, 15.5 - TB, 15.4, c_arrow());
     let g = GEAR_RECT;
     let lemon = os_ui::kit::lemon::on(&os_theme::current());
     if st.strip && lemon {
@@ -690,7 +692,7 @@ fn title_bar(c: &mut Canvas, st: &State, w: f32) {
     icon_at(c, &tb::SETTINGS_FILLED, g.cx(), g.cy(), 18.4, gear);
     let p = presets_rect(st);
     let f = title_font();
-    let ty = (19.0 - c.ascent(f)).round();
+    let ty = (19.0 - TB - c.ascent(f)).round();
     let nx = 48.0;
     let room = (p.x - 8.0 - nx).max(0.0);
     let nw = c.text_width(f, &st.info.name).min(room);
@@ -705,7 +707,7 @@ fn title_bar(c: &mut Canvas, st: &State, w: f32) {
     if !hint.is_empty() {
         let hx = tx + tw + 14.0;
         let hf = Font::new(12);
-        let hy = (19.0 - c.ascent(hf)).round();
+        let hy = (19.0 - TB - c.ascent(hf)).round();
         // A tab splits the hint: the part after it sits right-aligned before the Presets box (spec: plugins/host-link.md).
         let (left, right) = hint.split_once('\t').unwrap_or((hint, ""));
         let end = p.x - 8.0;
@@ -718,16 +720,16 @@ fn title_bar(c: &mut Canvas, st: &State, w: f32) {
     // Presets box: the loaded preset's name, or "Presets" (spec: plugins/presets.md).
     c.fill_rrect(p, if lemon { 6.0 } else { 3.0 }, c_presets());
     c.text_clip(f, p.x + 9.0, ty, p.w - 9.0 - 31.0, c_text(), st.preset.as_deref().unwrap_or("Presets"));
-    icon_at(c, &tb::CARET_LEFT, p.right() - 22.2, 15.5, 18.9, c_icon());
-    icon_at(c, &tb::CARET_RIGHT, p.right() - 7.8, 15.5, 18.9, c_icon());
+    icon_at(c, &tb::CARET_LEFT, p.right() - 21.5, p.cy(), 16.0, c_icon());
+    icon_at(c, &tb::CARET_RIGHT, p.right() - 8.5, p.cy(), 16.0, c_icon());
     let mw = max_w(st);
     if !st.pinned {
-        c.icon_stroke(&tb::MINUS, Rect::new(w - 39.5 - mw, 7.0, 12.0, 12.0), c_icon(), 2.0);
+        c.icon_stroke(&tb::MINUS, Rect::new(w - 39.5 - mw, 7.0 - TB, 12.0, 12.0), c_icon(), 2.0);
     }
     if mw > 0.0 {
-        c.icon(&tb::SQUARES, Rect::new(w - 40.0, 9.0, 13.0, 13.0), c_icon());
+        c.icon(&tb::SQUARES, Rect::new(w - 40.0, 9.0 - TB, 13.0, 13.0), c_icon());
     }
-    c.icon_stroke(&tb::X, Rect::new(w - 22.25, 7.75, 15.5, 15.5), c_icon(), 1.6);
+    c.icon_stroke(&tb::X, Rect::new(w - 22.25, 7.75 - TB, 15.5, 15.5), c_icon(), 1.6);
 }
 
 fn strip(c: &mut Canvas, st: &State, w: f32) {
@@ -1362,7 +1364,7 @@ mod tests {
         assert_eq!(part_at(&st, w - 2.0, h - 2.0), Some(Part::Edge { right: true, bottom: true }));
         assert_eq!(part_at(&st, w - 2.0, 200.0), Some(Part::Edge { right: true, bottom: false }));
         assert_eq!(part_at(&st, 100.0, h - 2.0), Some(Part::Edge { right: false, bottom: true }));
-        assert_eq!(part_at(&st, w - 15.0, 15.0), Some(Part::Close), "the title bar keeps its buttons");
+        assert_eq!(part_at(&st, w - 15.0, 9.0), Some(Part::Close), "the title bar keeps its buttons");
         let screen = |x: f32, y: f32| (x as i32, y as i32);
         assert_eq!(st.left_down(w - 2.0, 200.0, false, &screen), Reply::Capture);
         st.motion(w + 98.0, 260.0, false);
@@ -1391,63 +1393,63 @@ mod tests {
         assert_eq!(st.events.pop(), Some(FrameEvent::Resize(480, 270)));
         assert_eq!(st.maximize((50, 60), None), None, "no target, nothing to do");
         let (w, _) = st.size();
-        assert_eq!(part_at(&st, w - 35.0, 15.0), Some(Part::Maximize));
-        assert_eq!(part_at(&st, w - 54.0, 15.0), Some(Part::Minimize));
+        assert_eq!(part_at(&st, w - 35.0, 9.0), Some(Part::Maximize));
+        assert_eq!(part_at(&st, w - 54.0, 9.0), Some(Part::Minimize));
         let screen = |x: f32, y: f32| (x as i32, y as i32);
-        assert_eq!(st.left_down(200.0, 15.0, true, &screen), Reply::Maximize, "a double-click on the title bar");
+        assert_eq!(st.left_down(200.0, 9.0, true, &screen), Reply::Maximize, "a double-click on the title bar");
         // A double-click's first press is a plain one (a move), which unmaximizes; the second press restores.
         st.maximize((50, 60), Some(((0, 100), (1200.0, 700.0))));
         st.events.clear();
-        assert_eq!(st.left_down(200.0, 15.0, false, &screen), Reply::Move);
-        st.left_up(200.0, 15.0);
-        assert_eq!(st.left_down(200.0, 15.0, true, &screen), Reply::Maximize);
+        assert_eq!(st.left_down(200.0, 9.0, false, &screen), Reply::Move);
+        st.left_up(200.0, 9.0);
+        assert_eq!(st.left_down(200.0, 9.0, true, &screen), Reply::Maximize);
         assert_eq!(st.maximize((0, 100), Some(((0, 100), (1200.0, 700.0)))), Some((50, 60)), "restored");
         // Moved by the title bar (one press), it stays as it is: a later double-click maximizes it again.
         st.maximize((50, 60), Some(((0, 100), (1200.0, 700.0))));
-        st.left_down(200.0, 15.0, false, &screen);
-        st.left_up(200.0, 15.0);
-        st.left_down(200.0, 15.0, false, &screen);
-        st.left_up(200.0, 15.0);
-        assert_eq!(st.left_down(200.0, 15.0, true, &screen), Reply::Maximize);
+        st.left_down(200.0, 9.0, false, &screen);
+        st.left_up(200.0, 9.0);
+        st.left_down(200.0, 9.0, false, &screen);
+        st.left_up(200.0, 9.0);
+        assert_eq!(st.left_down(200.0, 9.0, true, &screen), Reply::Maximize);
         assert_eq!(st.maximize((300, 300), Some(((0, 100), (1200.0, 700.0)))), Some((0, 100)), "maximized again");
     }
 
     #[test]
     fn frame_geometry() {
-        // spec: ui/plugin-window.md "Frame": 7 px around the editor, 27 px title bar, 46 px strip.
+        // spec: ui/plugin-window.md "Frame": 7 px around the editor, a title bar (slimmer than the spec's 27 px by `TB`), 46 px strip.
         let st = state(true, "Master");
-        assert_eq!(st.size(), (494.0, 74.0 + 270.0 + 7.0));
-        assert_eq!(state(false, "Master").size().1, 28.0 + 270.0 + 7.0);
+        assert_eq!(st.size(), (494.0, 74.0 - TB + 270.0 + 7.0));
+        assert_eq!(state(false, "Master").size().1, 28.0 - TB + 270.0 + 7.0);
         let at = |x, y| part_at(&st, x, y);
-        assert_eq!(at(15.0, 15.0), Some(Part::Menu));
-        assert_eq!(at(34.0, 15.0), Some(Part::Gear));
-        assert_eq!(at(390.0, 15.0), Some(Part::Presets));
-        assert_eq!(at(422.0, 15.0), Some(Part::PresetPrev));
-        assert_eq!(at(438.0, 15.0), Some(Part::PresetNext));
-        assert_eq!(at(460.0, 15.0), Some(Part::Minimize));
-        assert_eq!(at(479.0, 15.0), Some(Part::Close));
+        assert_eq!(at(15.0, 9.0), Some(Part::Menu));
+        assert_eq!(at(34.0, 9.0), Some(Part::Gear));
+        assert_eq!(at(390.0, 9.0), Some(Part::Presets));
+        assert_eq!(at(422.0, 9.0), Some(Part::PresetPrev));
+        assert_eq!(at(438.0, 9.0), Some(Part::PresetNext));
+        assert_eq!(at(460.0, 9.0), Some(Part::Minimize));
+        assert_eq!(at(479.0, 9.0), Some(Part::Close));
 
         // Close and minimize act on the release over them, not on the press; sliding off, or losing the mouse,
         // cancels.
         let mut st = state(true, "Master");
         let screen = |_: f32, _: f32| (0, 0);
         let closes = |st: &State| st.events.iter().filter(|e| matches!(e, FrameEvent::Close)).count();
-        assert_eq!(st.left_down(479.0, 15.0, false, &screen), Reply::Capture);
+        assert_eq!(st.left_down(479.0, 9.0, false, &screen), Reply::Capture);
         assert_eq!(closes(&st), 0, "the press does not close");
-        assert_eq!(st.left_up(200.0, 15.0), Reply::Repaint);
+        assert_eq!(st.left_up(200.0, 9.0), Reply::Repaint);
         assert_eq!(closes(&st), 0, "released off the button");
-        st.left_down(479.0, 15.0, false, &screen);
+        st.left_down(479.0, 9.0, false, &screen);
         st.release();
-        assert_eq!(st.left_up(479.0, 15.0), Reply::None, "the mouse was lost first");
-        st.left_down(479.0, 15.0, false, &screen);
-        assert_eq!(st.left_up(479.0, 15.0), Reply::Repaint);
+        assert_eq!(st.left_up(479.0, 9.0), Reply::None, "the mouse was lost first");
+        st.left_down(479.0, 9.0, false, &screen);
+        assert_eq!(st.left_up(479.0, 9.0), Reply::Repaint);
         assert_eq!(closes(&st), 1);
-        st.left_down(460.0, 15.0, false, &screen);
-        assert_eq!(st.left_up(479.0, 15.0), Reply::Repaint, "pressed on minimize, released on close: nothing");
+        st.left_down(460.0, 9.0, false, &screen);
+        assert_eq!(st.left_up(479.0, 9.0), Reply::Repaint, "pressed on minimize, released on close: nothing");
         assert_eq!(closes(&st), 1);
-        st.left_down(460.0, 15.0, false, &screen);
-        assert_eq!(st.left_up(460.0, 15.0), Reply::Minimize);
-        assert_eq!(at(200.0, 15.0), Some(Part::Caption));
+        st.left_down(460.0, 9.0, false, &screen);
+        assert_eq!(st.left_up(460.0, 9.0), Reply::Minimize);
+        assert_eq!(at(200.0, 9.0), Some(Part::Caption));
         assert_eq!(at(29.0, 50.0), Some(Part::Tab(0)));
         assert_eq!(at(74.0, 50.0), Some(Part::Tab(1)));
     }

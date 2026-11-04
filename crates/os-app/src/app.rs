@@ -20097,8 +20097,7 @@ mod tests {
         assert_eq!(crate::playlist::visible_tracks(&app.state), crate::playlist::TRACKS);
     }
 
-    /// A docked track holding an audio clip says so in its header (the waveform tile, the clip's name); its clip is blue
-    /// unless the track was given a colour.
+    /// A docked track holding an audio clip says so in its header (the waveform tile, the clip's name).
     #[test]
     fn a_track_with_audio_says_so() {
         use crate::playlist as pl;

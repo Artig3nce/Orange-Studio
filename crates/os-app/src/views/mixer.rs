@@ -452,7 +452,7 @@ fn strip(ui: &mut Ui, s: &State, n: u16, left: f32, bottom: f32, f: &FrameInfo, 
     let (body, hov) = strip_body(ui, s, n, left, STRIP_W, (ly.y(HEAD_Y0), ly.y(HEAD_Y1), ly.y(PANEL_Y1)), bottom, Font::new(17));
 
     // Dark head panel (name, LED, pan) with a rounded bottom.
-    head_panel(ui, Rect::new(left + 1.0, ly.y(PANEL_Y0), STRIP_W - 2.0, ly.y(PANEL_Y1) - ly.y(PANEL_Y0)), track.and_then(|m| m.color).map(super::rgb));
+    head_panel(ui, Rect::new(left + 1.0, ly.y(PANEL_Y0), STRIP_W - 2.0, ly.y(PANEL_Y1) - ly.y(PANEL_Y0)), strip_color(s, n).map(super::rgb));
 
     // Meter slot with its tick marks; the selected strip gets a green frame.
     let meter = Rect::new(mx - 7.5, ly.y(METER_Y0), 16.0, ly.y(METER_Y1) - ly.y(METER_Y0));
@@ -774,6 +774,13 @@ pub fn fader_per_px(s: &State, r: Rect) -> f64 {
 
 /// A strip of the layouts other than Wide, laid out by `g` between the header's top `top` and the window's `bottom`.
 #[allow(clippy::too_many_arguments)]
+/// Insert `n`'s colour: the one it was given, else (docked layout) the palette's by its place, as the playlist's tracks
+/// (the master has none).
+fn strip_color(s: &State, n: u16) -> Option<os_model::Rgb> {
+    let own = s.project.mixer.iter().find(|m| m.index == n).and_then(|m| m.color);
+    own.or_else(|| (s.docked_ui && n != 0).then(|| crate::playlist::AUTO_COLORS[usize::from(n - 1) % crate::playlist::AUTO_COLORS.len()]))
+}
+
 fn strip_geo(ui: &mut Ui, s: &State, n: u16, left: f32, top: f32, bottom: f32, f: &FrameInfo, g: &Geo) {
     let track = s.project.mixer.iter().find(|m| m.index == n);
     let at = |v: f32| Geo::at(top, bottom, v);
@@ -781,7 +788,7 @@ fn strip_geo(ui: &mut Ui, s: &State, n: u16, left: f32, top: f32, bottom: f32, f
     let hov1 = at(g.panel.unwrap_or(g.meter.3));
     let (body, hov) = strip_body(ui, s, n, left, w, (top, top + g.head_h, hov1), bottom, Font::new(g.num_font));
     if let Some(pb) = g.panel {
-        head_panel(ui, Rect::new(left + 1.0, top + g.head_h + 1.0, w - 2.0, at(pb) - top - g.head_h - 1.0), track.and_then(|m| m.color).map(super::rgb));
+        head_panel(ui, Rect::new(left + 1.0, top + g.head_h + 1.0, w - 2.0, at(pb) - top - g.head_h - 1.0), strip_color(s, n).map(super::rgb));
     }
     if let Some(y) = g.foot {
         let band = Rect::new(left + 3.0, at(y), w - 6.0, (bottom - 6.0 - at(y)).max(1.0));
@@ -800,7 +807,7 @@ fn strip_geo(ui: &mut Ui, s: &State, n: u16, left: f32, top: f32, bottom: f32, f
         None => {
             // Extra large: the name on the header's second row.
             let (name, c) = name_and_colour(ui, s, n, hov);
-            let c = track.and_then(|m| m.color).filter(|_| n != 0).map_or(c, |o| ink_on(super::rgb(o)));
+            let c = strip_color(s, n).filter(|_| n != 0).map_or(c, |o| ink_on(super::rgb(o)));
             let r = Rect::new(left + 4.0, top + g.head_h / 2.0, w - 6.0, g.head_h / 2.0);
             ui.c.text_clip(Font::new(14), r.x, r.y + 1.0, r.w, c, &name);
         }
@@ -843,7 +850,7 @@ fn strip_body(ui: &mut Ui, s: &State, n: u16, left: f32, w: f32, (head0, head1, 
     };
     let lemon = super::lemon(ui);
     // A coloured track tints its whole strip, as FL does.
-    let own = track.and_then(|m| m.color).map(super::rgb);
+    let own = strip_color(s, n).map(super::rgb);
     let tint = |c: Color, k: f32| own.map_or(c, |o| c.mix(o, k));
     let body = tint(body, 0.3);
     if lemon {
@@ -981,8 +988,7 @@ fn name_and_colour(ui: &Ui, s: &State, n: u16, hov: bool) -> (String, Color) {
     let c = if super::lemon(ui) {
         if selected { t.accent } else { ui.t.tx(0xe2e2e2) }
     } else {
-        track
-            .and_then(|m| m.color)
+        strip_color(s, n)
             .map(super::rgb)
             .map_or(if selected { ui.t.tx(0xaab2b7) } else if also { ui.t.tx(0xe4e8ea) } else { ui.t.s(0x7f868a) }, |c| {
                 if also { c.mix(ui.t.tx(0xffffff), 0.5) } else { c.mix(ui.t.s(0x7f868a), 0.4) }

@@ -13,7 +13,7 @@
   <a href="LICENSE"><img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue?style=flat-square"></a>
   <img alt="Rust 2024 edition" src="https://img.shields.io/badge/rust-2024_edition-e57324?style=flat-square&logo=rust&logoColor=white">
   <img alt="Platform: Windows | Linux | macOS" src="https://img.shields.io/badge/platform-Windows_%7C_Linux_%7C_macOS-0078d4?style=flat-square">
-  <a href="https://github.com/Artig3nce/Orange-Studio/releases"><img alt="Release: 1.3.1" src="https://img.shields.io/badge/release-1.3.1-ffb02e?style=flat-square"></a>
+  <a href="https://github.com/Artig3nce/Orange-Studio/releases"><img alt="Release: 1.3.2" src="https://img.shields.io/badge/release-1.3.2-ffb02e?style=flat-square"></a>
   <a href="https://discord.gg/yC2uCuGs3M"><img alt="Lemon Studio Discord" src="https://img.shields.io/badge/lemon_studio-discord-5865f2?style=flat-square&logo=discord&logoColor=white"></a>
 </p>
 

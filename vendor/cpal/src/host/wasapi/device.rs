@@ -574,13 +574,32 @@ impl Device {
                     let path = Com::StringFromIID(&Audio::DEVINTERFACE_AUDIO_RENDER)
                         .map_err(Error::from)?;
                     let _guard = ComString(path);
-                    activate_audio_interface_sync(path, activation_timeout).map_err(Error::from)?
+                    match activate_audio_interface_sync(path, activation_timeout) {
+                        Ok(client) => client,
+                        // The "virtual" default device can fail to activate while a Bluetooth headset changes profile or
+                        // wakes up: the endpoint that is the default right now is asked directly instead.
+                        Err(e) => match current_default_endpoint(Audio::eRender)
+                            .and_then(|d| d.Activate::<Audio::IAudioClient>(Com::CLSCTX_ALL, None).ok())
+                        {
+                            Some(client) => client,
+                            None => return Err(Error::from(e)),
+                        },
+                    }
                 }
                 DeviceHandle::DefaultInput => {
                     let path = Com::StringFromIID(&Audio::DEVINTERFACE_AUDIO_CAPTURE)
                         .map_err(Error::from)?;
                     let _guard = ComString(path);
-                    activate_audio_interface_sync(path, activation_timeout).map_err(Error::from)?
+                    match activate_audio_interface_sync(path, activation_timeout) {
+                        Ok(client) => client,
+                        // As for the output: the current default endpoint, asked directly.
+                        Err(e) => match current_default_endpoint(Audio::eCapture)
+                            .and_then(|d| d.Activate::<Audio::IAudioClient>(Com::CLSCTX_ALL, None).ok())
+                        {
+                            Some(client) => client,
+                            None => return Err(Error::from(e)),
+                        },
+                    }
                 }
                 DeviceHandle::Specific(device) => {
                     // can fail if the device has been disconnected since we enumerated it, or if

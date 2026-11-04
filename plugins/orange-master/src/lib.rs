@@ -61,6 +61,9 @@ pub struct Shared {
     pub solving: AtomicBool,
     /// The song Auto Master last heard: a new target is worked out from it again, without listening.
     pub heard: Mutex<Option<Arc<Capture>>>,
+    /// What has played through since the plugin started (the first `LISTEN_S`), kept all the while: a target works from
+    /// it at once, without pressing Auto Master first.
+    pub background: Mutex<Option<Capture>>,
     pub solution: Mutex<Option<Option<Solution>>>,
     /// Ask the audio thread to start the integrated loudness over.
     pub reset_meters: AtomicBool,
@@ -104,9 +107,27 @@ impl Shared {
         self.work(capture, target);
     }
 
-    /// Whether there is a song heard to work a target out from.
+    /// Makes room for the background capture, off the audio thread.
+    pub fn start_background(&self) {
+        if let Ok(mut b) = self.background.lock() {
+            *b = Some(Capture::new(LISTEN_S, self.rate()));
+        }
+    }
+
+    /// Whether there is a song to work a target out from: the one Auto Master heard, else what has played through
+    /// (it takes the latter when it holds enough).
     pub fn has_heard(&self) -> bool {
-        self.heard.lock().is_ok_and(|h| h.is_some())
+        if self.heard.lock().is_ok_and(|h| h.is_some()) {
+            return true;
+        }
+        let Ok(b) = self.background.lock() else { return false };
+        let Some(c) = b.as_ref().filter(|c| c.len() as f64 / self.rate() >= LISTEN_LEAST_S) else { return false };
+        let copy = Arc::new(c.clone());
+        drop(b);
+        if let Ok(mut h) = self.heard.lock() {
+            *h = Some(copy);
+        }
+        true
     }
 
     /// Works the settings out again for another target from the song heard last (the answer comes as Auto Master's does).
@@ -200,6 +221,11 @@ impl OrangeMaster {
                 self.shared.listening.store(false, Ordering::Release);
             }
         }
+        if let Ok(mut b) = self.shared.background.try_lock()
+            && let Some(c) = b.as_mut().filter(|c| !c.full())
+        {
+            c.push(left, right);
+        }
         if self.shared.reset_meters.swap(false, Ordering::AcqRel) {
             self.meter_all = Loudness::new(self.shared.rate(), METER_KEEP_S);
             self.peak = 0.0;
@@ -270,6 +296,7 @@ impl Plugin for OrangeMaster {
 
     fn initialize(&mut self, _layout: &AudioIOLayout, config: &BufferConfig, ctx: &mut impl InitContext<Self>) -> bool {
         self.set_rate(f64::from(config.sample_rate.round().max(1.0)));
+        self.shared.start_background();
         self.chain.set(self.params.settings());
         self.chain.reset();
         self.latency = Some(self.chain.latency());
@@ -350,6 +377,21 @@ mod tests {
         let rms = (last.iter().map(|v| v * v).sum::<f32>() / n as f32).sqrt();
         let want = 0.1 / 2f32.sqrt();
         assert!(gain_to_db(rms / want).abs() < 0.3, "{} dB off: the original, not the 6 dB louder master", gain_to_db(rms / want));
+    }
+
+    /// What plays through is kept, so a target has a song to work from without Auto Master.
+    #[test]
+    fn what_plays_through_is_kept_for_the_targets() {
+        let rate = 48000.0;
+        let mut p = plugin(rate);
+        p.shared.start_background();
+        assert!(!p.shared.has_heard());
+        let mut wave = sine(1000.0, 0.1, rate, 4 * 48000);
+        for chunk in wave.chunks_mut(512) {
+            let mut r = chunk.to_vec();
+            p.block(chunk, &mut r);
+        }
+        assert!(p.shared.has_heard());
     }
 
     /// Compare stays lined up with the master whatever the block size, so switching doesn't jump in time.

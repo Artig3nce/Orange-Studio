@@ -225,7 +225,7 @@ impl Logic {
                 self.shared.resolve(i);
                 self.status = format!("Working out the settings for {}...", TARGETS[i].name);
             } else {
-                self.status = format!("{} is chosen: press Auto Master and play your song to set the chain for it.", TARGETS[i].name);
+                self.status = format!("{} is chosen. Play your song for a few seconds, then press it again (or press Auto Master).", TARGETS[i].name);
             }
         }
     }
@@ -620,7 +620,9 @@ mod tests {
         let mut c = Capture::new(6.0, rate);
         let tone: Vec<f32> = (0..(5.0 * rate) as usize).map(|i| 0.1 * (i as f32 * 0.05).sin() + 0.05 * (i as f32 * 0.31).sin()).collect();
         c.push(&tone, &tone);
-        *l.shared.heard.lock().unwrap() = Some(std::sync::Arc::new(c));
+        // What merely played through (no Auto Master pressed) is enough.
+        *l.shared.background.lock().unwrap() = Some(c);
+        assert!(l.shared.heard.lock().unwrap().is_none());
         let mut gain_for = |l: &mut Logic, i: usize| {
             let r = view::TARGETS_AT[i];
             l.down(r.cx(), r.cy(), false);

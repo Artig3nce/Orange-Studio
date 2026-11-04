@@ -2606,6 +2606,8 @@ impl App {
             return;
         }
         let _ = crate::mixer::run(self, crate::mixer::MCmd::AddEffect(0, index));
+        // Made quietly: its editor opens when asked for, not at the start.
+        self.state.mixer.quiet.insert((0, 0));
         self.state.history.reset();
         self.mark_saved();
     }
@@ -20017,6 +20019,10 @@ mod tests {
         assert!(app.state.mixer.pending.iter().any(|r| matches!(r, crate::mixer::FxReq::Create { track: 0, slot: 0, .. })), "asked to host it");
         assert!(!app.unsaved(), "still an untouched project");
         assert_eq!(app.state.selected_mixer, 0, "the mixer shows the master");
+        // Made when the mixer ticks, without opening its editor over the mixer.
+        app.mixer_tick();
+        assert!(app.plugins.hosted.contains_key(&crate::plugins::fx_key(0, 0)), "hosted");
+        assert!(app.state.mixer.quiet.is_empty() && app.state.panel_plugin.is_none(), "its editor stays closed");
         // Another project is left alone.
         let mut other = App::new(None);
         other.plugins.effects = crate::plugins::builtin_effects();

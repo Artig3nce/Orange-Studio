@@ -1,5 +1,6 @@
 // Copyright (C) 2026 Artig3nce
 // SPDX-License-Identifier: GPL-3.0-or-later
+// This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
 //! The plugin editor: a child of the host's window (Win32, X11 on Linux, an NSView on macOS) that paints `view`, and the
 //! editor logic, which is the same on all of them.

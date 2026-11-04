@@ -859,13 +859,20 @@ impl Ui<'_> {
     /// clipped to it, its clickable parts must be too.
     pub fn keep_hits_in(&mut self, from: usize, area: Rect) {
         let mut i = from;
+        let mut gone = Vec::new();
         while i < self.hits.len() {
             self.hits[i].rect = self.hits[i].rect.intersect(&area);
             if self.hits[i].rect.is_empty() {
                 self.hits.remove(i);
+                gone.push(i + gone.len());
             } else {
                 i += 1;
             }
+        }
+        // The parts painted since keep the hits' places for the next frame: the hits after the removed ones moved up.
+        let moved = |k: usize| k - gone.iter().filter(|&&g| g < k).count();
+        for p in self.keep.next.iter_mut().filter(|p| p.hits.start >= from) {
+            p.hits = moved(p.hits.start)..moved(p.hits.end);
         }
     }
 
@@ -21345,6 +21352,23 @@ mod tests {
         assert!(!l.has(Panel::Windows), "the tabs and the fixed Playlist replace its buttons");
         assert!(!l.has(Panel::Pattern), "the Playlist's clip list picks and adds patterns");
         assert!(crate::toolbar::natural_width(&l, false) + crate::toolbar::LOGO_ROOM <= 1920.0, "every panel and the logo at 1920 px");
+    }
+
+    /// Clipping a docked window's hits to it drops the ones outside; the places each part keeps for the next frame follow, so
+    /// a part kept then does not take the next window's hits (the Playlist lost its grid: the cursor flipped to the arrow).
+    #[test]
+    fn kept_parts_follow_the_hits_clipped_away() {
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.state.docked_ui = true;
+        app.state.z = vec![Win::Mixer];
+        app.paint(&mut c, None);
+        for part in &app.keep.parts {
+            if let Seg::Win(w) = part.seg {
+                assert!(part.hits.end <= app.hits.len(), "{w:?} keeps hits that are gone");
+                assert!(app.hits[part.hits.clone()].iter().all(|h| h.win == Some(w)), "{w:?} keeps another window's hits");
+            }
+        }
     }
 
     /// The docked layout: the Playlist over a bottom panel showing one window under its tab, whatever opens or closes

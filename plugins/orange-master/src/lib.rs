@@ -1,5 +1,6 @@
 // Copyright (C) 2026 Artig3nce
 // SPDX-License-Identifier: GPL-3.0-or-later
+// This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
 //! Orange Master: a mastering chain (EQ, compressor, width, saturation, maximizer) with loudness meters and Auto Master,
 //! which listens to a song and sets the chain for a loudness target. A VST3 / CLAP plugin (nih-plug).

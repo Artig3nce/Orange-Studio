@@ -1,5 +1,6 @@
 // Copyright (C) 2026 Artig3nce
 // SPDX-License-Identifier: GPL-3.0-or-later
+// This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
 //! Orange Master's parameters: real host parameters, so all of them can be automated and saved by the host.
 

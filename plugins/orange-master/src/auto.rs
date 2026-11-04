@@ -1,5 +1,6 @@
 // Copyright (C) 2026 Artig3nce
 // SPDX-License-Identifier: GPL-3.0-or-later
+// This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
 //! Measuring and Auto Master. `Loudness` follows ITU-R BS.1770 (K weighting, 400 ms blocks, the two gates). `solve` takes
 //! a captured stretch of a song, measures its tone, dynamics and width, picks settings for a target, then runs the real

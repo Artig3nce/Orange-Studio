@@ -1,5 +1,6 @@
 // Copyright (C) 2026 Artig3nce
 // SPDX-License-Identifier: GPL-3.0-or-later
+// This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
 //! Orange Master's editor picture: the top row with Auto Master and its targets, the chain's stages left to right as
 //! cards of knobs, and the meters down the right. All painting, and the places the editor's hit tests ask for.

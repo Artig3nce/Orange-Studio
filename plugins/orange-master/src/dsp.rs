@@ -1,5 +1,6 @@
 // Copyright (C) 2026 Artig3nce
 // SPDX-License-Identifier: GPL-3.0-or-later
+// This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
 //! The mastering chain: five-band EQ, three-band compressor, stereo width, saturation and a look-ahead maximizer, in
 //! that order. It knows nothing of the plugin: `Settings` in, audio through, so `auto` can run it over a captured song.

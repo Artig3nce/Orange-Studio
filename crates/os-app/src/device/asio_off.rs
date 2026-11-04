@@ -1,4 +1,6 @@
+// Copyright (C) 2026 Artig3nce
 // SPDX-License-Identifier: GPL-3.0-or-later
+// This file is part of Lemon Studio: https://github.com/ItsAlphaNeon/Lemon-Studio
 
 //! A Windows build without ASIO (the `asio` feature off, as a MinGW cross-build must be): no drivers to list or open.
 

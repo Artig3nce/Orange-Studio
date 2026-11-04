@@ -1205,6 +1205,11 @@ fn docked_clip(ui: &mut Ui, s: &State, g: &PGeom, i: usize, c: &Clip, kind: Pick
     // (fill, rim, contents, name)
     let (fill, rim, ink, name_ink) = match (c.muted, kind, own) {
         (true, ..) => (hex(0x2b2b2b), None, hex(0x5a5a5a), hex(0xa3a3a3)),
+        // An automation clip is see-through: the grid shows through its tint, and its rim and curve are the colour.
+        (_, PickKind::Automation, o) => {
+            let o = o.unwrap_or(hex(0xffb02e));
+            (o.with_alpha(56), Some(o), o, o.mix(hex(0xffffff), 0.45))
+        }
         (_, _, Some(o)) => {
             let light = u32::from(o.r) * 3 + u32::from(o.g) * 6 + u32::from(o.b) > 1200;
             (o, None, o.mix(hex(0x000000), 0.55), if light { o.mix(hex(0x000000), 0.8) } else { hex(0xffffff) })
@@ -1218,8 +1223,10 @@ fn docked_clip(ui: &mut Ui, s: &State, g: &PGeom, i: usize, c: &Clip, kind: Pick
     let tile = if r.w > 6.0 { Rect::new(r.x + 1.0, r.y, r.w - 2.0, r.h) } else { r };
     let rad = 8.0_f32.min(tile.w / 2.0).min(tile.h / 2.0);
     ui.c.fill_rrect(tile, rad, fill);
-    // The grid shows through.
-    clip_grid_lines(ui, s, g, s.playlist_bar_w, tile, rad, fill.mix(hex(0x000000), 0.2), fill.mix(hex(0x000000), 0.09));
+    // The grid shows through (an automation clip's own is the grid under it).
+    if kind != PickKind::Automation || c.muted {
+        clip_grid_lines(ui, s, g, s.playlist_bar_w, tile, rad, fill.mix(hex(0x000000), 0.2), fill.mix(hex(0x000000), 0.09));
+    }
     if let Some(rim) = rim {
         ui.c.stroke_rrect(tile.inset(0.75), rad, 1.5, dim(rim));
     }

@@ -6855,7 +6855,11 @@ impl App {
     /// elsewhere and for the Select tool.
     fn tool_cursor(&self) -> Cursor {
         use crate::playlist::PlTool;
-        if self.hover == Some(Action::PlaylistArea) && self.over_clip && !(self.over_automation && self.state.playlist.tool == PlTool::Draw) && matches!(self.state.playlist.tool, PlTool::Draw | PlTool::Paint | PlTool::Select) {
+        // Over an automation clip the pencil, whatever the tool: its points are drawn there.
+        if self.hover == Some(Action::PlaylistArea) && self.over_automation && matches!(self.state.playlist.tool, PlTool::Draw | PlTool::Paint | PlTool::Select) {
+            return Cursor::Tool(crate::icons::Icon::Pencil);
+        }
+        if self.hover == Some(Action::PlaylistArea) && self.over_clip && matches!(self.state.playlist.tool, PlTool::Draw | PlTool::Paint | PlTool::Select) {
             return Cursor::Move;
         }
         // The same over a note, for the tools that drag notes.

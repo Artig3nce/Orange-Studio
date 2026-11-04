@@ -57,7 +57,7 @@ fn hot_spot(icon: Icon, size: u32) -> (u16, u16) {
 mod tests {
     use super::*;
 
-    /// Over an automation clip the Draw tool shows the pencil (it draws the clip's points); over another clip it moves it.
+    /// Over an automation clip the cursor is the pencil, not the move cursor (the clip's points are drawn there).
     #[test]
     fn an_automation_clip_shows_the_pencil() {
         use crate::app::{App, Cursor, Win};
@@ -78,7 +78,7 @@ mod tests {
         assert_eq!(app.cursor(), Cursor::Tool(Icon::Pencil));
         app.state.playlist.tool = PlTool::Select;
         app.mouse_move(r.x + 41.0, r.bottom() - 10.0);
-        assert_eq!(app.cursor(), Cursor::Move);
+        assert_eq!(app.cursor(), Cursor::Tool(Icon::Pencil), "whatever the tool");
     }
 
     /// Over the playlist's grid the cursor is the playlist tool's icon (Draw shows the pencil, the Select tool keeps

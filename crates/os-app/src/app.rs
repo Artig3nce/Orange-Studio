@@ -1587,6 +1587,8 @@ pub struct App {
     pub resize_cursor: bool,
     /// The mouse is over a playlist clip (not one of its handles): the move cursor for the tools that drag clips.
     pub over_clip: bool,
+    /// The mouse is over an automation clip (whose points the Draw tool draws): the pencil, not the move cursor.
+    pub over_automation: bool,
     /// The mouse is on a clip's menu icon (the title strip's left end): the hand shows, not the grab.
     pub over_clip_icon: bool,
     /// A browser item dragged over a panel tab, and since when: the tab opens after a short rest (`tab_dwell`).
@@ -1861,6 +1863,7 @@ impl App {
             want_drag_window: false,
             resize_cursor: false,
             over_clip: false,
+            over_automation: false,
             over_clip_icon: false,
             tab_dwell: None,
             ctrl: false,
@@ -6433,6 +6436,7 @@ impl App {
             }
         }
         let mut over_clip = false;
+        let mut over_automation = false;
         let mut over_icon = false;
         if hover == Some(Action::PlaylistArea) {
             if let Some(g) = self.pl_grid {
@@ -6440,6 +6444,8 @@ impl App {
                 let pg = crate::playlist::PGeom::new(s, g);
                 let hit = crate::playlist::clip_at(s, &pg, x, y);
                 over_clip = hit.is_some_and(|i| crate::playlist::handle_at(s, &pg, i, x, y).is_none());
+                over_automation = over_clip
+                    && hit.is_some_and(|i| matches!(crate::playlist::clips(s)[i].source, os_model::ClipSource::Channel(ch) if s.project.automation(ch).is_some()));
                 over_icon = hit.is_some_and(|i| crate::playlist::on_menu_icon(&pg.clip_rect(&crate::playlist::clips(s)[i]), x, y));
                 // Automation clips show their points while hovered, audio clips their fade and gain handles (§9a).
                 let auto = hit.filter(|&i| {
@@ -6481,6 +6487,7 @@ impl App {
         let changed = hover != self.hover || hint != self.hint || resize != self.resize_cursor;
         self.resize_cursor = resize;
         self.over_clip = over_clip;
+        self.over_automation = over_automation;
         self.over_clip_icon = over_icon;
         if changed {
             // Repaint the controls that lost / gained hover and the hint panel; large background
@@ -6848,7 +6855,7 @@ impl App {
     /// elsewhere and for the Select tool.
     fn tool_cursor(&self) -> Cursor {
         use crate::playlist::PlTool;
-        if self.hover == Some(Action::PlaylistArea) && self.over_clip && matches!(self.state.playlist.tool, PlTool::Draw | PlTool::Paint | PlTool::Select) {
+        if self.hover == Some(Action::PlaylistArea) && self.over_clip && !(self.over_automation && self.state.playlist.tool == PlTool::Draw) && matches!(self.state.playlist.tool, PlTool::Draw | PlTool::Paint | PlTool::Select) {
             return Cursor::Move;
         }
         // The same over a note, for the tools that drag notes.

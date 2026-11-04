@@ -57,6 +57,30 @@ fn hot_spot(icon: Icon, size: u32) -> (u16, u16) {
 mod tests {
     use super::*;
 
+    /// Over an automation clip the Draw tool shows the pencil (it draws the clip's points); over another clip it moves it.
+    #[test]
+    fn an_automation_clip_shows_the_pencil() {
+        use crate::app::{App, Cursor, Win};
+        use crate::playlist::PlTool;
+        let Ok(mut c) = os_ui::Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.state.z = vec![Win::Playlist];
+        app.paint(&mut c, None);
+        crate::playlist::create_automation(&mut app.state, 0, "Auto", 0.5);
+        app.state.playlist.sel.clear();
+        app.paint(&mut c, None);
+        let g = app.pl_grid().expect("the grid");
+        let pg = crate::playlist::PGeom::new(&app.state, g);
+        let clip = *crate::playlist::clips(&app.state).last().unwrap();
+        let r = pg.clip_rect(&clip);
+        app.state.playlist.tool = PlTool::Draw;
+        app.mouse_move(r.x + 40.0, r.bottom() - 10.0);
+        assert_eq!(app.cursor(), Cursor::Tool(Icon::Pencil));
+        app.state.playlist.tool = PlTool::Select;
+        app.mouse_move(r.x + 41.0, r.bottom() - 10.0);
+        assert_eq!(app.cursor(), Cursor::Move);
+    }
+
     /// Over the playlist's grid the cursor is the playlist tool's icon (Draw shows the pencil, the Select tool keeps
     /// the arrow), and the arrow away from it (FL).
     #[test]

@@ -326,7 +326,7 @@ fn device_chain(ui: &mut Ui, s: &State) {
         // A mixer slot's effect: its on / off switch before the name, its dry / wet bar before the Presets box (what the
         // slot list shows; an instrument has no slot).
         let slot = crate::plugins::fx_of(c.row).filter(|&(tr, k)| s.project.mixer.iter().any(|m| m.index == tr && usize::from(k) < m.slots.len()));
-        let bar_w = if slot.is_some() && c.w >= 340.0 { 44.0 } else { 0.0 };
+        let bar_w = if slot.is_some() && c.w >= 380.0 { 104.0 } else { 0.0 };
         let lead = if slot.is_some() { 22.0 } else { 0.0 };
         let name_w = (c.w - 16.0 - lead - box_w - close_w - bar_w).max(0.0);
         if let Some((tr, k)) = slot {
@@ -351,9 +351,16 @@ fn device_chain(ui: &mut Ui, s: &State) {
         if let (Some((tr, k)), true) = (slot, bar_w > 0.0) {
             // The dry / wet level: drag across the bar.
             let id = crate::knobs::KnobId::SlotMix(tr, k);
-            let cx = right - bar_w / 2.0 - 2.0;
-            ui.hit(Rect::new(cx - bar_w / 2.0, r.y, bar_w, r.h), Action::Knob(id), s.knob_text(id));
-            mixer::centre_bar(ui, cx, r.cy(), 16.0, 8.0, s.knob(id), mixer::Bar::Level);
+            let track = Rect::new(right - bar_w + 8.0, r.cy() - 3.0, bar_w - 16.0, 6.0);
+            let hov = ui.hit(Rect::new(track.x, r.y, track.w, r.h), Action::Knob(id), s.knob_text(id));
+            let v = s.knob(id).clamp(0.0, 1.0);
+            let orange = Color::rgb(0xffa83a);
+            ui.c.fill_rrect(track, 3.0, Color::rgb(0x2c2c2c));
+            if v > 0.0 {
+                ui.c.fill_rrect(Rect::new(track.x, track.y, (track.w * v).max(6.0), track.h), 3.0, orange);
+            }
+            let hx = track.x + track.w * v;
+            ui.c.fill_circle(hx.clamp(track.x + 5.0, track.right() - 5.0), track.cy(), if hov { 6.0 } else { 5.0 }, if hov { Color::rgb(0xffffff) } else { Color::rgb(0xe8e8e8) });
         }
         if box_w > 0.0 {
             // ◂ [ preset name ▾ ] ▸ : one rounded box, the arrows at its ends, the name opening the list.

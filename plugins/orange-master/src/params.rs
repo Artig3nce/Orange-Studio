@@ -89,7 +89,7 @@ impl Default for MasterParams {
             mono_bass: BoolParam::new("Mono Bass", false),
             saturation: float("Saturation", 0.0, 0.0, 100.0, 1.0, |v| format!("{v:.0} %")),
             gain: float("Gain", 0.0, -12.0, 24.0, 0.1, db_text),
-            ceiling: float("Ceiling", -1.0, -6.0, 0.0, 0.1, |v| format!("{v:.1} dB")),
+            ceiling: float("Ceiling", 0.0, -6.0, 0.0, 0.1, |v| format!("{v:.1} dB")),
             target: IntParam::new("Target", 0, IntRange::Linear { min: 0, max: TARGETS.len() as i32 - 1 })
                 .with_value_to_string(Arc::new(|v| TARGETS[v.clamp(0, TARGETS.len() as i32 - 1) as usize].name.to_string()))
                 .with_string_to_value(Arc::new(|s| TARGETS.iter().position(|t| t.name.eq_ignore_ascii_case(s.trim())).map(|i| i as i32))),

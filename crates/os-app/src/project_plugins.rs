@@ -899,6 +899,7 @@ mod tests {
         let key = fx_key(3, 1);
         assert!(a.plugins.set_param_named(key, "Gain", 7.5));
         assert!(a.plugins.set_param_named(key, "EQ High", 2.0));
+        assert!(a.plugins.set_param_named(key, "Ceiling", -1.0));
         a.plugins.hosted[&key].plugin.lock().unwrap().idle();
         // Audio through it as the host runs it: the gain is heard, and nothing passes the ceiling.
         {

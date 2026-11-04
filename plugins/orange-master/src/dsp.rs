@@ -41,7 +41,7 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { eq_db: [0.0; 5], comp_db: [0.0; 3], ratio: 2.0, width: 1.0, mono_bass: false, saturation: 0.0, gain_db: 0.0, ceiling_db: -1.0 }
+        Settings { eq_db: [0.0; 5], comp_db: [0.0; 3], ratio: 2.0, width: 1.0, mono_bass: false, saturation: 0.0, gain_db: 0.0, ceiling_db: 0.0 }
     }
 }
 

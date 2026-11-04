@@ -379,6 +379,24 @@ mod tests {
         assert!(gain_to_db(rms / want).abs() < 0.3, "{} dB off: the original, not the 6 dB louder master", gain_to_db(rms / want));
     }
 
+    /// A new Orange Master changes nothing: the song comes out as it went in (delayed by the chain's latency), until Auto
+    /// Master or a knob changes it.
+    #[test]
+    fn a_new_master_leaves_the_song_alone() {
+        let rate = 48000.0;
+        let mut p = plugin(rate);
+        let lag = p.chain.latency();
+        let n = 4800usize;
+        let src: Vec<f32> = (0..n * 20).map(|i| 0.8 * (i as f32 * 0.07).sin() + 0.15 * (i as f32 * 0.9).sin()).collect();
+        let mut out = src.clone();
+        for chunk in out.chunks_mut(512) {
+            let mut r = chunk.to_vec();
+            p.block(chunk, &mut r);
+        }
+        let worst = (n * 4..src.len() - lag).map(|i| (out[i + lag] - src[i]).abs()).fold(0f32, f32::max);
+        assert!(worst < 0.02, "the song changed by {worst}");
+    }
+
     /// What plays through is kept, so a target has a song to work from without Auto Master.
     #[test]
     fn what_plays_through_is_kept_for_the_targets() {

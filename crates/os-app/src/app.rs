@@ -2590,6 +2590,32 @@ impl App {
         s.piano.dirty = true;
         s.message = Some("New project".into());
         self.mark_saved();
+        self.master_into_new_project();
+    }
+
+    /// A new project starts with Orange Master in the master's first slot: it changes nothing until Auto Master (or a knob)
+    /// does. The project still counts as untouched, and undo does not take it out.
+    pub(crate) fn master_into_new_project(&mut self) {
+        let Some(index) = self.plugins.effect_index("Orange Master") else { return };
+        if self.state.project.mixer.iter().find(|m| m.index == 0).is_none_or(|m| m.slots[0].is_some()) {
+            return;
+        }
+        let keep = self.state.selected_mixer;
+        self.state.selected_mixer = 0;
+        let _ = crate::mixer::run(self, crate::mixer::MCmd::AddEffect(0, index));
+        self.state.selected_mixer = keep;
+        self.state.history.reset();
+        self.mark_saved();
+    }
+
+    /// The program started with the built-in new project (no file, no template): it gets Orange Master as a new one does,
+    /// once the plugins are known.
+    pub(crate) fn master_into_default_start(&mut self) {
+        let p = &self.state.project;
+        let empty = p.mixer.iter().all(|m| m.slots.iter().all(Option::is_none)) && p.arrangements.iter().all(|a| a.clips.is_empty());
+        if self.state.path.is_none() && !self.unsaved() && empty {
+            self.master_into_new_project();
+        }
     }
 
     /// FILE > Open: the open dialog, starting in the project's folder.
@@ -19975,6 +20001,26 @@ mod tests {
         // A row only partly in view isn't there to click.
         frame(&mut app, &mut c, None);
         assert!(!app.hits.iter().any(|h| matches!(h.action, Action::Mix(MHit::SlotName(k)) if k >= 6)), "the rows past the view take no clicks");
+    }
+
+    /// A new project starts with Orange Master in the master's first slot (doing nothing yet), counted as untouched.
+    #[test]
+    fn a_new_project_has_orange_master_in_the_master() {
+        let mut app = App::new(None);
+        app.plugins.effects = crate::plugins::builtin_effects();
+        assert!(app.state.project.mixer[0].slots[0].is_none());
+        app.master_into_default_start();
+        let slot = app.state.project.mixer[0].slots[0].as_ref().expect("Orange Master");
+        assert_eq!(slot.name, "Orange Master");
+        assert!(app.state.mixer.pending.iter().any(|r| matches!(r, crate::mixer::FxReq::Create { track: 0, slot: 0, .. })), "asked to host it");
+        assert!(!app.unsaved(), "still an untouched project");
+        assert_eq!(app.state.selected_mixer, 1, "the selection stays");
+        // Another project is left alone.
+        let mut other = App::new(None);
+        other.plugins.effects = crate::plugins::builtin_effects();
+        other.state.project = test_project();
+        other.master_into_default_start();
+        assert!(other.state.project.mixer[0].slots[0].is_none());
     }
 
     /// Tracks without a colour of their own get one from a palette in the docked layout, each different from its neighbours;

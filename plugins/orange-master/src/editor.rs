@@ -673,7 +673,7 @@ mod tests {
         *l.shared.solution.lock().unwrap() = Some(None);
         l.poll();
         assert!(l.status.contains("silence"));
-        assert_eq!(l.params.settings(), Settings { ceiling_db: -1.0, ..Settings::default() });
+        assert_eq!(l.params.settings(), Settings::default());
     }
 
     /// `ORANGE_MASTER_PNG=<file> cargo test -p orange-master -- --ignored render_editor`: the editor as a PNG.

@@ -143,7 +143,8 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
     let bottom = r.bottom();
 
     // Header row: "C" (scale) and "M" (master) on a lighter band; "Current" and "Master" in Wide 3 and Extra large.
-    ui.c.fill_rect(Rect::new(r.x + 1.0, head0, g.region + sw + 4.0, head_h + 1.0), ui.t.s(0x2b2e30));
+    // Docked: black like the panel it sits in.
+    ui.c.fill_rect(Rect::new(r.x + 1.0, head0, g.region + sw + 4.0, head_h + 1.0), if s.is_fixed(Win::Mixer) { ui.t.window_title } else { ui.t.s(0x2b2e30) });
     let (c_label, m_label) = if g.long { ("Current", "Master") } else { ("C", "M") };
     let (c_rect, m_rect) = if wide {
         (Rect::new(r.x + 12.0, head0, 20.0, 21.0), Rect::new(r.x + 50.0, head0, 22.0, 21.0))
@@ -876,7 +877,7 @@ fn strip_body(ui: &mut Ui, s: &State, n: u16, left: f32, w: f32, (head0, head1, 
     if n != 0 {
         let hr = Rect::new(left, head0, w, head1 - head0 + 1.0);
         let row = Rect::new(left, head0, w, 21.0);
-        ui.c.fill_rect(hr, ui.t.s(0x2b2e30));
+        ui.c.fill_rect(hr, if s.is_fixed(Win::Mixer) { t.window_title } else { ui.t.s(0x2b2e30) });
         let pill = Rect::new(hr.x + 3.0, hr.y + 2.0, hr.w - 6.0, row.h - 4.0);
         if let Some(col) = own {
             // The header in the track's colour, as FL; the selected one underlined.

@@ -4896,7 +4896,7 @@ impl App {
         self.pl_covers = self.playlist_covers();
         self.piano_win = match (self.piano_grid, self.piano_panel) {
             // The window below its title bar: overview, ruler, keyboard, grid, velocity panel.
-            (Some(g), Some(p)) => Some(Rect::new(g.x - 73.0, g.y - 41.0, g.w + 96.0, p.bottom() - g.y + 41.0)),
+            (Some(g), Some(p)) => Some(Rect::new(g.x - views::piano::keys_w() - 2.0, g.y - 41.0, g.w + 96.0, p.bottom() - g.y + 41.0)),
             _ => None,
         };
         if let Some(l) = &self.loading {
@@ -7579,7 +7579,7 @@ impl App {
     /// Velocity of a click on the piano roll's keyboard at `x`: soft at the keys' left end, loud at their tips (as FL).
     fn key_click_velocity(&self, x: f32) -> u8 {
         let Some(g) = self.piano_grid else { return TYPING_VELOCITY };
-        let (left, w) = (g.x - 73.0, 71.0);
+        let (left, w) = (g.x - views::piano::keys_w() - 2.0, views::piano::keys_w());
         (1.0 + 126.0 * ((x - left) / w).clamp(0.0, 1.0)).round() as u8
     }
 
@@ -7601,7 +7601,7 @@ impl App {
         }
         // The keyboard column.
         match self.piano_grid {
-            Some(g) => self.damage_rect(Rect::new(g.x - 73.0, g.y, 73.0, g.h)),
+            Some(g) => self.damage_rect(Rect::new(g.x - views::piano::keys_w() - 2.0, g.y, views::piano::keys_w() + 2.0, g.h)),
             None => self.invalidate(),
         }
     }
@@ -8680,7 +8680,7 @@ impl App {
         let midi = self.midi_play.lit().chain(self.state.touch.held.map(|(key, row)| (row, u16::from(key))));
         self.state.piano.typed = self.typing_held.iter().map(|&(_, row, key)| (row, key)).chain(midi).filter_map(|(row, key)| Some((channels.get(row)?.index, i32::from(key)))).collect();
         match self.piano_grid {
-            Some(g) => self.damage_rect(Rect::new(g.x - 73.0, g.y, 73.0, g.h)),
+            Some(g) => self.damage_rect(Rect::new(g.x - views::piano::keys_w() - 2.0, g.y, views::piano::keys_w() + 2.0, g.h)),
             None => self.invalidate(),
         }
     }

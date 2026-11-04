@@ -51,6 +51,11 @@ thread_local! {
 }
 
 /// The compact band is in use (`set_compact`).
+/// The keyboard's width: a little narrower in the docked layout, whose panel is low (the keys keep FL's look, only smaller).
+pub fn keys_w() -> f32 {
+    if compact() { 58.0 } else { 71.0 }
+}
+
 pub fn compact() -> bool {
     COMPACT.with(std::cell::Cell::get)
 }
@@ -94,19 +99,19 @@ pub fn layout(r: Rect, split: crate::piano_split::Split) -> Layout {
     // docked layout's low panel keeps it as small as the ruler's numbers let it be.
     let head = if compact { hbar + COMPACT_RULER } else { 41.0 };
     let bottom = r.bottom();
-    let gx = r.x + 73.0;
+    let gx = r.x + keys_w() + 2.0;
     let gr = r.right() - vcol - 1.0;
     let gy = r.y + 23.0 + head;
     let split = gy + split.grid_h(bottom - gy - BAND);
     Layout {
-        tab: Rect::new(r.x, r.y + 23.0, 71.0, head),
+        tab: Rect::new(r.x, r.y + 23.0, keys_w(), head),
         overview: Rect::new(r.x + 72.0, r.y + 23.0, gr - r.x - 72.0 + 2.0, hbar),
         ruler: Rect::new(r.x + 72.0, r.y + 23.0 + hbar, gr - r.x - 72.0 + 2.0, head - hbar),
-        keys: Rect::new(r.x, gy, 71.0, split - gy),
+        keys: Rect::new(r.x, gy, keys_w(), split - gy),
         grid: Rect::new(gx, gy, gr - gx, split - gy),
         vscroll: Rect::new(gr + 1.0, r.y + 23.0, r.right() - gr - 1.0, split - r.y - 23.0),
         splitter: Rect::new(r.x, split, r.w, BAND),
-        label: Rect::new(r.x, split + BAND, 71.0, bottom - split - BAND),
+        label: Rect::new(r.x, split + BAND, keys_w(), bottom - split - BAND),
         panel: Rect::new(gx, split + BAND, gr - gx, bottom - split - BAND),
     }
 }
@@ -585,8 +590,9 @@ fn keyboard(ui: &mut Ui, s: &State, l: &Layout, g: &Geom, lit: &[i32]) {
                     ui.c.fill_rect(Rect::new(k.x, y - half, k.w - 1.0, row - 1.0 + half), t.key_c);
                 } else if !lit.contains(&key) {
                     let left = t.key_white_left.shade(-0.16);
-                    ui.c.fill_rect_gradient(Rect::new(k.x, y, 45.0, row - 1.0), left, left, 0.0);
-                    ui.c.fill_rect(Rect::new(k.x + 45.0, y - half, k.w - 46.0, row - 1.0 + half), t.key_c);
+                    let c_left = (45.0 * k.w / 71.0).round();
+                    ui.c.fill_rect_gradient(Rect::new(k.x, y, c_left, row - 1.0), left, left, 0.0);
+                    ui.c.fill_rect(Rect::new(k.x + c_left, y - half, k.w - c_left - 1.0, row - 1.0 + half), t.key_c);
                 }
                 ui.c.fill_rect(Rect::new(k.x, y + row - 1.0, k.w - 1.0, 1.0), sep);
             }
@@ -602,7 +608,7 @@ fn keyboard(ui: &mut Ui, s: &State, l: &Layout, g: &Geom, lit: &[i32]) {
             let (left, right) = if lit.contains(&key) { (t.key_black_lit_left, t.key_black_lit) } else { (t.key_black_left, t.key_black) };
             if lemon {
                 // Rounded at the playing end; the left end runs under the clip.
-                ui.c.fill_rrect(Rect::new(k.x - 6.0, y, 51.0, row), 3.0f32.min(row / 2.0), right);
+                ui.c.fill_rrect(Rect::new(k.x - 6.0, y, (51.0 * k.w / 71.0).round(), row), 3.0f32.min(row / 2.0), right);
                 continue;
             }
             for i in 0..6 {

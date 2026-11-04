@@ -2,3 +2,8 @@
 # cpal's name); without this its build downloads the whole SDK from Steinberg.
 [env]
 CPAL_ASIO_DIR = { value = "crates/os-app/asiosdk", relative = true }
+
+# Windows: the C / C++ runtime is linked into the exe, so it runs on a PC without the "Microsoft Visual C++ Redistributable"
+# (otherwise it stops with "VCRUNTIME140.dll was not found" and the like).
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

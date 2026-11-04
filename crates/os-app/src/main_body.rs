@@ -733,6 +733,10 @@ impl ApplicationHandler for Shell {
         self.app.start_plugins();
         splash::step(&self.splash, splash::LOADING, "Loading project");
         self.window = Some(window);
+        // A session that never ended (a crash, the power): its last backup is offered.
+        if let Some(b) = backup::session_started() {
+            self.app.offer_recovery(b);
+        }
         self.reveal = Some(Instant::now());
         // Always opened maximized.
         self.reveal_max = cfg!(not(any(target_os = "macos", target_os = "android"))) && true;
@@ -769,6 +773,7 @@ impl ApplicationHandler for Shell {
             layout::save_main(m);
         }
         layout::save(&self.app.state);
+        backup::session_ended();
         // Stopped by a signal with changes unsaved: nobody was asked, so they go to a backup.
         #[cfg(any(target_os = "linux", target_os = "macos"))]
         if stop_signal::asked() && self.app.unsaved() {

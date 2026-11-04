@@ -125,14 +125,14 @@ impl App {
     /// FILE ▸ Revert to last backup: the newest backup of the project, after the unsaved changes question as Open asks
     /// it; without one, a box says so.
     pub(crate) fn revert_to_backup(&mut self) {
-        let Some(path) = self.state.path.clone() else { return };
-        let name = crate::backup::project_name(Some(&path));
-        let mut dirs: Vec<PathBuf> = crate::data_folder::backup_folder(&self.state, Some(&path)).into_iter().collect();
+        let path = self.state.path.clone();
+        let name = crate::backup::project_name(path.as_deref());
+        let mut dirs: Vec<PathBuf> = crate::data_folder::backup_folder(&self.state, path.as_deref()).into_iter().collect();
         dirs.extend(crate::backup::folder().filter(|d| !dirs.contains(d)));
         match newest_backup(&dirs, &name) {
             Some(b) => self.ask_discard("reverting to the last backup", Next::Revert(b)),
             None => {
-                let file = path.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+                let file = path.as_ref().and_then(|p| p.file_name()).map_or_else(|| "the new project".to_string(), |n| n.to_string_lossy().into_owned());
                 self.tell(Kind::Info, "Revert to last backup", spans(&["There is no backup of ", &file, "."]));
             }
         }
@@ -141,7 +141,7 @@ impl App {
     /// The revert goes on: backup `b` is opened as the project, keeping the project's file and name (Save writes it
     /// over the project file); the project counts as changed. It is not a recent or last used project.
     pub(crate) fn revert_from(&mut self, b: PathBuf) {
-        let Some(own) = self.state.path.clone() else { return };
+        let own = self.state.path.clone();
         let (kept, recent) = (crate::templates::last_kept(), crate::recent::list());
         self.open(b.clone());
         crate::templates::restore_last(kept);
@@ -150,7 +150,7 @@ impl App {
         if self.state.path.as_deref() != Some(b.as_path()) {
             return;
         }
-        self.state.path = Some(own);
+        self.state.path = own;
         // The project file still holds the last save: unsaved until saved again.
         self.saved.1 = f64::NAN;
         let n = b.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned());
@@ -472,10 +472,12 @@ mod tests {
         use crate::views::menus::{active, item_at, DELETE_UNUSED_LABEL, TOOLS_MENU};
         let mut app = App::new(None);
         let row = |menu: usize, label: &str| (0..200).find_map(|i| item_at(menu, i).filter(|it| it.label == label)).unwrap();
-        let rows = [(0, "Revert to last backup"), (0, "Save to new project folder..."), (0, DELETE_UNUSED_LABEL), (TOOLS_MENU, DELETE_UNUSED_LABEL)];
+        let rows = [(0, "Save to new project folder..."), (0, DELETE_UNUSED_LABEL), (TOOLS_MENU, DELETE_UNUSED_LABEL)];
         for (m, l) in rows {
             assert!(!active(&app.state, m, row(m, l)), "{l}: never saved");
         }
+        // Revert to last backup finds the backups of a project never saved too (what it saved on leaving, or autosaved).
+        assert!(active(&app.state, 0, row(0, "Revert to last backup")));
         assert!(active(&app.state, 0, row(0, "Save as template...")) && active(&app.state, 0, row(0, "New from template")));
         app.state.path = Some(std::env::temp_dir().join("song.flp"));
         for (m, l) in rows {

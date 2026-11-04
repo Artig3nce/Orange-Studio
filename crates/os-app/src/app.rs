@@ -2355,9 +2355,20 @@ impl App {
             Then::Nothing | Then::Replace(_) => {}
             Then::Discard(next) => match reply {
                 Reply::Button(Answer::Yes) => self.save_then(Some(next)),
-                Reply::Button(Answer::No) => self.go_on(next),
+                Reply::Button(Answer::No) => {
+                    // Not saved by choice, or by mistake: the changes go to a backup first.
+                    if self.unsaved() {
+                        let _ = self.write_backup(chrono::Local::now().naive_local());
+                    }
+                    self.go_on(next)
+                }
                 _ => self.held_back(next),
             },
+            Then::Recover(b) => {
+                if reply == Reply::Button(Answer::Yes) {
+                    self.revert_from(b);
+                }
+            }
             Then::SaveProject(next) => match (file, next) {
                 (Some(p), next) => {
                     self.save_to(p);

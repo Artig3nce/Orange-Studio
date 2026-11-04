@@ -477,11 +477,11 @@ pub fn active(s: &State, menu: usize, item: &Item) -> bool {
 pub const DELETE_UNUSED_LABEL: &str = "Delete unused files and save project";
 
 /// The rows greyed out for a project that was never saved (spec: ui/menu-submenus.md §1): Save to new project
-/// folder..., Delete unused files and save project, and Revert to last backup (Lemon Studio rule: a project never
-/// saved has no backups of its own; "untitled" ones may be any other's).
+/// folder... and Delete unused files and save project. (Revert to last backup is not: a project never saved has
+/// "untitled" backups, from its autosaves and from leaving it without saving.)
 pub fn needs_file(menu: usize, label: &str) -> bool {
     match menu {
-        0 => matches!(label, "Save to new project folder..." | DELETE_UNUSED_LABEL | "Revert to last backup"),
+        0 => matches!(label, "Save to new project folder..." | DELETE_UNUSED_LABEL),
         TOOLS_MENU => label == DELETE_UNUSED_LABEL,
         _ => false,
     }

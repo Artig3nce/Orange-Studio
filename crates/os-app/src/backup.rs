@@ -112,7 +112,55 @@ pub fn keep_overwritten(target: &Path, dir: Option<PathBuf>) {
     }
 }
 
+/// The file whose presence says a session is open: left behind by a crash or a power cut, it makes the next start offer the
+/// last backup. Tests: none.
+fn marker() -> Option<PathBuf> {
+    #[cfg(test)]
+    return None;
+    #[cfg(not(test))]
+    os_paths::user_dir().map(|d| d.join("session.open"))
+}
+
+/// A session starts: the newest backup written since the last one started, when that one never ended (it crashed, or the
+/// power went), else none. The marker is set for this session.
+pub fn session_started() -> Option<PathBuf> {
+    let m = marker()?;
+    let crashed = std::fs::metadata(&m).and_then(|f| f.modified()).ok();
+    if let Some(dir) = m.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let _ = std::fs::write(&m, b"");
+    newest_since(&folder()?, crashed?)
+}
+
+/// The session ends as it should: nothing to recover next time.
+pub fn session_ended() {
+    if let Some(m) = marker() {
+        let _ = std::fs::remove_file(m);
+    }
+}
+
+/// The newest backup (any project's) in `dir` written at or after `since`.
+fn newest_since(dir: &Path, since: std::time::SystemTime) -> Option<PathBuf> {
+    std::fs::read_dir(dir)
+        .ok()?
+        .flatten()
+        .filter(|e| e.file_name().to_str().is_some_and(|n| n.ends_with(".flp") && (n.contains(" (autosaved on ") || n.contains(" (overwritten on "))))
+        .filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path())))
+        .filter(|(t, _)| *t >= since)
+        .max_by_key(|(t, _)| *t)
+        .map(|(_, p)| p)
+}
+
 impl App {
+    /// The last session did not end properly: the newest backup is offered (Yes opens it as an unsaved project).
+    pub(crate) fn offer_recovery(&mut self, backup: PathBuf) {
+        use crate::dialog::{spans, Answer, Kind, Msg, Then};
+        let name = backup.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+        let text = spans(&["Orange Studio did not close properly. Open the last backup, ", &name, "?"]);
+        self.show_msg(Msg::new(Kind::Question, "Recover", text, &[Answer::Yes, Answer::No], Then::Recover(backup)));
+    }
+
     /// The Autosave timer (`App::tick`): when its interval ends and the project changed since the last backup or save,
     /// a backup is written. A new Autosave choice starts the timer again.
     pub(crate) fn backup_tick(&mut self, now: Instant) {
@@ -203,6 +251,42 @@ mod tests {
         }
         assert_eq!(interval(2), Some(Duration::from_secs(600)), "Occasionally");
         assert_eq!((interval(0), interval(5), interval(6)), (None, Some(Duration::from_secs(60)), None));
+    }
+
+    /// After a crash the newest backup since the last session began is the one offered; older files and other files are not.
+    #[test]
+    fn the_newest_backup_since_the_session_is_found() {
+        let dir = scratch("since");
+        std::fs::create_dir_all(&dir).unwrap();
+        let old = dir.join(file_name("a", "autosaved", at(1, 1, 1, 1)));
+        std::fs::write(&old, b"old").unwrap();
+        let since = std::time::SystemTime::now();
+        std::thread::sleep(Duration::from_millis(30));
+        let new = dir.join(file_name("b", "autosaved", at(1, 1, 2, 2)));
+        std::fs::write(&new, b"new").unwrap();
+        std::fs::write(dir.join("notes.txt"), b"x").unwrap();
+        std::fs::write(dir.join("c.flp"), b"x").unwrap();
+        assert_eq!(newest_since(&dir, since), Some(new));
+        assert_eq!(newest_since(&dir, std::time::SystemTime::now() + Duration::from_secs(60)), None);
+    }
+
+    /// Answering No to the save question does not lose the changes: they go to a backup, which Revert to last backup opens
+    /// (also for a project that was never saved).
+    #[test]
+    fn no_to_saving_keeps_a_backup_and_revert_finds_it() {
+        use crate::dialog::{Answer, Next, Reply, Then};
+        let dir = scratch("no");
+        let mut app = App::new(None);
+        app.state.tempo = 143.0;
+        assert!(app.unsaved());
+        app.dialog_done(Then::Discard(Next::NewProject), Reply::Button(Answer::No));
+        assert!(names(&dir).iter().any(|n| n.starts_with("untitled (autosaved on ")), "{:?}", names(&dir));
+        // A fresh start: the backup is opened by Revert, as an unsaved project without a file.
+        let mut app = App::new(None);
+        let b = crate::project_files::newest_backup(&[dir.clone()], "untitled").expect("the backup");
+        app.revert_from(b);
+        assert_eq!(app.state.tempo, 143.0);
+        assert!(app.state.path.is_none() && app.unsaved());
     }
 
     /// The oldest autosaves of the project's name go; other names and "overwritten on" copies stay.

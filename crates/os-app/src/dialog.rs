@@ -60,6 +60,8 @@ pub enum Then {
     Discard(Next),
     /// Where to save the project (Save as, or Save of a project without a file), then `Next` once it is saved.
     SaveProject(Option<Next>),
+    /// After a crash: Yes opens this backup as the project (`App::offer_recovery`).
+    Recover(PathBuf),
     /// The Export form's folder button (`App::export_folder_chosen`).
     ExportFolder,
     OpenProject,

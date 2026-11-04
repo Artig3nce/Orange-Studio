@@ -400,7 +400,7 @@ impl App {
     pub(crate) fn tab_dwell(&mut self) {
         const REST: std::time::Duration = std::time::Duration::from_millis(400);
         let over = match (&self.drag, self.top_hit(self.mouse.0, self.mouse.1).map(|h| &h.action)) {
-            (Some(Drag::Browser { started: true, .. }), Some(&Action::PanelTab(w))) if w != self.state.panel => Some(w),
+            (Some(Drag::Browser { started: true, .. }), Some(&Action::PanelTab(w))) if w != self.state.panel && w != Win::ChannelRack => Some(w),
             _ => None,
         };
         match (over, self.tab_dwell) {
@@ -422,6 +422,9 @@ fn zone_rect(s: &crate::app::State, grid: Option<Rect>, x: f32, y: f32) -> Optio
     let grid = grid.filter(|g| g.contains(x, y) && s.shown(Win::Playlist))?;
     crate::views::playlist::drop_ghost(s, grid, x, y).map(|dg| dg.rect)
 }
+
+/// What a drop of an instrument or a sample on the docked Channel rack says: instruments are added from the playlist.
+const NO_RACK_ADD: &str = "Instruments are added from a track's header in the playlist, not the Channel rack";
 
 impl App {
     /// Release: drop the dragged item on whatever is under the mouse (spec §3).
@@ -500,7 +503,11 @@ impl App {
                         None => format!("Could not read {name} as audio"),
                     });
                 } else if win == Some(Win::ChannelRack) {
-                    self.sample_to_rack(path, y);
+                    if self.state.docked_ui {
+                        self.state.message = Some(NO_RACK_ADD.into());
+                    } else {
+                        self.sample_to_rack(path, y);
+                    }
                 }
             }
             // On the playlist — a track row or its header (issue #2) — the instrument lands there: the channel as
@@ -512,7 +519,9 @@ impl App {
                         self.state.message = Some(m);
                     }
                 } else if win == Some(Win::ChannelRack) {
-                    if let Some(m) = crate::plugin_menu::add_generator(self, i, None) {
+                    if self.state.docked_ui {
+                        self.state.message = Some(NO_RACK_ADD.into());
+                    } else if let Some(m) = crate::plugin_menu::add_generator(self, i, None) {
                         self.state.message = Some(m);
                     }
                 }
@@ -1335,14 +1344,22 @@ mod tests {
         app.state.docked_ui = true;
         app.state.z = vec![Win::Mixer];
         app.paint(&mut c, None);
-        let tab = app.hits.iter().find(|h| h.action == Action::PanelTab(Win::ChannelRack)).map(|h| h.rect).expect("the tab");
+        let tab = app.hits.iter().find(|h| h.action == Action::PanelTab(Win::PianoRoll)).map(|h| h.rect).expect("the tab");
         app.drag = Some(Drag::Browser { item: Item::Generator(0), label: "x".into(), m0: (0.0, 0.0), started: true });
         app.mouse_move(tab.cx(), tab.cy());
-        assert!(app.state.shown(Win::Mixer) && !app.state.shown(Win::ChannelRack), "not at once: a drag passing over the tab leaves it");
+        assert!(app.state.shown(Win::Mixer) && !app.state.shown(Win::PianoRoll), "not at once: a drag passing over the tab leaves it");
         app.tab_dwell = app.tab_dwell.map(|(w, t)| (w, t - std::time::Duration::from_millis(500)));
         app.tab_dwell();
         app.paint(&mut c, None);
-        assert!(app.state.shown(Win::ChannelRack) && !app.state.shown(Win::Mixer), "after a rest");
+        assert!(app.state.shown(Win::PianoRoll) && !app.state.shown(Win::Mixer), "after a rest");
+        // The Channel rack tab is not opened for a drop: instruments are added from the playlist's track headers.
+        app.state.raise(Win::Mixer);
+        app.paint(&mut c, None);
+        let rack = app.hits.iter().find(|h| h.action == Action::PanelTab(Win::ChannelRack)).map(|h| h.rect).expect("the tab");
+        app.mouse_move(rack.cx(), rack.cy());
+        app.tab_dwell = app.tab_dwell.map(|(w, t)| (w, t - std::time::Duration::from_millis(500)));
+        app.tab_dwell();
+        assert!(!app.state.shown(Win::ChannelRack));
     }
 
 }

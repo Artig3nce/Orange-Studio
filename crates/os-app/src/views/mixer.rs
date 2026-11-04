@@ -1316,7 +1316,7 @@ fn slot_panel(ui: &mut Ui, s: &State, r: Rect) {
         None => format!("Mixer - Insert {n}"),
     };
     ui.c.fill_rect(Rect::new(r.x, r.y, r.w, 23.0), t.window_title);
-    ui.c.text_clip(Font::new(17), r.x + 1.0, r.y + 2.0, r.w - 70.0, ui.t.tx(0xd4dade), &title);
+    ui.c.text_clip(Font::new(if docked { 14 } else { 17 }), r.x + 1.0, r.y + if docked { 4.0 } else { 2.0 }, r.w - 70.0, ui.t.tx(0xd4dade), &title);
     ui.hit(Rect::new(r.x, r.y, r.w, 23.0), Action::WinDrag(Win::Mixer), "Drag to move");
     if !s.is_fixed(Win::Mixer) {
         window_buttons(ui, Win::Mixer, r.right() - 58.0, r.y, ui.t.tx(0xd4dade), ui.t.tx(0xffffff));
@@ -1334,6 +1334,8 @@ fn slot_panel(ui: &mut Ui, s: &State, r: Rect) {
     let q = kp.max(0.55);
     // Input row: the record-source icon with its label, the input combo, the input latency clock (not available yet:
     // greyed out). Spec: audio/track-io.md §1.1, §2.3.
+    // The docked panel is small: its combos and rows are set smaller.
+    let cf = Font::new(if docked { 13 } else { 17 });
     let input_bg = if docked { t.window_title } else { ui.t.s(0x2b2e30) };
     ui.c.fill_rect(Rect::new(r.x, r.y + 23.0, r.w, 36.0), input_bg);
     let io = track.map_or((-1, os_model::REC_POST_EQ), |m| (m.audio_in, m.rec_source));
@@ -1352,9 +1354,9 @@ fn slot_panel(ui: &mut Ui, s: &State, r: Rect) {
     let combo = Rect::new(r.x + 27.0, r.y + 28.0, 159.0, 23.0);
     if any {
         let hov = ui.hit(combo, Action::Mix(MHit::Input), "Audio input source");
-        os_ui::kit::combo(ui.c, ui.t, combo, &text, Font::new(17), os_ui::kit::State::hover(hov));
+        os_ui::kit::combo(ui.c, ui.t, combo, &text, cf, os_ui::kit::State::hover(hov));
     } else {
-        off_combo(ui, combo, "Audio input source", &text, input_bg);
+        off_combo(ui, combo, "Audio input source", &text, input_bg, cf);
     }
     let mut g = Glyph::new();
     g.ring(r.x + 202.0, r.y + 39.5, 8.5, 1.8).rect(r.x + 201.2, r.y + 34.0, 1.6, 6.5).rect(r.x + 201.2, r.y + 38.9, 5.0, 1.6);
@@ -1366,10 +1368,15 @@ fn slot_panel(ui: &mut Ui, s: &State, r: Rect) {
     // The effect slots; the docked list scrolls when the panel is too low for all of them.
     let scroll = if docked { s.mixer_slot_scroll.clamp(0.0, slot_scroll_max(r.h)) } else { 0.0 };
     let (view_top, view_bottom) = (r.y + 61.0, r.bottom() - SLOT_FOOT);
+    let view = Rect::span(r.x, r.right(), view_top, view_bottom.max(view_top));
+    let first_hit = ui.hits_len();
+    if docked {
+        ui.c.push_clip(view);
+    }
     for i in 0..slot_count {
         let row = Rect::new(r.x + 1.0, r.y + 61.0 + 33.0 * kp * i as f32 - scroll, r.w - 2.0, 28.0 * kp);
-        // A row only partly in view takes no clicks (its part would lie over the rows above): out it goes.
-        if docked && (row.y < view_top - 0.5 || row.bottom() > view_bottom + 0.5) {
+        // A row partly in view is cut at the list's edge (and so are its clicks); one out of view is not drawn.
+        if docked && (row.bottom() <= view_top || row.y >= view_bottom) {
             continue;
         }
         let k = i as u8;
@@ -1416,6 +1423,10 @@ fn slot_panel(ui: &mut Ui, s: &State, r: Rect) {
         }
         ui.hit(Rect::new(row.right() - 18.0 - inset, row.y, 18.0, row.h), Action::Mix(MHit::SlotLed(k)), "Mute / solo  (ctrl)0..9");
         led_small(ui, row.right() - 10.0 - inset, row.cy(), track.is_none_or(|m| m.slot_on[i]));
+    }
+    if docked {
+        ui.c.pop_clip();
+        ui.keep_hits_in(first_hit, view);
     }
     // A thin thumb shows the list scrolls.
     if docked && slot_scroll_max(r.h) > 0.0 {
@@ -1514,7 +1525,7 @@ fn slot_panel(ui: &mut Ui, s: &State, r: Rect) {
     g.ring(r.x + 14.0, b - 48.5, 8.0, 1.5).rect(r.x + 13.3, b - 53.0, 1.4, 5.0).rect(r.x + 13.3, b - 49.2, 4.0, 1.4);
     ui.c.glyph(ui.t.s(0x40464a), &g);
     ui.off(Rect::new(r.x + 25.0, b - 60.0, r.w - 28.0, 22.0), "Track latency");
-    ui.c.text(Font::new(17), r.x + 30.0, b - 59.0, ui.t.tx(0xd4dade), "(none)");
+    ui.c.text(cf, r.x + 30.0, if docked { b - 56.0 } else { b - 59.0 }, ui.t.tx(0xd4dade), "(none)");
     chevron(ui, r.right() - 11.0, b - 48.5, true, ui.t.tx(0x8c969c));
     ui.veil(Rect::span(r.x, r.right(), b - 65.0, b - 34.0), ui.t.s(0x2e3133));
     let mut g = Glyph::new();
@@ -1524,14 +1535,14 @@ fn slot_panel(ui: &mut Ui, s: &State, r: Rect) {
     ui.c.glyph(ui.t.tx(0xc4ccd0), &g);
     let out = Rect::new(r.x + 26.0, b - 28.0, 189.0, 24.0);
     let hov = ui.hit(out, Action::Mix(MHit::Output), "Audio output target");
-    os_ui::kit::combo(ui.c, ui.t, out, &mx::output_label(s, n), Font::new(17), os_ui::kit::State::hover(hov));
+    os_ui::kit::combo(ui.c, ui.t, out, &mx::output_label(s, n), cf, os_ui::kit::State::hover(hov));
 }
 
 /// An input combo with nothing to choose (no device inputs): drawn greyed out with `text`, its hit only says so.
-fn off_combo(ui: &mut Ui, r: Rect, name: &'static str, text: &str, bg: Color) {
+fn off_combo(ui: &mut Ui, r: Rect, name: &'static str, text: &str, bg: Color, font: Font) {
     ui.off(r, name);
     let st = os_ui::kit::State::NORMAL.with_disabled(true);
-    os_ui::kit::combo(ui.c, ui.t, r, text, Font::new(17), st);
+    os_ui::kit::combo(ui.c, ui.t, r, text, font, st);
     ui.veil(r, bg);
 }
 

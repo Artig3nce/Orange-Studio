@@ -451,7 +451,7 @@ mod tests {
         reg::put("HKLM", &format!(r"Software\Classes\{FL_TYPE}\shell\open\command"), "", &format!("\"{OTHER}\" \"%1\""));
         assert_eq!(seen().user_choice, Some((FL_TYPE.into(), Some(format!("\"{OTHER}\" \"%1\"")))));
         assert!(blocked(PROGRAM, &seen()) && !ticked(PROGRAM, &seen()));
-        reg::put("HKCU", choice, "ProgId", "orangestudio.project");
+        reg::put("HKCU", choice, "ProgId", &PROG_ID.to_lowercase());
         assert!(ticked(PROGRAM, &seen()), "Orange Studio's own type, any case");
         reg::put("HKCU", choice, "ProgId", r"Applications\orangestudio.exe");
         reg::put("HKCU", r"Software\Classes\Applications\orangestudio.exe\shell\open\command", "", &format!("\"{PROGRAM}\" \"%1\""));

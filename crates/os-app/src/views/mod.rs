@@ -399,10 +399,12 @@ fn device_chain(ui: &mut Ui, s: &State) {
         let r = Rect::new(c.x, panel.y + 4.0, c.w, panel.h - 8.0);
         let hov = ui.hit(r, Action::DeviceFold(c.row), format!("{}: click to open", c.name));
         os_ui::kit::lemon::plug_panel(ui.c, r);
-        let ink = if hov { t.text } else { t.text_dim };
-        // A caret, then the name stacked down the strip.
+        let ink = if hov { t.text } else { t.text_dim.with_alpha(170) };
+        // A chevron, then the name stacked down the strip.
         let (cx, y0) = (r.cx(), r.y + 12.0);
-        ui.c.fill_polygon(&[(cx - 3.0, y0 - 4.0), (cx + 3.0, y0), (cx - 3.0, y0 + 4.0)], ink);
+        // The open card's chevron, turned to point the way the card opens.
+        ui.c.line(cx - 2.5, y0 - 5.0, cx + 2.5, y0, 1.6, ink);
+        ui.c.line(cx + 2.5, y0, cx - 2.5, y0 + 5.0, 1.6, ink);
         let mut y = y0 + 12.0;
         for ch in c.name.chars().filter(|ch| !ch.is_whitespace()) {
             if y + 12.0 > r.bottom() - 6.0 {

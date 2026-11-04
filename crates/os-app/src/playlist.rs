@@ -3064,7 +3064,7 @@ pub fn paste_label(s: &State) -> String {
 }
 
 /// A docked track header's instrument tile: where it sits in the header, from its left edge (`views::playlist::header`).
-pub const HEAD_ICON_X: f32 = 28.0;
+pub const HEAD_ICON_X: f32 = 8.0;
 pub const HEAD_ICON_W: f32 = 30.0;
 
 /// The instrument a track was given (Insert instrument, or a drop on it): its first pattern clip's pattern is named after

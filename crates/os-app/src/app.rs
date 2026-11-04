@@ -374,6 +374,8 @@ pub enum Action {
     PlHeader(u16),
     /// The docked playlist's "Add track" button.
     PlAddTrack,
+    /// A docked track header's solo button (its mute button is `PlLed`).
+    PlSolo(u16),
     PlLed(u16),
     /// A playlist track header's "..." handle: drag to size the track, click to shrink it or bring it back.
     PlTrackSize(u16),
@@ -8985,6 +8987,8 @@ impl App {
                 self.invalidate();
             }
             Action::PlAddTrack => {}
+            Action::PlSolo(t) if !right => pl::press_led(self, t, true),
+            Action::PlSolo(_) => {}
             Action::PlLed(t) => pl::press_led(self, t, right),
             Action::PlTrackSize(t) if !right => pl::press_track_size(self, t),
             Action::PlTrackSize(_) => {}
@@ -9635,6 +9639,7 @@ impl App {
             | Action::PlMarkers
             | Action::PlHeader(_)
             | Action::PlAddTrack
+            | Action::PlSolo(_)
             | Action::PlLed(_)
             | Action::PlTrackSize(_)
             | Action::PlGroupArrow(_)
@@ -20097,6 +20102,27 @@ mod tests {
         assert_eq!(crate::playlist::visible_tracks(&app.state), crate::playlist::TRACKS);
     }
 
+    /// A docked track header has mute and solo buttons (in place of the LED): they switch the track's mute and solo.
+    #[test]
+    fn docked_track_headers_have_mute_and_solo_buttons() {
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.state.docked_ui = true;
+        app.state.z = vec![Win::Mixer];
+        app.state.playlist.shown_tracks = 3;
+        frame(&mut app, &mut c, None);
+        assert!(crate::playlist::track_on(&app.state, 1));
+        let mute = hit_rect(&app, &Action::PlLed(1));
+        click(&mut app, &mut c, mute);
+        assert!(!crate::playlist::track_on(&app.state, 1), "muted");
+        let mute = hit_rect(&app, &Action::PlLed(1));
+        click(&mut app, &mut c, mute);
+        assert!(crate::playlist::track_on(&app.state, 1), "unmuted");
+        let solo = hit_rect(&app, &Action::PlSolo(1));
+        click(&mut app, &mut c, solo);
+        assert!(app.state.playlist.solo.as_ref().is_some_and(|x| x.0 == 1), "soloed");
+    }
+
     /// A docked track holding an audio clip says so in its header (the waveform tile, the clip's name).
     #[test]
     fn a_track_with_audio_says_so() {
@@ -21605,10 +21631,10 @@ mod tests {
         let rack = crate::views::rack::rect(&app.state);
         assert_eq!((rack.x, rack.y, rack.w, rack.bottom()), (mx.x, mx.y, mx.w, work.bottom()), "the rack goes where the mixer was");
 
-        // A track's header: the mute light left of its name, the size handle at the right.
+        // A track's header: the mute and solo buttons and the size handle at the right.
         let (led, grip) = (hit_rect(&app, &Action::PlLed(1)), hit_rect(&app, &Action::PlTrackSize(1)));
         let head = hit_rect(&app, &Action::PlHeader(1));
-        assert!(led.right() < head.x + 30.0 && grip.x > head.cx(), "{led:?} {grip:?} in {head:?}");
+        assert!(led.x > head.cx() && led.right() <= grip.right() && grip.x > head.cx(), "{led:?} {grip:?} in {head:?}");
         assert!((led.cy() - head.cy()).abs() < 1.0, "centred");
 
         // The clip list keeps its controls, and picking a pattern in it still works.

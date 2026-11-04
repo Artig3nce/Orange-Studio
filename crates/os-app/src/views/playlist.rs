@@ -432,7 +432,7 @@ pub fn scroll_parts(s: &State, grid: Rect) -> ScrollParts {
 /// The arrangement grid in a window laid out at `r` with client rect `client` (see `super::frame_rects`).
 /// The track headers' width: wider in the docked layout, which shows the instrument beside the name.
 fn head_w(s: &State) -> f32 {
-    if s.docked_ui { 176.0 } else { 98.0 }
+    if s.docked_ui { 196.0 } else { 98.0 }
 }
 
 fn grid_rect(s: &State, r: Rect, client: Rect) -> Rect {
@@ -1739,7 +1739,9 @@ fn header(ui: &mut Ui, s: &State, g: &PGeom, row: u16, x: f32, w: f32) {
     // rows drop the "…" and keep the name clear of the LED.
     let short = h < pl::ROW_H - 8.0;
     let led = if docked { Rect::new(hr.x + 9.0, hr.cy() - 7.0, 14.0, 14.0) } else { Rect::new(hr.right() - 19.0, (h - gap - 15.0).max(1.0) + hr.y, 14.0, 14.0) };
-    ui.hit(led, Action::PlLed(row), "Mute track (right-click / Ctrl+click: solo)");
+    if !docked {
+        ui.hit(led, Action::PlLed(row), "Mute track (right-click / Ctrl+click: solo)");
+    }
     let text = if docked && selected { t.accent } else if colored.is_some() { ui.t.tx(0xdce8f0) } else if docked { t.text } else { t.text_faint };
     let text = if on { text } else { text.shade(-0.35) };
     let editing = matches!(s.playlist.edit.as_ref().map(|e| e.target), Some(pl::EditTarget::TrackName(r)) if r == row);
@@ -1747,7 +1749,7 @@ fn header(ui: &mut Ui, s: &State, g: &PGeom, row: u16, x: f32, w: f32) {
         let font = Font::new(16);
         let (name_x, name_y, name_w) = if docked {
             // An instrument tile (click: pick one for the track), then the name over the instrument's name.
-            let right = if lead { 48.0 } else if ui.hovering(hr) { 15.0 } else { 6.0 };
+            let right = (if lead { 48.0 } else if ui.hovering(hr) { 15.0 } else { 6.0 }) + if short { 0.0 } else { 70.0 };
             let tile = Rect::new(hr.x + pl::HEAD_ICON_X, hr.cy() - 14.0, pl::HEAD_ICON_W, 28.0);
             let content = pl::track_content(s, row);
             let audio = content.as_ref().is_some_and(|c| c.0 == PickKind::Audio);
@@ -1795,6 +1797,23 @@ fn header(ui: &mut Ui, s: &State, g: &PGeom, row: u16, x: f32, w: f32) {
         // The docked layout: at the row's right end, with the mouse on the row.
         ui.c.text(Font::new(14), hr.right() - 14.0, grip.y - 3.0, if hov { text } else { text.shade(-0.2) }, "...");
     }
+    // Docked: the mute and solo buttons, lit while on (the LED the other layout has is not drawn).
+    if docked && !short {
+        let gx = hr.right() - 24.0 - if lead { 22.0 } else { 0.0 };
+        let m = Rect::new(gx - 22.0, hr.cy() - 9.0, 20.0, 18.0);
+        let sb = Rect::new(m.x - 22.0, m.y, 20.0, 18.0);
+        let solo = s.playlist.solo.as_ref().is_some_and(|x| x.0 == row);
+        for (r, label, lit, action, hint, lit_col) in [
+            (m, "M", !on, Action::PlLed(row), "Mute track", 0xffb02e_u32),
+            (sb, "S", solo, Action::PlSolo(row), "Solo track", 0xe8e04c_u32),
+        ] {
+            let hov = ui.hit(r, action, hint);
+            let face = if lit { Color::rgb(lit_col) } else { Color::rgb(0x000000).with_alpha(if hov { 120 } else { 70 }) };
+            ui.c.fill_rrect(r, 5.0, face);
+            let ink = if lit { Color::rgb(0x1a1200) } else if hov { ui.t.tx(0xffffff) } else { text };
+            ui.c.text_center(Font::new(12), r, ink, label);
+        }
+    }
     let info = pl::track_info(s, row);
     if lead {
         // Collapse arrow left of the LED: up while open, down while collapsed.
@@ -1819,7 +1838,9 @@ fn header(ui: &mut Ui, s: &State, g: &PGeom, row: u16, x: f32, w: f32) {
             green,
         );
     } else {
-        super::led_small(ui, led.cx(), led.cy(), on);
+        if !docked {
+            super::led_small(ui, led.cx(), led.cy(), on);
+        }
     }
 }
 

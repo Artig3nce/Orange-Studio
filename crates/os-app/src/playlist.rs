@@ -1175,7 +1175,7 @@ pub fn track_info(s: &State, t: u16) -> Option<&PlaylistTrack> {
 }
 
 /// The colours tracks without one of their own cycle through in the docked layout, as Ableton gives each new track its own.
-pub const AUTO_COLORS: [os_model::Rgb; 14] = [
+const AUTO_COLORS: [os_model::Rgb; 14] = [
     os_model::Rgb::new(0xe5, 0x6b, 0x7f),
     os_model::Rgb::new(0xf0, 0x93, 0x2a),
     os_model::Rgb::new(0xc2, 0x9a, 0x3b),

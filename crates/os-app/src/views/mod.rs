@@ -323,10 +323,11 @@ fn device_chain(ui: &mut Ui, s: &State) {
         // layout's pixels beside the new one.
         let font = fnt(13.0);
         let box_w = if c.w >= 250.0 { 158.0 } else { 0.0 };
-        let close_w = 24.0;
         // A mixer slot's effect: its on / off switch before the name, its dry / wet bar before the Presets box (what the
         // slot list shows; an instrument has no slot).
         let slot = crate::plugins::fx_of(c.row).filter(|&(tr, k)| s.project.mixer.iter().any(|m| m.index == tr && usize::from(k) < m.slots.len()));
+        // The fold button, and for an effect its menu (replace, delete, move).
+        let close_w = if slot.is_some() { 46.0 } else { 24.0 };
         let bar_w = if slot.is_some() && c.w >= 380.0 { 104.0 } else { 0.0 };
         let lead = if slot.is_some() { 22.0 } else { 0.0 };
         let name_w = (c.w - 16.0 - lead - box_w - close_w - bar_w).max(0.0);
@@ -339,12 +340,25 @@ fn device_chain(ui: &mut Ui, s: &State) {
         ui.c.text_clip(font, r.x + 8.0 + lead, r.y + 1.0, name_w, t.text_dim, &c.name);
         let mut right = r.right() - 4.0;
         {
-            let close = Rect::new(right - 20.0, r.y, 20.0, r.h);
-            let cov = ui.hit(close, Action::DeviceClose(c.row), format!("{}: fold up", c.name));
-            let ink = if cov { t.text } else { t.text_dim.with_alpha(150) };
-            ui.c.line(close.cx() - 4.0, close.cy() - 4.0, close.cx() + 4.0, close.cy() + 4.0, 1.5, ink);
-            ui.c.line(close.cx() + 4.0, close.cy() - 4.0, close.cx() - 4.0, close.cy() + 4.0, 1.5, ink);
-            right = close.x - 4.0;
+            // Fold: the card shrinks to a strip (a chevron pointing where it goes), not a close.
+            let fold = Rect::new(right - 20.0, r.y, 20.0, r.h);
+            let cov = ui.hit(fold, Action::DeviceClose(c.row), format!("{}: fold up", c.name));
+            let ink = if cov { t.text } else { t.text_dim.with_alpha(170) };
+            let (cx, cy) = (fold.cx(), fold.cy());
+            ui.c.line(cx + 2.5, cy - 5.0, cx - 2.5, cy, 1.6, ink);
+            ui.c.line(cx - 2.5, cy, cx + 2.5, cy + 5.0, 1.6, ink);
+            right = fold.x - 2.0;
+            if slot.is_some() {
+                // The menu: three dots.
+                let menu = Rect::new(right - 20.0, r.y, 20.0, r.h);
+                let mov = ui.hit(menu, Action::DeviceMenu(c.row), "Replace, delete, move");
+                let ink = if mov { t.text } else { t.text_dim.with_alpha(170) };
+                for d in [-5.0, 0.0, 5.0] {
+                    ui.c.fill_circle(menu.cx() + d, menu.cy(), 1.5, ink);
+                }
+                right = menu.x - 2.0;
+            }
+            right -= 2.0;
         }
         if box_w > 0.0 {
             right -= box_w + 6.0;

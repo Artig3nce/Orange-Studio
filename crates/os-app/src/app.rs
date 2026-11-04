@@ -311,6 +311,8 @@ pub enum Action {
     /// The caption's previous / next preset arrows.
     DevicePresetStep(usize, i32),
     DeviceClose(usize),
+    /// A device card's menu (an effect's slot menu: replace, delete, move).
+    DeviceMenu(usize),
     /// The Devices tab's chain scrolls a step left (-1) or right (1).
     DeviceScroll(i8),
     /// The plugin browser (Plugin database tab): filter button `i` (`views::plugin_panel::FILTERS`), a category
@@ -9498,6 +9500,13 @@ impl App {
             Action::DevicePresetStep(row, d) => {
                 self.state.message = crate::presets::run(self, crate::presets::PCmd::Step(row, d));
                 self.invalidate();
+            }
+            Action::DeviceMenu(row) => {
+                if let Some((_, k)) = crate::plugins::fx_of(row) {
+                    let (x, y) = self.mouse;
+                    self.state.playlist.popup = Some(crate::mixer::slot_menu(&self.state, k, x, y));
+                    self.invalidate();
+                }
             }
             Action::DeviceClose(row) => {
                 self.state.device_fold.insert(row);
@@ -20149,6 +20158,11 @@ mod tests {
         app.mouse_up();
         let on = app.state.project.mixer.iter().find(|m| m.index == t).unwrap().slot_on[usize::from(k)];
         assert!(!on, "bypassed");
+        // Its menu lists what the slot's menu does, Delete among it.
+        let menu = hit_rect(&app, &Action::DeviceMenu(row));
+        click(&mut app, &mut c, menu);
+        let popup = app.state.playlist.popup.as_ref().expect("the menu");
+        assert!(popup.items.iter().any(|i| i.label == "Delete..."));
     }
 
     /// A docked track holding an audio clip says so in its header (the waveform tile, the clip's name).

@@ -220,6 +220,13 @@ impl Logic {
             self.shared.reset_meters.store(true, Ordering::Release);
         } else if let Some(i) = view::TARGETS_AT.iter().position(|r| r.contains(x, y)) {
             self.vals.edit_plain("target", i as f32);
+            // Another target: the song Auto Master heard is worked out for it at once.
+            if self.shared.has_heard() {
+                self.shared.resolve(i);
+                self.status = format!("Working out the settings for {}...", TARGETS[i].name);
+            } else {
+                self.status = format!("{} is chosen: press Auto Master and play your song to set the chain for it.", TARGETS[i].name);
+            }
         }
     }
 
@@ -602,6 +609,31 @@ mod tests {
         assert!(!l.params.comparing());
         l.down(view::MONO_BASS.cx(), view::MONO_BASS.cy(), false);
         assert!(l.params.settings().mono_bass);
+    }
+
+    /// Another target works the settings out again from the song heard: Loud is louder than Streaming without listening again.
+    #[test]
+    fn another_target_is_worked_out_from_the_song_heard() {
+        use crate::auto::Capture;
+        let mut l = logic();
+        let rate = l.shared.rate();
+        let mut c = Capture::new(6.0, rate);
+        let tone: Vec<f32> = (0..(5.0 * rate) as usize).map(|i| 0.1 * (i as f32 * 0.05).sin() + 0.05 * (i as f32 * 0.31).sin()).collect();
+        c.push(&tone, &tone);
+        *l.shared.heard.lock().unwrap() = Some(std::sync::Arc::new(c));
+        let mut gain_for = |l: &mut Logic, i: usize| {
+            let r = view::TARGETS_AT[i];
+            l.down(r.cx(), r.cy(), false);
+            assert!(l.shared.solving.load(Ordering::Acquire) || l.shared.solution.lock().unwrap().is_some());
+            while l.shared.solving.load(Ordering::Acquire) {
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+            l.poll();
+            l.vals.plain("gain")
+        };
+        let streaming = gain_for(&mut l, 0);
+        let loud = gain_for(&mut l, 2);
+        assert!(loud > streaming + 3.0, "streaming {streaming} dB, loud {loud} dB");
     }
 
     #[test]

@@ -19,7 +19,7 @@ use std::sync::{Arc, Mutex};
 use nih_plug::prelude::*;
 
 use auto::{Capture, Loudness, Solution, FLOOR_LUFS, TARGETS};
-use dsp::{db_to_gain, gain_to_db, Chain, TruePeak};
+use dsp::{gain_to_db, Chain, TruePeak};
 use params::MasterParams;
 
 /// How much of a song Auto Master listens to, at most, and how much it needs at least, seconds.
@@ -59,6 +59,8 @@ pub struct Shared {
     pub listening: AtomicBool,
     /// A worker is working out the settings.
     pub solving: AtomicBool,
+    /// The song Auto Master last heard: a new target is worked out from it again, without listening.
+    pub heard: Mutex<Option<Arc<Capture>>>,
     pub solution: Mutex<Option<Option<Solution>>>,
     /// Ask the audio thread to start the integrated loudness over.
     pub reset_meters: AtomicBool,
@@ -95,6 +97,29 @@ impl Shared {
     pub fn finish_listening(self: &Arc<Self>, target: usize) {
         self.listening.store(false, Ordering::Release);
         let Some(capture) = self.capture.lock().ok().and_then(|mut c| c.take()) else { return };
+        let capture = Arc::new(capture);
+        if let Ok(mut h) = self.heard.lock() {
+            *h = Some(capture.clone());
+        }
+        self.work(capture, target);
+    }
+
+    /// Whether there is a song heard to work a target out from.
+    pub fn has_heard(&self) -> bool {
+        self.heard.lock().is_ok_and(|h| h.is_some())
+    }
+
+    /// Works the settings out again for another target from the song heard last (the answer comes as Auto Master's does).
+    pub fn resolve(self: &Arc<Self>, target: usize) -> bool {
+        if self.solving.load(Ordering::Acquire) {
+            return true;
+        }
+        let Some(capture) = self.heard.lock().ok().and_then(|h| h.clone()) else { return false };
+        self.work(capture, target);
+        true
+    }
+
+    fn work(self: &Arc<Self>, capture: Arc<Capture>, target: usize) {
         let rate = self.rate();
         let target = TARGETS[target.min(TARGETS.len() - 1)];
         self.solving.store(true, Ordering::Release);
@@ -127,7 +152,6 @@ pub struct OrangeMaster {
     tp: [TruePeak; 2],
     peak: f32,
     /// Compare's level, and the correlation's running sums.
-    compare_gain: f32,
     corr: [f64; 3],
     latency: Option<usize>,
 }
@@ -153,7 +177,6 @@ impl OrangeMaster {
             meter_all: Loudness::new(rate, METER_KEEP_S),
             tp: [TruePeak::new(), TruePeak::new()],
             peak: 0.0,
-            compare_gain: 1.0,
             corr: [0.0; 3],
             latency: None,
         }
@@ -207,10 +230,9 @@ impl OrangeMaster {
                 self.dry_at = (self.dry_at + 1) % self.dry.len();
                 if comparing {
                     let [p, q] = self.dry[self.dry_at];
-                    let want = db_to_gain((self.meter_out.momentary() - self.meter_in.momentary()).clamp(-24.0, 24.0));
-                    self.compare_gain += (want - self.compare_gain) * 0.0002;
-                    *x = p * self.compare_gain;
-                    *y = q * self.compare_gain;
+                    // The song as it came in, at its own level (hearing what the master did to the volume too).
+                    *x = p;
+                    *y = q;
                 }
             }
         }
@@ -305,7 +327,7 @@ mod tests {
     }
 
     #[test]
-    fn compare_is_the_dry_song_at_the_masters_loudness() {
+    fn compare_is_the_dry_song_at_its_own_level() {
         let rate = 48000.0;
         let mut p = plugin(rate);
         p.params.live.set(p.params.gain.as_ptr(), p.params.gain.preview_normalized(6.0));
@@ -326,8 +348,8 @@ mod tests {
             p.block(&mut last, &mut r);
         }
         let rms = (last.iter().map(|v| v * v).sum::<f32>() / n as f32).sqrt();
-        let want = 0.1 * db_to_gain(6.0) / 2f32.sqrt();
-        assert!(gain_to_db(rms / want).abs() < 0.3, "{} dB off", gain_to_db(rms / want));
+        let want = 0.1 / 2f32.sqrt();
+        assert!(gain_to_db(rms / want).abs() < 0.3, "{} dB off: the original, not the 6 dB louder master", gain_to_db(rms / want));
     }
 
     /// Compare stays lined up with the master whatever the block size, so switching doesn't jump in time.

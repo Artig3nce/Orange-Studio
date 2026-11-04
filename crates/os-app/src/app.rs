@@ -3277,6 +3277,18 @@ impl App {
         }
         let mut rows: Vec<usize> = self.state.panel_instrument.filter(|i| self.plugins.hosted.contains_key(i)).into_iter().collect();
         rows.extend((0..10u8).map(|slot| fx_key(t, slot)).filter(|key| self.plugins.hosted.contains_key(key)));
+        // A third-party plugin's editor is a window of its own: asked for (its card unfolded), it opens there and its card stays
+        // a strip, which brings the window forward again.
+        let asked: Vec<usize> = rows.iter().copied().filter(|&r| self.plugins.external(r) && !self.state.device_fold.contains(&r)).collect();
+        for row in asked {
+            if !self.state.device_failed.contains(&row) {
+                let info = if row >= FX_KEY { crate::mixer::fx_info(&self.state.project, &self.state.mixer, row) } else { channel_info(&self.state.project, row) };
+                if info.map(|info| self.plugins.open_window(row, info)).is_none_or(|r| r.is_err()) {
+                    self.state.device_failed.insert(row);
+                }
+            }
+            self.state.device_fold.insert(row);
+        }
         // Only the cards that are open have an editor: the others, and those of other tracks, are closed.
         let open: Vec<usize> = rows.iter().copied().filter(|r| !self.state.device_fold.contains(r)).collect();
         for row in self.plugins.docked() {
@@ -3301,7 +3313,7 @@ impl App {
         let mut x = panel.x + 4.0 - self.state.device_scroll;
         let mut cards = Vec::with_capacity(rows.len());
         for &row in &rows {
-            let size = self.plugins.window_size(row).filter(|_| !self.state.device_fold.contains(&row));
+            let size = self.plugins.window_size(row).filter(|_| !self.state.device_fold.contains(&row) && !self.plugins.external(row));
             let w = size.map_or(FOLD_W, |s| s.0.max(MIN_W));
             let name = self.plugins.descriptor(row).map(|d| d.name.clone()).unwrap_or_default();
             cards.push(DeviceCard { row, x, w, folded: size.is_none(), name });

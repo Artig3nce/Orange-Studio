@@ -62,6 +62,9 @@ pub struct Hosted {
     /// last closed (spec: ui/settings-choices.md "Miscellaneous: naming, detached plugins and startup").
     #[cfg_attr(not(plugin_windows), allow(dead_code))]
     pub detached: bool,
+    /// A third-party plugin, not one of ours: its editor opens in a window of its own, also in the docked layout, where
+    /// only ours are cards of the Devices tab.
+    pub external: bool,
     /// Where its detached window was when it last closed (screen px): reopened, it goes back there (spec: as above).
     #[cfg(plugin_windows)]
     pub placed: Option<(i32, i32)>,
@@ -158,6 +161,7 @@ impl Hosted {
     /// A newly hosted instance, without a window.
     pub fn new(plugin: SharedPlugin) -> Hosted {
         let (meter, attention, name) = plugin.lock().map(|p| (p.meter(), p.attention(), p.desc().name.clone())).unwrap_or_default();
+        let external = plugin.lock().is_ok_and(|p| !crate::project_plugins::is_builtin(p.desc()));
         Hosted {
             plugin,
             meter,
@@ -172,6 +176,7 @@ impl Hosted {
             attention,
             seen: Look::never(),
             detached: false,
+            external,
             #[cfg(plugin_windows)]
             placed: None,
             #[cfg(plugin_windows)]
@@ -1088,9 +1093,10 @@ impl Plugins {
             }
         }
         let Some(h) = self.hosted.get_mut(&row) else { return Err("not a plugin channel".into()) };
-        // In the panel there are no detached windows.
+        // In the panel there are no detached windows, but for third-party plugins: those open in their own.
+        let panel = self.panel_mode && !h.external;
         if self.panel_mode {
-            h.detached = false;
+            h.detached = h.external;
         }
         // A detached window reopens where it was; the first time, on a monitor as the settings say (spec: as above).
         let pos = match (h.detached, h.placed) {
@@ -1101,7 +1107,7 @@ impl Plugins {
         // Create the frame at a provisional size, embed the editor, then fit the frame to the editor's real size.
         let w = FrameWindow::new(owner, info, (560.0, 437.0), scale, pos, h.detached)?;
         // Pinned into the panel at once, so it never shows where a free window would open.
-        if self.panel_mode {
+        if panel {
             w.set_pinned(true);
             w.move_to(self.panel_at);
         }
@@ -1233,6 +1239,11 @@ impl Plugins {
     #[cfg(plugin_windows)]
     pub fn window_of(&self, row: usize) -> Option<(isize, bool)> {
         self.hosted.get(&row).and_then(|h| h.window.as_ref()).map(|w| (w.hwnd(), w.detached()))
+    }
+
+    /// Plugin `row` is a third-party one (its editor opens in a window of its own).
+    pub fn external(&self, row: usize) -> bool {
+        self.hosted.get(&row).is_some_and(|h| h.external)
     }
 
     /// Docks or detaches row `row`'s window (window menu > Detached); closed, it opens that way next time.
@@ -4544,6 +4555,18 @@ mod tests {
         fn load_state(&mut self, _: &[u8]) -> bool {
             false
         }
+    }
+
+    /// Our own plugins are cards of the Devices tab; a third-party one (a descriptor whose file is not this program) opens
+    /// in a window of its own.
+    #[test]
+    fn third_party_plugins_are_external() {
+        let fx = &builtin_effects()[0];
+        assert!(!Hosted::new(fx.lib.clone().create(&fx.desc.id).unwrap()).external, "ours stay in the panel");
+        let mut other = fx.desc.clone();
+        other.path = std::path::PathBuf::from("/somewhere/Else.vst3");
+        let h = Hosted::new(Arc::new(Mutex::new(Tracked(other, Arc::new(Mutex::new(None))))));
+        assert!(h.external);
     }
 
     /// The UI locks an instance for its per-tick jobs only when it has work: its attention count moved, its editor is

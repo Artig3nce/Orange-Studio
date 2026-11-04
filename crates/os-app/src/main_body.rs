@@ -61,6 +61,9 @@ struct Shell {
     splash: Option<splash::Splash>,
     /// The main window has shown its first frame.
     shown: bool,
+    /// Since when the main window waits hidden for its first frame (it is shown with it, or after `REVEAL_AFTER`): opened
+    /// at once it would show the screen behind it, unpainted, while the plugins and the project load.
+    reveal: Option<Instant>,
     /// `OS_FRAMES=<file>`: one line per frame (see `FrameLog`).
     frames: Option<FrameLog>,
     /// Wakes the app while a modal loop holds up winit's (see `stall`).
@@ -535,6 +538,13 @@ impl Shell {
                 window.set_ime_allowed(editing);
             }
         }
+        // A first frame that does not come (a platform that does not redraw a hidden window): the window shows anyway.
+        if self.reveal.is_some_and(|t| t.elapsed() > REVEAL_AFTER) {
+            self.reveal = None;
+            if let Some(window) = &self.window {
+                window.set_visible(true);
+            }
+        }
         // The startup splash: the opened project's loading moves its gauge on; once the main window has shown and
         // nothing is loading, it finishes. It is dropped when it has faded away.
         if let Some(s) = &self.splash {
@@ -588,6 +598,9 @@ impl Shell {
     }
 }
 
+/// How long the main window waits hidden for its first frame.
+const REVEAL_AFTER: Duration = Duration::from_millis(2500);
+
 impl ApplicationHandler for Shell {
     fn resumed(&mut self, el: &ActiveEventLoop) {
         if let Some(window) = self.window.clone() {
@@ -602,6 +615,7 @@ impl ApplicationHandler for Shell {
         let attrs = Window::default_attributes()
             .with_title("Orange Studio")
             .with_decorations(false)
+            .with_visible(false)
             .with_inner_size(LogicalSize::new(1920.0, 1080.0))
             // Layouts are measured at 1920x1080 and are not responsive yet; below this they break.
             .with_min_inner_size(LogicalSize::new(1024.0, 600.0))
@@ -713,6 +727,7 @@ impl ApplicationHandler for Shell {
         self.app.start_plugins();
         splash::step(&self.splash, splash::LOADING, "Loading project");
         self.window = Some(window);
+        self.reveal = Some(Instant::now());
         el.set_control_flow(ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(16)));
     }
 
@@ -1235,6 +1250,9 @@ impl ApplicationHandler for Shell {
                 self.painted = Instant::now();
                 // The main window shows its first frame: the splash finishes once the project has loaded (`step`).
                 self.shown = true;
+                if self.reveal.take().is_some() {
+                    window.set_visible(true);
+                }
                 if let Some(log) = &mut self.frames {
                     let what = match &damage {
                         None => "none".to_string(),
@@ -2047,6 +2065,7 @@ pub(crate) fn run_from(mut builder: winit::event_loop::EventLoopBuilder<()>, pat
         frame: FRAME,
         frame_monitor: None,
         splash,
+        reveal: None,
         shown: false,
         frames: FrameLog::open(),
         watchdog,

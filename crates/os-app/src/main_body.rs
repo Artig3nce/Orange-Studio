@@ -64,6 +64,8 @@ struct Shell {
     /// Since when the main window waits hidden for its first frame (it is shown with it, or after `REVEAL_AFTER`): opened
     /// at once it would show the screen behind it, unpainted, while the plugins and the project load.
     reveal: Option<Instant>,
+    /// The window shows only once it is maximized (`reveal`).
+    reveal_max: bool,
     /// `OS_FRAMES=<file>`: one line per frame (see `FrameLog`).
     frames: Option<FrameLog>,
     /// Wakes the app while a modal loop holds up winit's (see `stall`).
@@ -728,6 +730,8 @@ impl ApplicationHandler for Shell {
         splash::step(&self.splash, splash::LOADING, "Loading project");
         self.window = Some(window);
         self.reveal = Some(Instant::now());
+        // Opened maximized (the default, or as the last run left it): shown once it is, not at its smaller first size.
+        self.reveal_max = cfg!(not(any(target_os = "macos", target_os = "android"))) && frame.is_none_or(|m| m.max);
         el.set_control_flow(ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(16)));
     }
 
@@ -1250,8 +1254,14 @@ impl ApplicationHandler for Shell {
                 self.painted = Instant::now();
                 // The main window shows its first frame: the splash finishes once the project has loaded (`step`).
                 self.shown = true;
-                if self.reveal.take().is_some() {
-                    window.set_visible(true);
+                if self.reveal.is_some() {
+                    if self.reveal_max && !window.is_maximized() {
+                        // Not yet at its size: the next frame asks again (or `REVEAL_AFTER` shows it).
+                        window.request_redraw();
+                    } else {
+                        self.reveal = None;
+                        window.set_visible(true);
+                    }
                 }
                 if let Some(log) = &mut self.frames {
                     let what = match &damage {
@@ -2066,6 +2076,7 @@ pub(crate) fn run_from(mut builder: winit::event_loop::EventLoopBuilder<()>, pat
         frame_monitor: None,
         splash,
         reveal: None,
+        reveal_max: false,
         shown: false,
         frames: FrameLog::open(),
         watchdog,

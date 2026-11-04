@@ -376,6 +376,8 @@ pub enum Action {
     PlHeader(u16),
     /// The docked playlist's "Add track" button.
     PlAddTrack,
+    /// The docked playlist's current-pattern chip: the menu of patterns and clips.
+    PlPatternMenu,
     /// A docked track header's solo button (its mute button is `PlLed`).
     PlSolo(u16),
     PlLed(u16),
@@ -8989,6 +8991,12 @@ impl App {
                 self.invalidate();
             }
             Action::PlAddTrack => {}
+            Action::PlPatternMenu if !right => {
+                let at = self.top_hit(self.mouse.0, self.mouse.1).map_or(self.mouse, |h| (h.rect.x, h.rect.bottom() + 2.0));
+                self.state.playlist.popup = Some(pl::pattern_menu(&self.state, at.0, at.1));
+                self.invalidate();
+            }
+            Action::PlPatternMenu => {}
             Action::PlSolo(t) if !right => pl::press_led(self, t, true),
             Action::PlSolo(_) => {}
             Action::PlLed(t) => pl::press_led(self, t, right),
@@ -9648,6 +9656,7 @@ impl App {
             | Action::PlMarkers
             | Action::PlHeader(_)
             | Action::PlAddTrack
+            | Action::PlPatternMenu
             | Action::PlSolo(_)
             | Action::PlLed(_)
             | Action::PlTrackSize(_)
@@ -20165,6 +20174,28 @@ mod tests {
         assert!(popup.items.iter().any(|i| i.label == "Delete..."));
     }
 
+    /// A click on a pattern clip in the docked playlist makes its pattern the current one, and the pattern menu's pick sets
+    /// what the Draw tool paints (and the current pattern).
+    #[test]
+    fn a_clip_click_and_the_menu_pick_the_pattern() {
+        use crate::playlist as pl;
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.state.docked_ui = true;
+        app.state.z = vec![Win::Mixer];
+        frame(&mut app, &mut c, None);
+        app.state.playlist.source = Some(os_model::ClipSource::Pattern(3));
+        let i = pl::place(&mut app.state, 0, 0);
+        app.state.pattern = 1;
+        frame(&mut app, &mut c, None);
+        let g = app.pl_grid().expect("the grid");
+        let r = pl::PGeom::new(&app.state, g).clip_rect(&pl::clips(&app.state)[i]);
+        click(&mut app, &mut c, Rect::new(r.x + 20.0, r.y + 20.0, 2.0, 2.0));
+        assert_eq!(app.state.pattern, 3, "the clip's pattern is current");
+        pl::run(&mut app, pl::Cmd::PickSource(os_model::ClipSource::Pattern(2)));
+        assert_eq!((app.state.pattern, app.state.playlist.source), (2, Some(os_model::ClipSource::Pattern(2))));
+    }
+
     /// A docked track holding an audio clip says so in its header (the waveform tile, the clip's name).
     #[test]
     fn a_track_with_audio_says_so() {
@@ -21679,14 +21710,20 @@ mod tests {
         assert!(led.x > head.cx() && led.right() <= grip.right() && grip.x > head.cx(), "{led:?} {grip:?} in {head:?}");
         assert!((led.cy() - head.cy()).abs() < 1.0, "centred");
 
-        // The clip list keeps its controls, and picking a pattern in it still works.
-        for a in [Action::PlPickTab(pl::PickKind::Audio), Action::PlPickAdd] {
-            assert!(app.hits.iter().any(|h| h.action == a), "{a:?}");
-        }
-        let row = app.hits.iter().find(|h| matches!(h.action, Action::PlPick(_))).expect("a pattern in the list").rect;
-        app.mouse_move(row.cx(), row.cy());
+        // The picker's column is gone: the current pattern is a chip over the track headers, which opens a menu of patterns
+        // (and a new one), audio and automation clips.
+        assert!(!app.hits.iter().any(|h| matches!(h.action, Action::PlPick(_) | Action::PlPickAdd)), "no clip list");
+        // (The floating Performance window of this test's layout is out of the way.)
+        app.state.z.retain(|w| *w != Win::Perf);
+        app.paint(&mut c, None);
+        let chip = hit_rect(&app, &Action::PlPatternMenu);
+        assert!(chip.right() <= head.right() + 12.0 && chip.x < head.x + 20.0, "over the headers: {chip:?} {head:?}");
+        app.mouse_move(chip.cx(), chip.cy());
         app.mouse_down();
         app.mouse_up();
+        let menu = app.state.playlist.popup.as_ref().expect("the pattern menu");
+        assert!(menu.items.iter().any(|i| i.label == "New pattern") && menu.items.iter().any(|i| i.label == "Patterns"));
+        app.state.playlist.popup = None;
         app.paint(&mut c, None);
 
         // The Playlist's tools from the top bar's panel (a test's layout has none: laid out by hand here).

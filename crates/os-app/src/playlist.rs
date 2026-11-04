@@ -271,6 +271,8 @@ pub enum Cmd {
     PluginDetach(usize, bool),
     NotYet(&'static str),
     Tool(PlTool),
+    /// The docked pattern menu's pick: what the Draw tool paints (a pattern also becomes the current one).
+    PickSource(ClipSource),
     /// The playlist's magnet setting (§4).
     Snap(EditorSnap),
     /// The main toolbar's global snap (spec: ui/global-snap.md §2).
@@ -3102,6 +3104,28 @@ pub fn instrument_menu(s: &State, t: u16, x: f32, y: f32, tick: u32) -> Popup {
     Popup { x, y, items, sub: None, scroll: [0; 2] }
 }
 
+/// The docked playlist's pattern menu (the chip over the track headers): the patterns, a new one, and the audio and
+/// automation clips; a pick is what the Draw tool paints.
+pub fn pattern_menu(s: &State, x: f32, y: f32) -> Popup {
+    let cur = source(s);
+    let item = |src: ClipSource| PItem::new(source_name(s, src), Cmd::PickSource(src)).mark(Mark::Check(src == cur));
+    let mut items = vec![PItem::head("Patterns")];
+    items.extend(crate::patterns::listed(s).into_iter().map(|n| item(ClipSource::Pattern(n))));
+    items.push(PItem::new("New pattern", Cmd::Pattern(crate::patterns::Cmd::FindFirst)));
+    let audio: Vec<PItem> = s.project.channels.iter().filter(|c| c.kind == ChannelKind::AudioClip).map(|c| item(ClipSource::Channel(c.index))).collect();
+    let auto: Vec<PItem> = s.project.automations.iter().map(|a| item(ClipSource::Channel(a.channel))).collect();
+    if !audio.is_empty() || !auto.is_empty() {
+        items.push(PItem::sep());
+    }
+    if !audio.is_empty() {
+        items.push(PItem::sub("Audio clips", audio));
+    }
+    if !auto.is_empty() {
+        items.push(PItem::sub("Automation clips", auto));
+    }
+    Popup { x, y, items, sub: None, scroll: [0; 2] }
+}
+
 pub fn track_menu(s: &State, t: u16, x: f32, y: f32, tick: u32) -> Popup {
     let on = track_on(s, t);
     let colors: Vec<PItem> = [
@@ -3427,6 +3451,15 @@ pub fn press_grid(app: &mut App, grid: Rect, right: bool) {
     let hit = clip_at(s, &g, x, y);
     let tool = s.playlist.tool;
     let alt = app.alt;
+    // Docked: a click on a pattern clip makes its pattern the current one (the piano roll shows it), as a clip's click does
+    // in other DAWs.
+    if let (Some(ci), false, true) = (hit, right, s.docked_ui) {
+        if let ClipSource::Pattern(n) = clips(s)[ci].source {
+            if s.pattern != n {
+                crate::piano::go_to_pattern(s, n);
+            }
+        }
+    }
 
     // Audio clip handles: fades, fade tensions, gain (§9a).
     if let (Some(ci), false) = (hit, right) {
@@ -4838,6 +4871,13 @@ pub fn run(app: &mut App, cmd: Cmd) -> Option<String> {
         Cmd::NotYet(name) => Some(format!("{name}: not available yet")),
         Cmd::Tool(t) => {
             s.playlist.tool = t;
+            None
+        }
+        Cmd::PickSource(src) => {
+            s.playlist.source = Some(src);
+            if let ClipSource::Pattern(n) = src {
+                crate::piano::go_to_pattern(s, n);
+            }
             None
         }
         Cmd::Snap(p) => {

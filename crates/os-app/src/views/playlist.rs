@@ -141,25 +141,32 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
     }
 
     // A part of its own: a repaint of the grid alone (a scroll) skips it.
+    // (The docked layout has none: its pattern is a chip over the track headers, which opens a menu.)
     let pick = Rect::new(r.x, client.y, 160.0, client.h);
-    ui.part(Seg::PlPicker, pick, |ui| picker(ui, s, pick));
+    if !s.docked_ui {
+        ui.part(Seg::PlPicker, pick, |ui| picker(ui, s, pick));
+    }
 
     // Track-header strip: add button and the NOTE / CHAN / PAT filters.
-    let strip = Rect::new(r.x + 162.0, client.y + 1.0, head_w(s) + 10.0, 38.0);
+    let strip = Rect::new(r.x + side_w(s), client.y + 1.0, head_w(s) + 10.0, 38.0);
     if super::lemon(ui) {
         ui.c.fill_rrect(strip, lk::r_btn(t), t.track_header);
     } else {
         ui.c.fill_rect_gradient(strip, t.track_header.shade(0.05), t.track_header.shade(-0.03), 0.0);
     }
-    icons::draw(ui.c, Icon::Plus, Rect::new(strip.x + 6.0, client.y + 20.0, 16.0, 16.0), t.glyph);
-    for (i, (icon, label)) in [(Icon::Wave, "NOTE"), (Icon::Slide, "CHAN"), (Icon::PianoRoll, "PAT")].into_iter().enumerate() {
+    if s.docked_ui {
+        pattern_chip(ui, s, strip);
+    } else {
+        icons::draw(ui.c, Icon::Plus, Rect::new(strip.x + 6.0, client.y + 20.0, 16.0, 16.0), t.glyph);
+    }
+    for (i, (icon, label)) in [(Icon::Wave, "NOTE"), (Icon::Slide, "CHAN"), (Icon::PianoRoll, "PAT")].into_iter().enumerate().filter(|_| !s.docked_ui) {
         let cx = strip.x + 45.0 + 26.0 * i as f32;
         icons::draw(ui.c, icon, Rect::new(cx - 8.0, client.y + 3.0, 16.0, 16.0), if i == 2 { t.glyph } else { t.text_faint });
         ui.c.text_center(Font::condensed(8, 4).bold(), Rect::new(cx - 14.0, client.y + 25.0, 28.0, 10.0), if i == 2 { t.glyph } else { t.text_faint }, label);
     }
 
     // Arrangement geometry.
-    let head_x = r.x + 162.0;
+    let head_x = r.x + side_w(s);
     let head_w = head_w(s);
     let grid = grid_rect(s, r, client);
     debug_assert_eq!(grid, cover);
@@ -430,13 +437,38 @@ pub fn scroll_parts(s: &State, grid: Rect) -> ScrollParts {
 }
 
 /// The arrangement grid in a window laid out at `r` with client rect `client` (see `super::frame_rects`).
+/// What the playlist leaves to the left of its track headers: the clip picker's column and its gap; the docked layout
+/// has none (the current pattern is a chip over the headers).
+fn side_w(s: &State) -> f32 {
+    if s.docked_ui { 2.0 } else { 162.0 }
+}
+
+/// The docked layout's current pattern: a card over the track headers with its name, opening the menu of patterns, audio
+/// and automation clips (what the picker's column lists in the other layout).
+fn pattern_chip(ui: &mut Ui, s: &State, strip: Rect) {
+    let t = ui.t;
+    let r = Rect::new(strip.x + 2.0, strip.y + 4.0, strip.w - 4.0, 30.0);
+    let hov = ui.hit(r, Action::PlPatternMenu, "Pattern: click to pick one, or make a new one");
+    let (top, low) = if hov { (Color::rgb(0x2a2a2a), Color::rgb(0x1a1a1a)) } else { (Color::rgb(0x202020), Color::rgb(0x121212)) };
+    let rad = lk::r_panel(t).min(r.h / 2.0);
+    ui.c.fill_rrect(r, rad, super::MANGO_MIXER_RIM);
+    let face = r.inset(1.0);
+    ui.c.fill_rect_gradient(face, top, low, (rad - 1.0).max(0.0));
+    ui.c.fill_rrect(Rect::new(face.x + 4.0, face.y + 1.0, (face.w - 8.0).max(1.0), 1.0), 0.5, top.mix(Color::rgb(0xffffff), 0.12));
+    icons::draw(ui.c, Icon::PianoRoll, Rect::new(r.x + 9.0, r.cy() - 8.0, 16.0, 16.0), t.glyph);
+    let lh = ui.c.line_height(Font::new(14));
+    ui.c.text_clip(Font::new(14), r.x + 32.0, (r.cy() - lh / 2.0).round(), r.w - 32.0 - 22.0, t.text, &crate::patterns::name_of(s, s.pattern));
+    let (cx, cy) = (r.right() - 13.0, r.cy());
+    ui.c.fill_polygon(&[(cx - 4.0, cy - 2.0), (cx + 4.0, cy - 2.0), (cx, cy + 3.0)], t.text_dim);
+}
+
 /// The track headers' width: wider in the docked layout, which shows the instrument beside the name.
 fn head_w(s: &State) -> f32 {
     if s.docked_ui { 196.0 } else { 98.0 }
 }
 
 fn grid_rect(s: &State, r: Rect, client: Rect) -> Rect {
-    let grid_x = r.x + 162.0 + head_w(s) + 12.0;
+    let grid_x = r.x + side_w(s) + head_w(s) + 12.0;
     let grid_w = (r.right() - grid_x - 4.0 - bar_sizes().1).max(1.0);
     let grid_y = client.y + 42.0 + if pl::markers(s).is_empty() { 0.0 } else { MARKER_H };
     Rect::new(grid_x, grid_y, grid_w, (r.bottom() - grid_y).max(0.0))

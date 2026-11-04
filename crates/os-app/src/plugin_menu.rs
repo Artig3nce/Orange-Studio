@@ -497,6 +497,35 @@ mod tests {
         assert_eq!((last.track, last.position, last.source), (3, 96, os_model::ClipSource::Pattern(2)));
     }
 
+    /// A docked track header shows its instrument beside the name, and a click on its tile lists the instruments for the
+    /// track (the pick adds one there, as the menu's Insert instrument does).
+    #[test]
+    fn a_docked_header_tile_picks_an_instrument() {
+        use crate::app::{Action, Win};
+        let Ok(mut c) = os_ui::Canvas::new(1920, 1080, 1.0) else { return };
+        let mut a = App::new(None);
+        a.state.docked_ui = true;
+        a.state.z = vec![Win::Mixer];
+        a.plugins.available = crate::plugins::builtin();
+        a.state.plugdb.rebuild(&a.plugins);
+        a.paint(&mut c, None);
+        assert_eq!(crate::playlist::track_instrument(&a.state, 1), None, "nothing yet");
+        let index = a.plugins.index_of(LEMON_TRIO).unwrap();
+        crate::playlist::run(&mut a, Cmd::Plugin(PlugCmd::GeneratorOnTrack { index, track: 1, tick: 0 })).unwrap();
+        assert_eq!(crate::playlist::track_instrument(&a.state, 1).as_deref(), Some(LEMON_TRIO));
+        a.paint(&mut c, None);
+        let head = a.hits.iter().find(|h| h.action == Action::PlHeader(2)).map(|h| h.rect).expect("the header");
+        a.mouse = (head.x + crate::playlist::HEAD_ICON_X + 10.0, head.cy());
+        crate::playlist::press_header(&mut a, 2, false, (head.x, head.y));
+        let popup = a.state.playlist.popup.as_ref().expect("the instruments");
+        assert!(popup.items.iter().any(|i| i.label == "Instrument") && popup.items.len() > 2);
+        // Beside the tile it selects, as before.
+        a.state.playlist.popup = None;
+        a.mouse = (head.x + 100.0, head.cy());
+        crate::playlist::press_header(&mut a, 2, false, (head.x, head.y));
+        assert!(a.state.playlist.popup.is_none() && a.state.playlist.track == 2);
+    }
+
     /// The track header menu's Insert instrument ▸ lists the generators as on-track loads for the track it was
     /// opened on, at the tick it was opened with (issue #2).
     #[test]

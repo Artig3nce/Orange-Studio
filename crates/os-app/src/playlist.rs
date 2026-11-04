@@ -3047,6 +3047,35 @@ pub fn paste_label(s: &State) -> String {
     }
 }
 
+/// A docked track header's instrument tile: where it sits in the header, from its left edge (`views::playlist::header`).
+pub const HEAD_ICON_X: f32 = 28.0;
+pub const HEAD_ICON_W: f32 = 30.0;
+
+/// The instrument a track was given (Insert instrument, or a drop on it): its first pattern clip's pattern is named after
+/// the instrument's channel, or plays notes of one.
+pub fn track_instrument(s: &State, t: u16) -> Option<String> {
+    let (_, n) = clips(s)
+        .iter()
+        .filter(|c| c.track == t)
+        .filter_map(|c| match c.source {
+            ClipSource::Pattern(n) => Some((c.position, n)),
+            _ => None,
+        })
+        .min()?;
+    let label = |c: &os_model::Channel| c.name.clone().unwrap_or_else(|| format!("Channel {}", c.index + 1));
+    let named = s.project.pattern(n).and_then(|p| p.name.as_deref()).and_then(|nm| s.project.channels.iter().find(|c| c.name.as_deref() == Some(nm)));
+    let played = s.project.pattern(n).and_then(|p| p.notes.first()).and_then(|note| s.project.channel(note.channel));
+    named.or(played).map(label)
+}
+
+/// The instrument list for track `t` as a menu of its own (a click on a docked header's tile): the pick adds the
+/// channel and a clip of a new pattern on the track.
+pub fn instrument_menu(s: &State, t: u16, x: f32, y: f32, tick: u32) -> Popup {
+    let mut items = vec![PItem::head("Instrument")];
+    items.extend(crate::plugin_menu::items_on_track(s, t, tick, true));
+    Popup { x, y, items, sub: None, scroll: [0; 2] }
+}
+
 pub fn track_menu(s: &State, t: u16, x: f32, y: f32, tick: u32) -> Popup {
     let on = track_on(s, t);
     let colors: Vec<PItem> = [
@@ -4374,6 +4403,16 @@ pub fn press_header(app: &mut App, t: u16, right: bool, at: (f32, f32)) {
             snap_place(s, &g, s.playlist.pos as f32, alt)
         });
         s.playlist.popup = Some(track_menu(s, t, mx, my, tick));
+        return app.invalidate();
+    }
+    // The docked header's instrument tile: the instruments, to pick one for this track.
+    if s.docked_ui && (HEAD_ICON_X..HEAD_ICON_X + HEAD_ICON_W).contains(&(mx - at.0)) {
+        let tick = grid.map_or(0, |grid| {
+            let g = PGeom::new(s, grid);
+            snap_place(s, &g, s.playlist.pos as f32, alt)
+        });
+        s.playlist.track = t;
+        s.playlist.popup = Some(instrument_menu(s, t, mx, my, tick));
         return app.invalidate();
     }
     let now = std::time::Instant::now();

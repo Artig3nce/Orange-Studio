@@ -145,7 +145,7 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
     ui.part(Seg::PlPicker, pick, |ui| picker(ui, s, pick));
 
     // Track-header strip: add button and the NOTE / CHAN / PAT filters.
-    let strip = Rect::new(r.x + 162.0, client.y + 1.0, 108.0, 38.0);
+    let strip = Rect::new(r.x + 162.0, client.y + 1.0, head_w(s) + 10.0, 38.0);
     if super::lemon(ui) {
         ui.c.fill_rrect(strip, lk::r_btn(t), t.track_header);
     } else {
@@ -160,7 +160,7 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
 
     // Arrangement geometry.
     let head_x = r.x + 162.0;
-    let head_w = 98.0;
+    let head_w = head_w(s);
     let grid = grid_rect(s, r, client);
     debug_assert_eq!(grid, cover);
     let (grid_x, grid_w) = (grid.x, grid.w);
@@ -405,15 +405,20 @@ pub fn scroll_parts(s: &State, grid: Rect) -> ScrollParts {
         grid,
         ruler: ruler_rect(s, grid),
         lane: (!pl::markers(s).is_empty()).then(|| Rect::new(grid.x, overview.y + 41.0, grid.w, MARKER_H)),
-        heads: Rect::new(grid.x - 110.0, grid.y, 98.0, grid.h),
+        heads: Rect::new(grid.x - 12.0 - head_w(s), grid.y, head_w(s), grid.h),
         vbar: Rect::new(grid.right(), overview.y, 4.0 + bar_sizes().1, grid.bottom() - overview.y),
         overview,
     }
 }
 
 /// The arrangement grid in a window laid out at `r` with client rect `client` (see `super::frame_rects`).
+/// The track headers' width: wider in the docked layout, which shows the instrument beside the name.
+fn head_w(s: &State) -> f32 {
+    if s.docked_ui { 176.0 } else { 98.0 }
+}
+
 fn grid_rect(s: &State, r: Rect, client: Rect) -> Rect {
-    let grid_x = r.x + 162.0 + 98.0 + 12.0;
+    let grid_x = r.x + 162.0 + head_w(s) + 12.0;
     let grid_w = (r.right() - grid_x - 4.0 - bar_sizes().1).max(1.0);
     let grid_y = client.y + 42.0 + if pl::markers(s).is_empty() { 0.0 } else { MARKER_H };
     Rect::new(grid_x, grid_y, grid_w, (r.bottom() - grid_y).max(0.0))
@@ -1723,11 +1728,35 @@ fn header(ui: &mut Ui, s: &State, g: &PGeom, row: u16, x: f32, w: f32) {
     if !editing {
         let font = Font::new(16);
         let (name_x, name_y, name_w) = if docked {
-            (hr.x + 27.0, (hr.cy() - ui.c.line_height(font) / 2.0).round(), hr.w - 27.0 - if lead { 48.0 } else if ui.hovering(hr) { 15.0 } else { 6.0 })
+            // An instrument tile (click: pick one for the track), then the name over the instrument's name.
+            let right = if lead { 48.0 } else if ui.hovering(hr) { 15.0 } else { 6.0 };
+            let tile = Rect::new(hr.x + pl::HEAD_ICON_X, hr.cy() - 14.0, pl::HEAD_ICON_W, 28.0);
+            let inst = pl::track_instrument(s, row);
+            let ink = if on { ui.t.tx(0xe8e8e8) } else { ui.t.tx(0x888888) };
+            ui.c.fill_rrect(tile, 7.0, Color::rgb(0x000000).with_alpha(70));
+            if inst.is_some() {
+                icons::draw(ui.c, Icon::Plug, tile.inset(5.0), ink);
+            } else {
+                ui.c.fill_rect(Rect::new(tile.cx() - 5.0, tile.cy() - 1.0, 10.0, 2.0), ink.with_alpha(150));
+                ui.c.fill_rect(Rect::new(tile.cx() - 1.0, tile.cy() - 5.0, 2.0, 10.0), ink.with_alpha(150));
+            }
+            let nx = tile.right() + 7.0;
+            let nw = hr.right() - nx - right;
+            let sub = Font::new(12);
+            if !short {
+                ui.c.text_clip(font, nx, (hr.cy() - 17.0).round(), nw, text, &pl::track_name(s, row));
+                let label = inst.unwrap_or_else(|| "Add instrument".to_string());
+                ui.c.text_clip(sub, nx, (hr.cy() + 3.0).round(), nw, text.with_alpha(150), &label);
+                (nx, f32::MIN, 0.0)
+            } else {
+                (nx, (hr.cy() - ui.c.line_height(font) / 2.0).round(), nw)
+            }
         } else {
             (hr.x + 2.0, hr.y + 1.0, if short { hr.w - 26.0 } else { hr.w - 4.0 })
         };
-        ui.c.text_clip(font, name_x, name_y, name_w, text, &pl::track_name(s, row));
+        if name_y > f32::MIN {
+            ui.c.text_clip(font, name_x, name_y, name_w, text, &pl::track_name(s, row));
+        }
     }
     // The "..." handle (FL's): drag to size this track, click to shrink it or bring it back. A short track keeps it
     // as its bottom edge.

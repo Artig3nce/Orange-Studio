@@ -20061,35 +20061,22 @@ mod tests {
         assert!(!short(&app.state));
     }
 
-    /// In a low panel the docked mixer's slot list keeps readable rows and scrolls with the wheel; in a tall one all the slots
-    /// fit and nothing scrolls.
+    /// The docked mixer has no slot list (the Devices tab has the effects, the strips their IN and OUT buttons): its strips
+    /// take the whole width; the floating mixer keeps the list.
     #[test]
-    fn the_slot_list_scrolls_in_a_low_panel() {
-        use crate::mixer::MHit;
-        use crate::views::mixer::{slot_metrics, slot_scroll_max};
-        let (kp, _, _) = slot_metrics(270.0);
-        assert_eq!(kp, 0.8, "readable rows");
-        assert!(slot_scroll_max(270.0) > 0.0 && slot_scroll_max(900.0) == 0.0);
+    fn the_docked_mixer_has_no_slot_list() {
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let mut app = App::new(None);
         app.state.docked_ui = true;
-        app.state.panel_auto = false;
-        app.state.panel_h = 300.0;
-        app.act(Action::PanelTab(Win::Mixer));
+        app.state.z = vec![Win::Mixer];
         frame(&mut app, &mut c, None);
-        let slot = hit_rect(&app, &Action::Mix(MHit::SlotName(0)));
-        app.mouse_move(slot.cx(), slot.cy());
-        app.wheel_act(0.0, -1.0, false, false);
-        assert_eq!(app.state.mixer_slot_scroll, 28.0);
-        for _ in 0..20 {
-            app.wheel_act(0.0, -1.0, false, false);
-        }
-        assert_eq!(app.state.mixer_slot_scroll, slot_scroll_max(app.state.panel_rect().h), "no further than the list goes");
-        app.wheel_act(0.0, 100.0, false, false);
-        assert_eq!(app.state.mixer_slot_scroll, 0.0);
-        // A row only partly in view isn't there to click.
+        let slots = |app: &App| app.hits.iter().any(|h| matches!(h.action, Action::Mix(crate::mixer::MHit::SlotName(_))));
+        assert!(!slots(&app), "docked: no slot list");
+        let area = app.hits.iter().find(|h| h.action == Action::MixerArea).map(|h| h.rect).expect("the strips");
+        assert!(area.right() > 1800.0, "the strips run to the right edge: {area:?}");
+        app.state.docked_ui = false;
         frame(&mut app, &mut c, None);
-        assert!(!app.hits.iter().any(|h| matches!(h.action, Action::Mix(MHit::SlotName(k)) if k >= 6)), "the rows past the view take no clicks");
+        assert!(slots(&app), "floating: the slot list");
     }
 
     /// A new project starts with Orange Master in the master's first slot (doing nothing yet), counted as untouched.

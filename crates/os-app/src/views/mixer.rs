@@ -110,7 +110,9 @@ pub fn fader_db_text(v: f64) -> String {
 
 
 pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
-    let panel_w = 221.0;
+    // The slot list and its boxes are the floating mixer's: the docked one has the Devices tab (effects), and its strips
+    // carry the input and output buttons, so the strips take the whole width.
+    let panel_w = if s.is_fixed(Win::Mixer) { 0.0 } else { 221.0 };
     window_body(ui, r);
     let outer = r;
     let inner = super::float_frame(ui, s, Win::Mixer, r);
@@ -124,7 +126,9 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
     if r.h < 2.0 * TITLE_H {
         // Collapsed to the title bar: only the slot panel's title with the window buttons.
         s.cables.borrow_mut().clear();
-        slot_panel(ui, s, Rect::new(r.right() - panel_w, r.y, panel_w, r.h));
+        if panel_w > 0.0 {
+            slot_panel(ui, s, Rect::new(r.right() - panel_w, r.y, panel_w, r.h));
+        }
         return;
     }
     let ly = Ly::new(r);
@@ -277,7 +281,9 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
     chevron(ui, area.x + 5.0, bottom - 9.5, false, ui.t.s(0x5d6366));
     cables(ui, s, strips, area, bottom, &visible, g);
 
-    slot_panel(ui, s, Rect::new(r.right() - panel_w, r.y, panel_w, r.h));
+    if panel_w > 0.0 {
+        slot_panel(ui, s, Rect::new(r.right() - panel_w, r.y, panel_w, r.h));
+    }
     resize_zones(ui, s, Win::Mixer, outer);
 }
 

@@ -646,7 +646,8 @@ impl ApplicationHandler for Shell {
             Some(m) => attrs
                 .with_position(winit::dpi::PhysicalPosition::new(m.pos.0, m.pos.1))
                 .with_inner_size(winit::dpi::PhysicalSize::new(m.size.0, m.size.1))
-                .with_maximized(m.max),
+                // Always maximized at the start; the saved size is where un-maximizing goes back to.
+                .with_maximized(true),
             None => attrs,
         };
         // App icon: resource 1, embedded by build.rs from assets/lemonstudio.ico.
@@ -731,7 +732,7 @@ impl ApplicationHandler for Shell {
         self.window = Some(window);
         self.reveal = Some(Instant::now());
         // Opened maximized (the default, or as the last run left it): shown once it is, not at its smaller first size.
-        self.reveal_max = cfg!(not(any(target_os = "macos", target_os = "android"))) && frame.is_none_or(|m| m.max);
+        self.reveal_max = cfg!(not(any(target_os = "macos", target_os = "android"))) && true;
         el.set_control_flow(ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(16)));
     }
 

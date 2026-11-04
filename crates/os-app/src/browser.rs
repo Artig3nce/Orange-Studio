@@ -529,7 +529,9 @@ impl App {
             // An effect dropped on the mixer goes into the slot under the mouse, else the current track's first free
             // slot (spec §3).
             Item::Effect(i) => {
-                if win == Some(Win::Mixer) {
+                // Dropped on the Devices tab: the selected track's first free slot, as the "+" card gives.
+                let on_devices = self.state.panel == Win::PluginTab && !self.state.panel_collapsed && self.state.panel_area().contains(x, y);
+                if win == Some(Win::Mixer) || on_devices {
                     let slot = match self.top_hit(x, y).map(|h| &h.action) {
                         Some(Action::Mix(crate::mixer::MHit::SlotName(k) | crate::mixer::MHit::SlotArrow(k))) => Some(*k),
                         _ => None,

@@ -310,7 +310,7 @@ fn device_chain(ui: &mut Ui, s: &State) {
     // The panel's surface, over the workspace's watermark.
     ui.c.fill_rect(panel, os_ui::kit::lemon::plug::BG);
     if s.device_cards.is_empty() {
-        let lines = ["No devices on this track", "Add an effect to one of its mixer slots, or drag one from the browser"];
+        let lines = ["No devices on this track", "Add an effect with the + card, or drag one from the browser"];
         ui.c.text_center(fnt(16.0), Rect::new(panel.x, panel.cy() - 22.0, panel.w, 22.0), t.text_dim, lines[0]);
         ui.c.text_center(fnt(13.0), Rect::new(panel.x, panel.cy(), panel.w, 18.0), t.text_faint, lines[1]);
     }
@@ -400,6 +400,20 @@ fn device_chain(ui: &mut Ui, s: &State) {
             let (cx, cy) = (name_r.right() - 8.0, name_r.cy());
             ui.c.fill_polygon(&[(cx - 3.5, cy - 1.5), (cx + 3.5, cy - 1.5), (cx, cy + 2.5)], t.text_dim);
         }
+    }
+    // The chain's end: a card to add an effect (the New pattern button's style).
+    if let Some((x, slot)) = s.device_add {
+        let r = Rect::new(x, panel.y + 6.0, crate::app::DEVICE_ADD_W, 34.0);
+        let hov = ui.hit(r, Action::DeviceAdd(slot), "Add an effect (or drop one from the browser)");
+        let (top, low) = if hov { (Color::rgb(0x2a2a2a), Color::rgb(0x1a1a1a)) } else { (Color::rgb(0x202020), Color::rgb(0x121212)) };
+        let rad = os_ui::kit::lemon::r_panel(t).min(r.h / 2.0);
+        ui.c.fill_rrect(r, rad, MANGO_MIXER_RIM);
+        let face = r.inset(1.0);
+        ui.c.fill_rect_gradient(face, top, low, (rad - 1.0).max(0.0));
+        ui.c.fill_rrect(Rect::new(face.x + 4.0, face.y + 1.0, (face.w - 8.0).max(1.0), 1.0), 0.5, top.mix(Color::rgb(0xffffff), 0.12));
+        icons::draw(ui.c, Icon::Plus, Rect::new(r.x + 12.0, r.cy() - 7.0, 14.0, 14.0), t.text);
+        let lh = ui.c.line_height(fnt(14.0));
+        ui.c.text(fnt(14.0), r.x + 32.0, (r.cy() - lh / 2.0).round(), t.text, "Add effect");
     }
     for c in s.device_cards.iter().filter(|c| c.folded) {
         let r = Rect::new(c.x, panel.y + 4.0, c.w, panel.h - 8.0);

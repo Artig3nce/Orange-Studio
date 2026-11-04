@@ -1278,6 +1278,15 @@ pub fn layout_menu(s: &State, x: f32, y: f32) -> Popup {
 }
 
 /// Empty slot: the large effect list, positioned like ADD > Effect rather than at the clicked slot (§7.1).
+/// The effect picker for `slot` of the selected track, as a menu at (`x`, `y`): over it when the click was low on the screen
+/// (the Devices tab's "+" card).
+pub fn pick_effect_at(s: &mut State, slot: u8, x: f32, y: f32) {
+    let target = crate::plugin_menu::Target::Fx(Some(slot));
+    s.picker = None;
+    let top = crate::views::band_h(s);
+    s.playlist.popup = Some(Popup { x, y: (y - 420.0).max(top), items: crate::plugin_menu::items(s, target, true), sub: None, scroll: [0; 2] });
+}
+
 fn pick_effect(s: &mut State, slot: u8) {
     let target = crate::plugin_menu::Target::Fx(Some(slot));
     s.picker = None;

@@ -308,6 +308,8 @@ pub enum Action {
     DeviceFold(usize),
     /// A device card's caption: its Presets box, and the close that folds it up.
     DevicePresets(usize),
+    /// The chain's "+" card: pick an effect for this slot of the selected track.
+    DeviceAdd(u8),
     /// The caption's previous / next preset arrows.
     DevicePresetStep(usize, i32),
     DeviceClose(usize),
@@ -1138,6 +1140,8 @@ pub struct State {
     /// up; how far the chain is scrolled and how wide it is (logical px); the instrument a plugin opened from the rack puts
     /// first; the card to bring into view; the track the chain last followed; the plugins that would not open.
     pub device_cards: Vec<DeviceCard>,
+    /// The "+" card ending the chain: where it is (logical x) and the slot a new effect goes into (the track's first free).
+    pub device_add: Option<(f32, u8)>,
     pub device_fold: std::collections::BTreeSet<usize>,
     pub device_scroll: f32,
     pub device_total: f32,
@@ -1490,6 +1494,8 @@ impl State {
 
 /// The height of the row above a device card, where its name and actions are (logical px).
 pub const DEVICE_CAPTION_H: f32 = 22.0;
+/// The width of the chain's "+" card (logical px).
+pub const DEVICE_ADD_W: f32 = 150.0;
 
 /// One card of the device chain: where it is across the panel (logical px) and whether it is folded up.
 #[derive(Clone, Debug, PartialEq)]
@@ -1718,6 +1724,7 @@ impl App {
                 panel_collapsed: crate::settings_file::get(PANEL_COLLAPSED_KEY).is_some_and(|v| v == "1"),
                 panel_plugin: None,
                 device_cards: Vec::new(),
+                device_add: None,
                 device_fold: Default::default(),
                 device_scroll: 0.0,
                 device_total: 0.0,
@@ -3386,6 +3393,16 @@ impl App {
             let preset = self.plugins.preset_name(row);
             cards.push(DeviceCard { row, x, w, folded: size.is_none(), name, preset });
             x += w + GAP;
+        }
+        // The "+" card ends the chain while the track has a free slot.
+        let free = self.state.project.mixer.iter().find(|m| m.index == t).and_then(|m| m.slots.iter().position(Option::is_none));
+        let add = free.map(|k| (x, k as u8));
+        if self.state.device_add != add {
+            self.state.device_add = add;
+            self.invalidate();
+        }
+        if add.is_some() {
+            x += DEVICE_ADD_W + GAP;
         }
         let total = x + self.state.device_scroll - panel.x + 4.0;
         self.state.device_total = total;
@@ -9498,6 +9515,11 @@ impl App {
             Action::PanelTab(w) => {
                 self.set_panel_collapsed(false);
                 self.state.raise(w);
+                self.invalidate();
+            }
+            Action::DeviceAdd(slot) => {
+                let (x, y) = self.mouse;
+                crate::mixer::pick_effect_at(&mut self.state, slot, x, y);
                 self.invalidate();
             }
             Action::DevicePresets(row) => {
@@ -20194,6 +20216,25 @@ mod tests {
         assert_eq!(app.state.pattern, 3, "the clip's pattern is current");
         pl::run(&mut app, pl::Cmd::PickSource(os_model::ClipSource::Pattern(2)));
         assert_eq!((app.state.pattern, app.state.playlist.source), (2, Some(os_model::ClipSource::Pattern(2))));
+    }
+
+    /// The Devices chain ends with an "+" card while the track has a free slot: it opens the effect list for that slot.
+    #[test]
+    fn the_devices_chain_ends_with_an_add_card() {
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.state.docked_ui = true;
+        app.state.z = vec![Win::PluginTab];
+        app.state.panel = Win::PluginTab;
+        app.state.selected_mixer = 1;
+        app.plugins.effects = crate::plugins::builtin_effects();
+        app.state.device_add = Some((300.0, 2));
+        app.paint(&mut c, None);
+        let add = hit_rect(&app, &Action::DeviceAdd(2));
+        assert!(add.w >= DEVICE_ADD_W - 1.0);
+        click(&mut app, &mut c, add);
+        let menu = app.state.playlist.popup.as_ref().expect("the effect list");
+        assert!(!menu.items.is_empty());
     }
 
     /// A docked track holding an audio clip says so in its header (the waveform tile, the clip's name).

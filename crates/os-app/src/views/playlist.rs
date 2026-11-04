@@ -309,14 +309,17 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
     if docked && count < TRACKS {
         let y = g.y_of(count);
         if y < grid.bottom() {
-            let r = Rect::new(head_x, y + 2.0, head_w, 34.0);
+            // The New pattern button's card: a rimmed, top-lit face with the plus and the label.
+            let r = Rect::new(head_x + 2.0, y + 3.0, head_w - 4.0, 28.0);
             let hov = ui.hit(r, Action::PlAddTrack, "Add a track");
-            ui.c.fill_rrect(r, 8.0, Color::rgb(if hov { 0x2a2a2a } else { 0x1c1c1c }));
-            let ink = if hov { ui.t.h(0xffc63b) } else { ui.t.tx(0xc4ccd0) };
-            ui.c.fill_rect(Rect::new(r.x + 18.0, r.cy() - 1.0, 12.0, 2.0), ink);
-            ui.c.fill_rect(Rect::new(r.x + 23.0, r.cy() - 6.0, 2.0, 12.0), ink);
-            let lh = ui.c.line_height(Font::new(14));
-            ui.c.text(Font::new(14), r.x + 40.0, (r.cy() - lh / 2.0).round(), ink, "Add track");
+            let (top, low) = if hov { (Color::rgb(0x2a2a2a), Color::rgb(0x1a1a1a)) } else { (Color::rgb(0x202020), Color::rgb(0x121212)) };
+            let rad = lk::r_panel(t).min(r.h / 2.0);
+            ui.c.fill_rrect(r, rad, super::MANGO_MIXER_RIM);
+            let face = r.inset(1.0);
+            ui.c.fill_rect_gradient(face, top, low, (rad - 1.0).max(0.0));
+            ui.c.fill_rrect(Rect::new(face.x + 4.0, face.y + 1.0, (face.w - 8.0).max(1.0), 1.0), 0.5, top.mix(Color::rgb(0xffffff), 0.12));
+            icons::draw(ui.c, Icon::Plus, Rect::new(r.x + 10.0, r.cy() - 7.0, 14.0, 14.0), t.text);
+            ui.c.text(Font::new(14), r.x + 30.0, r.cy() - 9.0, t.text, "Add track");
         }
     }
     ui.c.pop_clip();

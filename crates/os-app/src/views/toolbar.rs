@@ -361,8 +361,12 @@ fn docked_transport(ui: &mut Ui, c: &Ctx) {
     let hov = ui.hit(play, Action::Play, "Play / pause (Space plays / stops)");
     let down = ui.down(play, &Action::Play);
     // Green, from the old logo's leaf: Play stands apart from the orange of everything selected.
-    let green = Color::rgb(0x5cb85c);
-    ui.c.fill_circle(play.cx(), play.cy(), 14.0, if down { green.shade(-0.15) } else if hov { green.shade(0.12) } else { green });
+    let green = Color::rgb(0x58b458);
+    // The three transport buttons are one size of round button; the stop and record faces are a lifted dark grey, so they
+    // read as buttons and not as a floating square and dot.
+    const R: f32 = 13.0;
+    let face = |lit: bool| Color::rgb(if lit { 0x444444 } else { 0x323232 });
+    ui.c.fill_circle(play.cx(), play.cy(), R, if down { green.shade(-0.15) } else if hov { green.shade(0.12) } else { green });
     let g = play.inset(8.0);
     let on_green = Color::rgb(0x0f2a10);
     if s.rec.waiting {
@@ -374,23 +378,24 @@ fn docked_transport(ui: &mut Ui, c: &Ctx) {
         ui.c.fill_rrect(Rect::new(g.cx() - 4.5, g.y + 1.0, 3.0, g.h - 2.0), 1.0, on_green);
         ui.c.fill_rrect(Rect::new(g.cx() + 1.5, g.y + 1.0, 3.0, g.h - 2.0), 1.0, on_green);
     } else {
-        icons::draw(ui.c, Icon::Play, g, on_green);
+        // A triangle's weight sits left of its box: nudged right to look centred.
+        icons::draw(ui.c, Icon::Play, Rect::new(g.x + 1.5, g.y, g.w, g.h), on_green);
     }
     let stop = a.span(479.0, 503.0, 8.0, 32.0);
     let hov = ui.hit(stop, Action::Stop, "Stop (Space)");
-    ui.c.fill_circle(stop.cx(), stop.cy(), 12.0, if hov || ui.down(stop, &Action::Stop) { t.button_hi } else { t.sunken });
-    ui.c.fill_rrect(Rect::new(stop.cx() - 4.0, stop.cy() - 4.0, 8.0, 8.0), 2.0, t.glyph);
+    ui.c.fill_circle(stop.cx(), stop.cy(), R, face(hov || ui.down(stop, &Action::Stop)));
+    ui.c.fill_rrect(Rect::new(stop.cx() - 4.5, stop.cy() - 4.5, 9.0, 9.0), 2.0, t.glyph);
     // Record (spec: ui/recording.md §2): armed, the whole face in the record colour (white under High visibility).
     let rec = a.span(505.0, 529.0, 8.0, 32.0);
     let hov = ui.hit(rec, Action::Record, crate::record::hint());
     let lit = hov || ui.down(rec, &Action::Record);
     let dot = crate::high_visibility::record_dot(t, crate::high_visibility::on());
     if s.rec.armed {
-        ui.c.fill_circle(rec.cx(), rec.cy(), 12.0, if lit { dot.shade(0.12) } else { dot });
-        ui.c.fill_circle(rec.cx(), rec.cy(), 4.0, dot.shade(-0.6));
+        ui.c.fill_circle(rec.cx(), rec.cy(), R, if lit { dot.shade(0.12) } else { dot });
+        ui.c.fill_circle(rec.cx(), rec.cy(), 4.5, dot.shade(-0.6));
     } else {
-        ui.c.fill_circle(rec.cx(), rec.cy(), 12.0, if lit { t.button_hi } else { t.sunken });
-        ui.c.fill_circle(rec.cx(), rec.cy(), 4.5, dot);
+        ui.c.fill_circle(rec.cx(), rec.cy(), R, face(lit));
+        ui.c.fill_circle(rec.cx(), rec.cy(), 5.0, dot);
     }
     // Tempo: dragged by the whole number, the digits alone.
     let tb = a.span(531.0, 572.0, 6.0, 34.0);

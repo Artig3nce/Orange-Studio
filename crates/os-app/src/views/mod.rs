@@ -351,17 +351,12 @@ fn device_chain(ui: &mut Ui, s: &State) {
         }
         if let (Some((tr, k)), true) = (slot, bar_w > 0.0) {
             // The dry / wet level: drag across the bar.
+            // The mixer's own bar (the slot list's and the strips' pan / volume), made wide.
             let id = crate::knobs::KnobId::SlotMix(tr, k);
-            let track = Rect::new(right - bar_w + 8.0, r.cy() - 3.0, bar_w - 16.0, 6.0);
-            let hov = ui.hit(Rect::new(track.x, r.y, track.w, r.h), Action::Knob(id), s.knob_text(id));
-            let v = s.knob(id).clamp(0.0, 1.0);
-            let orange = Color::rgb(0xffa83a);
-            ui.c.fill_rrect(track, 3.0, Color::rgb(0x2c2c2c));
-            if v > 0.0 {
-                ui.c.fill_rrect(Rect::new(track.x, track.y, (track.w * v).max(6.0), track.h), 3.0, orange);
-            }
-            let hx = track.x + track.w * v;
-            ui.c.fill_circle(hx.clamp(track.x + 5.0, track.right() - 5.0), track.cy(), if hov { 6.0 } else { 5.0 }, if hov { Color::rgb(0xffffff) } else { Color::rgb(0xe8e8e8) });
+            let half = (bar_w - 16.0) / 2.0;
+            let cx = right - bar_w / 2.0;
+            ui.hit(Rect::new(cx - half, r.y, 2.0 * half, r.h), Action::Knob(id), s.knob_text(id));
+            mixer::centre_bar(ui, cx, r.cy(), half, 8.0, s.knob(id), mixer::Bar::Level);
         }
         if box_w > 0.0 {
             // ◂ [ preset name ▾ ] ▸ : one rounded box, the arrows at its ends, the name opening the list.

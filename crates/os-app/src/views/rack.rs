@@ -428,7 +428,11 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) {
             ui.c.fill_rect(Rect::new(fr.x, fr.y, 1.0, fr.h), t.accent);
             ui.c.fill_rect(Rect::new(fr.right() - 1.0, fr.y, 1.0, fr.h), t.accent);
         }
-        // Steps (§3, §9), clipped to the step area.
+        // Steps (§3, §9), clipped to the step area. Docked: the channel's colour (its own, else the palette's by place).
+        let row_colour = ch.color.map(rgb).unwrap_or_else(|| rgb(crate::playlist::AUTO_COLORS[i % crate::playlist::AUTO_COLORS.len()]));
+        if s.docked_ui {
+            ui.c.fill_rrect(Rect::new(x + 3.0, ry + 3.0, 3.0, 21.0), 1.5, row_colour);
+        }
         let step_area = Rect::span(step_x0 - 1.0, steps_right, rows_clip.y, rows_clip.bottom());
         if s.rack_roll_view || !plain_steps(notes, ch.index) {
             let block = Rect::span(step_x0 - 2.0, steps_right + 2.0, ry - 2.0, ry + 28.0);
@@ -441,7 +445,7 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) {
                 let sr = Rect::new(step_x0 + STEP_W * k as f32 - sx, ry + 4.0, 13.0, 19.0);
                 let on = rk::step_on(notes, ch.index, k, per_step);
                 let hov = ui.hit(sr.intersect(&step_area), Action::Step(i, k), "Step - click or drag to paint (left / right)");
-                step_button(ui, s.docked_ui, sr, (k / group) % 2 == 1, on, k >= row_len, hov, on && cur_step.is_some_and(|c| c % len.max(1) == k));
+                step_button(ui, s.docked_ui, sr, (k / group) % 2 == 1, on, k >= row_len, hov, on && cur_step.is_some_and(|c| c % len.max(1) == k), row_colour);
             }
             ui.c.pop_clip();
         }
@@ -468,7 +472,9 @@ pub fn paint(ui: &mut Ui, s: &State, f: &FrameInfo) {
     }
 
     // Footer (§4, §16).
-    add_button(ui, x + c.name_x, c.name_w, y + h);
+    if !s.docked_ui {
+        add_button(ui, x + c.name_x, c.name_w, y + h);
+    }
     if let Some(k) = cur_step {
         let k = k % len.max(1);
         let px = step_x0 + STEP_W * k as f32 - sx;
@@ -521,8 +527,17 @@ fn title_bar(ui: &mut Ui, s: &State, win: Rect, c: Cols, f: &FrameInfo) {
     ui.c.fill_polygon(&[(x + 14.0, y + 10.5), (x + 18.5, y + 14.0), (x + 14.0, y + 17.5)], if ohov { ui.t.tx(0xffffff) } else { ui.t.tx(0xc2c8cc) });
     // Loop starter: not available yet, greyed out.
     let sw = Rect::new(x + 34.0, y + 6.0, 16.0, 16.0);
-    ui.off(sw, "Loop starter");
-    icons::draw(ui.c, Icon::Countdown, sw, os_ui::kit::ink(t, os_ui::kit::State::NORMAL.with_disabled(true)));
+    if s.docked_ui {
+        // Docked: the Add button sits here, by the filter, where it is not missed.
+        let hov = ui.hit(sw.outset(3.0), Action::RackAdd, "Add a channel");
+        let c = if hov { ui.t.h(0xffc63b) } else { ui.t.tx(0xd4dade) };
+        let (cx, cy) = (sw.cx(), sw.cy());
+        ui.c.fill_rect(Rect::new(cx - 6.0, cy - 1.0, 12.0, 2.0), c);
+        ui.c.fill_rect(Rect::new(cx - 1.0, cy - 6.0, 2.0, 12.0), c);
+    } else {
+        ui.off(sw, "Loop starter");
+        icons::draw(ui.c, Icon::Countdown, sw, os_ui::kit::ink(t, os_ui::kit::State::NORMAL.with_disabled(true)));
+    }
     // Display filter combo (§7, §21).
     let combo = Rect::span(x + c.name_x - 1.0, x + c.name_x + c.name_w, y + 4.0, y + 27.0);
     let chov = ui.hit(combo, Action::RackFilter, "Channel display filter (PgUp/PgDn)");
@@ -675,16 +690,18 @@ fn title_bar(ui: &mut Ui, s: &State, win: Rect, c: Cols, f: &FrameInfo) {
 
 /// One step button (§3): bordered, lighter at the top, a dark dash below the top edge (red at the play position).
 /// `odd`: in an odd colour group (red; a group is a beat of the project's signature, §23).
-fn step_button(ui: &mut Ui, docked: bool, r: Rect, odd: bool, on: bool, past_len: bool, hov: bool, playing: bool) {
+#[allow(clippy::too_many_arguments)]
+fn step_button(ui: &mut Ui, docked: bool, r: Rect, odd: bool, on: bool, past_len: bool, hov: bool, playing: bool, colour: Color) {
     let t = ui.t;
     if docked {
-        // A flat rounded pad: the accent when on, two soft greys by beat group, darker past the pattern's length.
+        // A flat rounded pad: the channel's colour when on, two clear greys by beat group (so the beats read), darker past
+        // the pattern's length.
         let off = Color::rgb(match (past_len, odd) {
-            (true, _) => 0x191919,
-            (false, true) => 0x232323,
-            (false, false) => 0x2c2c2c,
+            (true, _) => 0x1d1d1d,
+            (false, true) => 0x303030,
+            (false, false) => 0x424242,
         });
-        let face = if on { t.accent } else { off };
+        let face = if on { colour } else { off };
         let face = if hov { face.shade(0.1) } else { face };
         let pad = r.inset(1.0);
         ui.c.fill_rrect(pad, 4.0_f32.min(pad.w / 2.0), face);

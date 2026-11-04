@@ -319,10 +319,11 @@ fn device_chain(ui: &mut Ui, s: &State) {
     // folds it up.
     for c in s.device_cards.iter().filter(|c| !c.folded) {
         let r = Rect::new(c.x, panel.y + 3.0, c.w, crate::app::DEVICE_CAPTION_H - 4.0);
-        let over = ui.hovering(Rect::new(c.x, panel.y, c.w, panel.h));
+        // The same whether the mouse is over the card or not: a repaint of just the part under the mouse would leave the old
+        // layout's pixels beside the new one.
         let font = fnt(13.0);
         let box_w = if c.w >= 250.0 { 158.0 } else { 0.0 };
-        let close_w = if over { 24.0 } else { 0.0 };
+        let close_w = 24.0;
         // A mixer slot's effect: its on / off switch before the name, its dry / wet bar before the Presets box (what the
         // slot list shows; an instrument has no slot).
         let slot = crate::plugins::fx_of(c.row).filter(|&(tr, k)| s.project.mixer.iter().any(|m| m.index == tr && usize::from(k) < m.slots.len()));
@@ -335,12 +336,12 @@ fn device_chain(ui: &mut Ui, s: &State) {
             ui.hit(sw, Action::Mix(crate::mixer::MHit::SlotLed(k)), if on { "Effect on (click: bypass)" } else { "Effect bypassed (click: on)" });
             led_small(ui, sw.cx(), sw.cy(), on);
         }
-        ui.c.text_clip(font, r.x + 8.0 + lead, r.y + 1.0, name_w, if over { t.text } else { t.text_dim }, &c.name);
+        ui.c.text_clip(font, r.x + 8.0 + lead, r.y + 1.0, name_w, t.text_dim, &c.name);
         let mut right = r.right() - 4.0;
-        if over {
+        {
             let close = Rect::new(right - 20.0, r.y, 20.0, r.h);
             let cov = ui.hit(close, Action::DeviceClose(c.row), format!("{}: fold up", c.name));
-            let ink = if cov { t.text } else { t.text_dim };
+            let ink = if cov { t.text } else { t.text_dim.with_alpha(150) };
             ui.c.line(close.cx() - 4.0, close.cy() - 4.0, close.cx() + 4.0, close.cy() + 4.0, 1.5, ink);
             ui.c.line(close.cx() + 4.0, close.cy() - 4.0, close.cx() - 4.0, close.cy() + 4.0, 1.5, ink);
             right = close.x - 4.0;

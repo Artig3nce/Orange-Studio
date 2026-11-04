@@ -20067,6 +20067,21 @@ mod tests {
         assert_eq!(crate::playlist::visible_tracks(&app.state), crate::playlist::TRACKS);
     }
 
+    /// A docked track holding an audio clip says so in its header (the waveform tile, the clip's name); its clip is blue
+    /// unless the track was given a colour.
+    #[test]
+    fn a_track_with_audio_says_so() {
+        use crate::playlist as pl;
+        let mut app = App::new(None);
+        app.state.docked_ui = true;
+        app.add_clip_channel(ChannelKind::AudioClip);
+        let ch = app.state.project.channels.iter().rfind(|c| c.kind == ChannelKind::AudioClip).unwrap().index;
+        app.state.playlist.source = Some(os_model::ClipSource::Channel(ch));
+        pl::place(&mut app.state, 2, 0);
+        assert_eq!(pl::track_content(&app.state, 2), Some((pl::PickKind::Audio, "Audio Clip".to_string())));
+        assert_eq!(pl::track_content(&app.state, 3), None, "an empty track");
+    }
+
     /// Tracks without a colour of their own get one from a palette in the docked layout, each different from its neighbours;
     /// a colour chosen for a track wins, and the old layout stays as it was.
     #[test]

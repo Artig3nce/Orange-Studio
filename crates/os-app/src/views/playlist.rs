@@ -1085,6 +1085,8 @@ fn clip_paint(ui: &mut Ui, s: &State, g: &PGeom, i: usize, c: &Clip) {
         // Audio and automation channels get a colour when they are made: only the track's counts here, so those clips
         // otherwise keep the logo's.
         let own = pl::track_color(s, c.track).map(rgb);
+        // An audio clip is blue unless its track was given a colour of its own (as GarageBand's are).
+        let own = if kind == PickKind::Audio { pl::track_info(s, c.track).and_then(|i| i.color).map(rgb) } else { own };
         return docked_clip(ui, s, g, i, c, kind, if kind == PickKind::Pattern { tint.or(color) } else { own });
     }
 
@@ -1235,7 +1237,7 @@ fn docked_clip(ui: &mut Ui, s: &State, g: &PGeom, i: usize, c: &Clip, kind: Pick
             (o, None, o.mix(hex(0x000000), 0.55), if light { o.mix(hex(0x000000), 0.8) } else { hex(0xffffff) })
         }
         (_, PickKind::Automation, _) => (hex(0x2a2118), Some(hex(0xffb02e)), hex(0xffb02e), hex(0xffd27a)),
-        (_, PickKind::Audio, _) => (hex(0xffd27a), None, hex(0x7a5200), dark_ink),
+        (_, PickKind::Audio, _) => (hex(0x4c9fe6), None, hex(0x123f6b), hex(0x0b2a4a)),
         _ => (hex(0xffb02e), None, hex(0x6e4500), dark_ink),
     };
     let (fill, ink, name_ink) = (dim(fill), dim(ink), dim(name_ink));
@@ -1746,11 +1748,13 @@ fn header(ui: &mut Ui, s: &State, g: &PGeom, row: u16, x: f32, w: f32) {
             // An instrument tile (click: pick one for the track), then the name over the instrument's name.
             let right = if lead { 48.0 } else if ui.hovering(hr) { 15.0 } else { 6.0 };
             let tile = Rect::new(hr.x + pl::HEAD_ICON_X, hr.cy() - 14.0, pl::HEAD_ICON_W, 28.0);
-            let inst = pl::track_instrument(s, row);
+            let content = pl::track_content(s, row);
+            let audio = content.as_ref().is_some_and(|c| c.0 == PickKind::Audio);
+            let inst = content.map(|c| c.1);
             let ink = if on { ui.t.tx(0xe8e8e8) } else { ui.t.tx(0x888888) };
             ui.c.fill_rrect(tile, 7.0, Color::rgb(0x000000).with_alpha(70));
             if inst.is_some() {
-                icons::draw(ui.c, Icon::Plug, tile.inset(5.0), ink);
+                icons::draw(ui.c, if audio { Icon::Wave } else { Icon::Plug }, tile.inset(5.0), ink);
             } else {
                 ui.c.fill_rect(Rect::new(tile.cx() - 5.0, tile.cy() - 1.0, 10.0, 2.0), ink.with_alpha(150));
                 ui.c.fill_rect(Rect::new(tile.cx() - 1.0, tile.cy() - 5.0, 2.0, 10.0), ink.with_alpha(150));

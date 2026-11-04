@@ -3084,6 +3084,16 @@ pub fn track_instrument(s: &State, t: u16) -> Option<String> {
     named.or(played).map(label)
 }
 
+/// What a docked track holds, for its header: the instrument its first clip plays, or the audio file it holds.
+pub fn track_content(s: &State, t: u16) -> Option<(PickKind, String)> {
+    let first = clips(s).iter().filter(|c| c.track == t).min_by_key(|c| c.position)?;
+    match source_kind(s, first.source) {
+        PickKind::Audio => Some((PickKind::Audio, source_name(s, first.source))),
+        PickKind::Pattern => track_instrument(s, t).map(|n| (PickKind::Pattern, n)),
+        PickKind::Automation => None,
+    }
+}
+
 /// The instrument list for track `t` as a menu of its own (a click on a docked header's tile): the pick adds the
 /// channel and a clip of a new pattern on the track.
 pub fn instrument_menu(s: &State, t: u16, x: f32, y: f32, tick: u32) -> Popup {

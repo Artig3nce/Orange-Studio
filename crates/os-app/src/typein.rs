@@ -65,7 +65,8 @@ enum Law {
 
 fn unit(t: Target) -> Unit {
     match t {
-        Target::Knob(KnobId::ChanPan(_) | KnobId::MixPan(_)) => Unit::Pan,
+        Target::Knob(KnobId::ChanPan(_) | KnobId::MixPan(_) | KnobId::TrackPan(_)) => Unit::Pan,
+        Target::Knob(KnobId::TrackVol(_)) => Unit::Percent,
         Target::Knob(KnobId::MixSep(_)) => Unit::Sep,
         Target::Knob(KnobId::ChanVol(_)) => Unit::Db(Law::Channel),
         Target::Knob(KnobId::MasterVol) => Unit::Db(Law::Main),

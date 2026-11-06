@@ -140,7 +140,7 @@ fn target_text(t: Target) -> String {
             KnobId::ChanPan(r) => format!("chanpan:{r}"),
             KnobId::Swing => "swing".into(),
             KnobId::Eq(m, b, f) => format!("eq:{m}:{b}:{f}"),
-            KnobId::Strum(_) | KnobId::Arp(_) | KnobId::PianoDlg(_) | KnobId::AutoLfo(..) => "none".into(),
+            KnobId::Strum(_) | KnobId::Arp(_) | KnobId::PianoDlg(_) | KnobId::AutoLfo(..) | KnobId::TrackVol(_) | KnobId::TrackPan(_) => "none".into(),
         },
         Target::Fader(m) => format!("fader:{m}"),
         Target::Param(key, i) => format!("param:{key}:{i}"),

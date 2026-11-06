@@ -1829,12 +1829,20 @@ pub struct PlaylistTrack {
     pub locked: bool,
     /// The track's height as a share of the playlist's track height (bytes 13-16, a float; 1 = as tall as the others).
     pub height: f32,
+    /// The track's volume bar in the docked header, 0..1 (0.8 = unchanged): scales the notes and audio clips played
+    /// from this track. Not stored in the project file.
+    pub volume: f32,
+    /// The track's panning, -1 (left) .. 1 (right), 0 = centre. Not stored in the project file.
+    pub pan: f32,
 }
 
 impl PlaylistTrack {
+    /// Default of `volume`: unity.
+    pub const VOLUME_DEFAULT: f32 = 0.8;
+
     /// Track `number` as a new project has it: unnamed, default colour, on, not grouped.
     pub fn new(number: u32) -> Self {
-        PlaylistTrack { number, name: None, color: None, enabled: true, grouped: false, collapsed: false, locked: false, height: 1.0 }
+        PlaylistTrack { number, name: None, color: None, enabled: true, grouped: false, collapsed: false, locked: false, height: 1.0, volume: Self::VOLUME_DEFAULT, pan: 0.0 }
     }
 }
 

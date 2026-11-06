@@ -288,6 +288,10 @@ pub enum Action {
     BrowserRow(usize),
     /// Browser tab 0..5 (spec: ui/browser.md §1).
     BrowserTab(usize),
+    /// The Freesound tab's search button (the browser's search text is the query).
+    FreesoundSearch,
+    /// A Freesound card's waveform (sound id, the waveform's rect): press or drag moves the preview's playhead there.
+    FreesoundSeek(u64, Rect),
     /// Browser list background (wheel scrolls).
     BrowserList,
     /// Title-bar up arrow: close every node of the tab.
@@ -1043,6 +1047,8 @@ pub enum Drag {
     Pl(crate::playlist::PlDrag),
     /// A browser item pressed (`started` once it moved far enough), spec: ui/browser.md §3.
     Browser { item: views::browser::Item, label: String, m0: (f32, f32), started: bool },
+    /// A Freesound card's waveform held: its playhead follows the mouse and the preview starts there on release.
+    FreesoundSeek { id: u64, wave: Rect },
     /// The rolling sampler's selection being drawn on the strip.
     RollSel,
     /// Channel rack (spec: ui/channel-rack.md): step painting along the start row (§9), slot range select (§8),
@@ -1222,6 +1228,8 @@ pub struct State {
     /// Search text and whether the search box has keyboard focus (spec: ui/browser.md §5).
     pub browser_search: String,
     pub browser_search_focus: bool,
+    /// The browser's Freesound section (search results, cached previews).
+    pub freesound: crate::freesound::Fs,
     /// Options-menu toggles that are on (`views::browser::OPT_*`).
     pub browser_opts: std::collections::HashSet<&'static str>,
     /// Navigation history of selected row keys and the position in it.
@@ -1781,6 +1789,7 @@ impl App {
                 browser_drag: None,
                 browser_search: String::new(),
                 browser_search_focus: false,
+                freesound: Default::default(),
                 browser_opts: views::browser::DEFAULT_OPTS.iter().copied().collect(),
                 browser_hist: Vec::new(),
                 browser_hist_pos: 0,
@@ -4669,6 +4678,7 @@ impl App {
     /// The monitor is moving (a signal or a decay), or the tapper's pad fading: the shell should tick at animation rate.
     pub fn animating(&self) -> bool {
         self.transport.playing()
+            || self.state.freesound.playing.is_some()
             || matches!(self.drag, Some(Drag::SongPosHold { .. }))
             || self.state.monitor.active()
             || self.state.mixer.meters.iter().any(|m| m.active())
@@ -4755,6 +4765,21 @@ impl App {
     /// Periodic housekeeping; returns whether a repaint is needed.
     pub fn tick(&mut self) -> bool {
         self.plugin_tick();
+        // The Freesound section's background work: results, downloaded previews, and a click's pending play.
+        let (fs_changed, fs_play) = crate::freesound::poll(&mut self.state.freesound);
+        if let Some((id, path, from)) = fs_play {
+            let duration = self.state.freesound.results.iter().find(|x| x.id == id).map_or(0.0, |x| x.duration);
+            if from > 0.0 {
+                self.preview_full_from(&path.to_string_lossy(), from, duration);
+            } else {
+                self.preview_full(&path.to_string_lossy());
+            }
+            crate::freesound::start_at(&mut self.state.freesound, id, from);
+        }
+        let fs_sounding = crate::freesound::tick(&mut self.state.freesound);
+        if fs_changed || fs_sounding {
+            self.invalidate();
+        }
         // Notes added past the pattern's end lengthen its clips in the playlist.
         if crate::playlist::follow_pattern_length(&mut self.state) {
             self.state.piano.dirty = true;
@@ -6091,6 +6116,7 @@ impl App {
         if let Some(d) = self.drag.clone() {
             match d {
                 Drag::Browser { item, label, m0, started } => self.browser_drag_move(label, m0, started, item),
+                Drag::FreesoundSeek { id, wave } => self.freesound_scrub(id, wave),
                 Drag::RollSel { .. } => self.rolling_select_move(),
                 Drag::Pl(d) => {
                     if let Some(g) = self.pl_grid {
@@ -6689,6 +6715,7 @@ impl App {
                     | Action::MinWin(_)
                     | Action::MaxWin(_)
                     | Action::BrowserTab(_)
+                    | Action::FreesoundSearch
                     | Action::BrowserCollapse
                     | Action::BrowserReread
                     | Action::PianoUndo
@@ -7034,7 +7061,7 @@ impl App {
     fn knob_x(&mut self, id: crate::knobs::KnobId, x0: f32, w: f32, x: f32) {
         let mut v = ((x - x0) / w).clamp(0.0, 1.0);
         // Pan and separation snap to the centre; a level does not.
-        if !matches!(id, crate::knobs::KnobId::ChanVol(_) | crate::knobs::KnobId::SlotMix(..) | crate::knobs::KnobId::MasterVol) && (v - 0.5).abs() * w < 2.0 {
+        if !matches!(id, crate::knobs::KnobId::ChanVol(_) | crate::knobs::KnobId::TrackVol(_) | crate::knobs::KnobId::SlotMix(..) | crate::knobs::KnobId::MasterVol) && (v - 0.5).abs() * w < 2.0 {
             v = 0.5;
         }
         self.state.set_knob(id, v);
@@ -7537,6 +7564,10 @@ impl App {
         if let Some(Drag::RollSel { .. }) = self.drag.clone() {
             self.drag = None;
             return self.rolling_select_end();
+        }
+        if let Some(Drag::FreesoundSeek { id, .. }) = self.drag.clone() {
+            self.drag = None;
+            return self.freesound_seek_end(id);
         }
         if let Some(Drag::Pl(d)) = self.drag.clone() {
             self.drag = None;
@@ -9449,7 +9480,7 @@ impl App {
                 s.set_knob(id, if s.knob(id) >= 0.5 { 0.0 } else { 1.0 });
                 self.hint = Cow::Owned(s.knob_text(id));
             }
-            Action::Knob(id @ (crate::knobs::KnobId::MixPan(_) | crate::knobs::KnobId::MixSep(_) | crate::knobs::KnobId::ChanPan(_) | crate::knobs::KnobId::ChanVol(_) | crate::knobs::KnobId::SlotMix(..) | crate::knobs::KnobId::MasterVol | crate::knobs::KnobId::MasterPitch)) if os_ui::kit::lemon::on(&self.theme.colors) => {
+            Action::Knob(id @ (crate::knobs::KnobId::MixPan(_) | crate::knobs::KnobId::MixSep(_) | crate::knobs::KnobId::ChanPan(_) | crate::knobs::KnobId::ChanVol(_) | crate::knobs::KnobId::TrackVol(_) | crate::knobs::KnobId::TrackPan(_) | crate::knobs::KnobId::SlotMix(..) | crate::knobs::KnobId::MasterVol | crate::knobs::KnobId::MasterPitch)) if os_ui::kit::lemon::on(&self.theme.colors) => {
                 let bar = self.hits.iter().rev().find(|h| h.action == Action::Knob(id)).map(|h| h.rect);
                 if let Some(r) = bar {
                     crate::history::knob(&mut self.state, id, false);
@@ -9669,7 +9700,7 @@ impl App {
                 self.invalidate();
             }
             Action::CloseWin(w) => s.hide(w),
-            Action::BrowserRow(_) | Action::BrowserTab(_) | Action::BrowserList | Action::BrowserCollapse | Action::BrowserReread | Action::BrowserMenu | Action::BrowserSearch | Action::BrowserSplitter => {}
+            Action::FreesoundSearch | Action::FreesoundSeek(..) | Action::BrowserRow(_) | Action::BrowserTab(_) | Action::BrowserList | Action::BrowserCollapse | Action::BrowserReread | Action::BrowserMenu | Action::BrowserSearch | Action::BrowserSplitter => {}
             Action::BrowserPlugFilter(_) | Action::BrowserPlugCat(_) | Action::BrowserPlugStar(_) | Action::Picker(_) => {}
             Action::TypeIn(t) => crate::typein::click(s, t),
             Action::PlaylistArea | Action::MixerArea | Action::RackArea | Action::Swallow => {}
@@ -15735,6 +15766,57 @@ mod tests {
         run(&mut app, 500);
         let v = app.transport.engine_voices() + app.plugins.voices();
         assert!(du < 5 && v == 0, "while playing: {du} dropouts; {v} voices after Stop");
+    }
+
+    /// The browser's Freesound tab: the search button, a card per result stacked `CARD_H` apart, and an empty search
+    /// that starts nothing and says what to do.
+    #[test]
+    fn browser_freesound_tab() {
+        use crate::freesound::Sound;
+        use crate::views::browser::{rows, Item, CARD_H, FREESOUND_TAB};
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.state.project = test_project();
+        app.state.file = None;
+        app.state.path = None;
+        app.state.z = vec![Win::Playlist];
+        app.state.browser_tab = FREESOUND_TAB;
+        let fs = &mut app.state.freesound;
+        fs.results = vec![
+            Sound { id: 1, name: "Kick one".into(), duration: 0.5, preview: "x".into() },
+            Sound { id: 2, name: "Pad".into(), duration: 65.0, preview: "y".into() },
+        ];
+        fs.peaks.insert(1, vec![0.2, 1.0, 0.5]);
+        frame(&mut app, &mut c, None);
+        assert!(app.hits.iter().any(|h| h.action == Action::FreesoundSearch), "the search button");
+        assert!(app.hits.iter().any(|h| matches!(h.action, Action::FreesoundSeek(1, _))), "the waveform seeks the preview");
+        assert_eq!(rows(&app.state).len(), 2);
+        assert!(matches!(rows(&app.state)[1].item, Item::Freesound(2)));
+        let card = hit_rect(&app, &Action::BrowserRow(0));
+        assert_eq!(hit_rect(&app, &Action::BrowserRow(1)).y - card.y, CARD_H, "the cards are stacked");
+        app.act(Action::FreesoundSearch);
+        assert!(!app.state.freesound.busy, "an empty search starts nothing");
+        assert!(app.state.freesound.status.contains("Type"), "{}", app.state.freesound.status);
+        // A sounding sound: its card shows the stop mark and a line that moves across the waveform.
+        let shot = |c: &Canvas| {
+            let mut v = vec![0u32; 1920 * 1080];
+            c.copy_to_xrgb(&mut v);
+            v
+        };
+        let idle = shot(&c);
+        let back = |secs: f32| std::time::Instant::now().checked_sub(std::time::Duration::from_secs_f32(secs));
+        if let (Some(a), Some(b)) = (back(2.0), back(6.0)) {
+            let playing = |since| Some(crate::freesound::Playing { id: 1, since, secs: 10.0, duration: 10.0, from: 0.0 });
+            app.state.freesound.playing = playing(a);
+            assert!(app.animating(), "the frames run at full speed while a sound plays");
+            frame(&mut app, &mut c, None);
+            let early = shot(&c);
+            app.state.freesound.playing = playing(b);
+            frame(&mut app, &mut c, None);
+            let late = shot(&c);
+            assert_ne!(idle, early, "a sounding card shows the stop mark");
+            assert_ne!(early, late, "the line moves");
+        }
     }
 
     /// Browser (spec: ui/browser.md): tabs, opening nodes, dragging a pattern and a generator onto the playlist.

@@ -157,12 +157,16 @@ impl App {
             match capture::open_input(&input.device) {
                 Ok(s) => Some(s),
                 Err(e) => {
+                    let _ = std::fs::write(std::env::temp_dir().join("orange-record-error.txt"), format!("open input '{}': {e}\n", input.device));
+                    eprintln!("one-click open input '{}': {e}", input.device);
                     self.state.message = Some(format!("Audio input: {e}"));
                     return self.invalidate();
                 }
             }
         };
         if let Err(e) = self.one_click_begin(input, stream, editor) {
+            let _ = std::fs::write(std::env::temp_dir().join("orange-record-error.txt"), format!("begin: {e}\n"));
+            eprintln!("one-click begin: {e}");
             self.state.message = Some(format!("Audio recording: {e}"));
             return self.invalidate();
         }

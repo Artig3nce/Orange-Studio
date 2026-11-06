@@ -103,6 +103,8 @@ pub enum Item {
     /// A plugin preset file (any `presets::IMPORT_EXTS` type) or factory preset path: dropped, it loads (spec:
     /// plugins/presets.md "Drag and drop").
     Preset(String),
+    /// A Freesound result (its sound id): a click plays its preview. Not draggable.
+    Freesound(u64),
 }
 
 /// The browser drag in flight (spec §3): the item and its label following the cursor, and the modifiers at the move
@@ -172,6 +174,9 @@ fn is_open(s: &State, key: &str) -> bool {
 pub fn rows(s: &State) -> Vec<Row> {
     if s.browser_tab == PLUGIN_TAB {
         return super::plugin_panel::rows(s);
+    }
+    if s.browser_tab == FREESOUND_TAB {
+        return freesound_rows(s);
     }
     let all = tree(s);
     if s.browser_search.is_empty() {
@@ -253,6 +258,7 @@ fn tree(s: &State) -> Vec<Row> {
     }
     out
 }
+
 
 fn section(s: &State, parent: &str, label: &str, icon: Icon, cat: u8, out: &mut Vec<Row>) -> bool {
     let key = format!("{parent}/{label}");
@@ -626,7 +632,11 @@ fn paint_info(ui: &mut Ui, s: &State, path: &Path, r: Rect) {
 /// filter buttons.
 pub fn list_top(s: &State) -> f32 {
     let lift = super::work_y(s) - super::WORK_Y;
-    let chips = if s.browser_tab == PLUGIN_TAB { super::plugin_panel::CHIPS_H } else { 0.0 };
+    let chips = match s.browser_tab {
+        PLUGIN_TAB => super::plugin_panel::CHIPS_H,
+        FREESOUND_TAB => FS_HEAD_H,
+        _ => 0.0,
+    };
     lift + chips + if !s.docked_ui && opt(s, OPT_TOP) { LIST_Y + SEARCH_ROW } else { LIST_Y }
 }
 
@@ -645,7 +655,7 @@ const SEARCH_ROW: f32 = 27.0;
 
 /// Largest useful scroll offset.
 pub fn max_scroll(s: &State) -> f32 {
-    (rows(s).len() as f32 * ROW_H - list_h(s)).max(0.0)
+    (rows(s).len() as f32 * row_h(s) - list_h(s)).max(0.0)
 }
 
 /// A hovered row whose label does not fit scrolls it slowly to its end and back (spec §9): the row, when the hover
@@ -736,6 +746,8 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect) {
     }
     if s.browser_tab == PLUGIN_TAB {
         super::plugin_panel::paint(ui, s, Rect::span(0.0, bw - 1.0, top - super::plugin_panel::CHIPS_H, r.bottom() - footer_h(s)));
+    } else if s.browser_tab == FREESOUND_TAB {
+        paint_freesound(ui, s, r, bw, top);
     } else {
         paint_tree(ui, s, r, bw, top);
     }
@@ -783,6 +795,125 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect) {
 }
 
 /// The tree's rows from `top` (browser `r`, its panel `bw` wide), and the info panel of a selected disk entry.
+/// The Freesound tab (docked layout): a search button and status above result cards.
+pub const FREESOUND_TAB: usize = 4;
+/// Height of the Freesound tab's header, and of one result card.
+pub const FS_HEAD_H: f32 = 52.0;
+pub const CARD_H: f32 = 60.0;
+
+/// Height of one row of the list shown: a result card on the Freesound tab, else a tree row.
+pub fn row_h(s: &State) -> f32 {
+    if s.browser_tab == FREESOUND_TAB { CARD_H } else { ROW_H }
+}
+
+/// The Freesound tab's rows: one per search result.
+fn freesound_rows(s: &State) -> Vec<Row> {
+    s.freesound
+        .results
+        .iter()
+        .map(|x| Row { key: format!("{}/{}", crate::freesound::PREFIX, x.id), depth: 0, label: x.name.clone(), icon: Icon::Wave, cat: 0, open: None, bright: false, item: Item::Freesound(x.id), path: None })
+        .collect()
+}
+
+/// "1:05" for a duration in seconds.
+fn clock(secs: f32) -> String {
+    let t = secs.round().max(0.0) as u32;
+    format!("{}:{:02}", t / 60, t % 60)
+}
+
+/// A waveform of `bins` (0..1 each) centred in `r`, one thin bar per bin.
+fn draw_wave(ui: &mut Ui, r: Rect, bins: &[f32], col: os_ui::Color, played: os_ui::Color, head: Option<f32>) {
+    if bins.is_empty() {
+        return;
+    }
+    let cy = r.cy();
+    let step = r.w / bins.len() as f32;
+    let at = head.map(|p| r.x + p.clamp(0.0, 1.0) * r.w);
+    for (i, &v) in bins.iter().enumerate() {
+        let h = (v * r.h / 2.0).max(1.0);
+        let x = r.x + i as f32 * step;
+        // The part already heard is lit.
+        let c = if at.is_some_and(|a| x < a) { played } else { col };
+        ui.c.fill_rect(Rect::new(x, cy - h, (step * 0.72).max(1.0), 2.0 * h), c);
+    }
+    // The position line, a little taller than the waveform.
+    if let Some(a) = at {
+        ui.c.fill_rect(Rect::new(a - 1.0, r.y - 3.0, 2.0, r.h + 6.0), os_ui::Color::rgb(0xffffff));
+    }
+}
+
+/// The Freesound tab: the search button (the browser's search text is the query) and the status over the cards, each
+/// with the sound's name, its length, a play mark and its waveform. A click on a card plays the sound.
+fn paint_freesound(ui: &mut Ui, s: &State, r: Rect, bw: f32, top: f32) {
+    let t = ui.t;
+    let fs = &s.freesound;
+    // The header: the search button and the status line.
+    let head = Rect::span(0.0, bw - 1.0, top - FS_HEAD_H, top);
+    ui.c.fill_rect(head, t.browser_tabs);
+    let q = s.browser_search.trim();
+    let btn = Rect::new(10.0, head.y + 6.0, bw - 21.0, 24.0);
+    let hov = ui.hit(btn, Action::FreesoundSearch, "Search Freesound for the text in the search field (Enter)");
+    let face = if fs.busy { t.sunken } else if hov { t.accent.shade(0.12) } else { t.accent };
+    ui.c.fill_rrect(btn, 5.0, face);
+    let ink = if fs.busy { t.text_dim } else { Color::rgb(0x1a1200) };
+    icons::draw(ui.c, Icon::Search, Rect::new(btn.x + 7.0, btn.y + 5.0, 14.0, 14.0), ink);
+    let f = os_ui::Font::new(14);
+    let label = if fs.busy { "Searching...".to_string() } else if q.is_empty() { "Search Freesound".to_string() } else { format!("Search \"{q}\"") };
+    ui.c.text_clip(f, btn.x + 28.0, btn.y + 3.0, btn.w - 34.0, ink, &label);
+    let status = if !fs.status.is_empty() { fs.status.as_str() } else { "Type above, then press Enter" };
+    ui.c.text_clip(os_ui::Font::new(12), 12.0, btn.bottom() + 5.0, bw - 24.0, t.text_dim, status);
+
+    // The cards.
+    let rows = rows(s);
+    let list = Rect::span(0.0, bw - 1.0, top, r.bottom() - footer_h(s));
+    ui.c.fill_rect(list, t.browser_list);
+    ui.hit(list, Action::BrowserList, "");
+    ui.c.push_clip(list);
+    let scroll = s.browser_scroll.min((rows.len() as f32 * CARD_H - list.h).max(0.0)).max(0.0);
+    let sel = s.browser_sel.as_deref();
+    for (i, row) in rows.iter().enumerate() {
+        let y = top + CARD_H * i as f32 - scroll;
+        if y + CARD_H < list.y || y > list.bottom() {
+            continue;
+        }
+        let Item::Freesound(id) = row.item else { continue };
+        let card = Rect::new(8.0, y + 3.0, bw - 17.0, CARD_H - 6.0);
+        let hov = ui.hit(card, Action::BrowserRow(i), row.label.clone());
+        let on = sel == Some(row.key.as_str());
+        let waiting = fs.waiting == Some(id);
+        // A held waveform's playhead follows the mouse; otherwise the sounding preview's line does.
+        let sounding = crate::freesound::progress(fs, id).is_some();
+        let head = fs.scrub.filter(|(sid, _)| *sid == id).map(|(_, p)| p).or_else(|| crate::freesound::progress(fs, id));
+        ui.c.fill_rrect(card, 6.0, if on { t.accent.with_alpha(210) } else { Color::rgb(0x000000).with_alpha(0) });
+        let face = card.inset(if on { 1.0 } else { 0.0 });
+        ui.c.fill_rrect(face, 6.0, if hov { Color::rgb(0x262626) } else { Color::rgb(0x1c1c1c) });
+        // The play mark.
+        let mark = Rect::new(face.x + 8.0, face.y + 8.0, 20.0, 20.0);
+        ui.c.fill_rrect(mark, 10.0, if sounding || on { t.accent } else if waiting { t.accent.with_alpha(160) } else { Color::rgb(0x000000).with_alpha(110) });
+        // A sounding sound shows a stop mark: a click on it stops the preview.
+        icons::draw(ui.c, if sounding { Icon::Stop } else { Icon::Play }, mark.inset(if sounding { 5.0 } else { 4.0 }), if on || waiting || sounding { Color::rgb(0x1a1200) } else { t.text_dim });
+        // The name, and the length at the right.
+        let len = fs.results.iter().find(|x| x.id == id).map_or(String::new(), |x| clock(x.duration));
+        let small = os_ui::Font::new(12);
+        let lw = ui.c.text_width(small, &len);
+        ui.c.text_clip(f, mark.right() + 8.0, face.y + 6.0, face.w - 28.0 - lw - 28.0, if on { t.accent } else { t.text }, &row.label);
+        ui.c.text(small, face.right() - lw - 8.0, face.y + 8.0, t.text_faint, &len);
+        // The waveform once the preview is in; until then its place says so.
+        let wave = Rect::new(face.x + 8.0, face.y + 34.0, face.w - 16.0, 16.0);
+        match fs.peaks.get(&id) {
+            Some(bins) => draw_wave(ui, wave, bins, if on { t.accent.with_alpha(150) } else { t.text.with_alpha(110) }, t.accent, head),
+            None => {
+                let msg = if fs.loading.contains(&id) { "Loading..." } else { "Click to load" };
+                ui.c.text(small.italic(), wave.x, wave.y + 1.0, t.text_faint, msg);
+            }
+        }
+        // The waveform itself: a click starts the preview there, a drag moves the playhead before it starts.
+        ui.hit(wave.outset(2.0), Action::FreesoundSeek(id, wave), "Play from here (drag the playhead to skip)");
+    }
+    ui.c.pop_clip();
+    super::display_edge(ui.c, t, Rect::new(r.x, r.y, bw, r.h), 0.0);
+}
+
 fn paint_tree(ui: &mut Ui, s: &State, r: Rect, bw: f32, top: f32) {
     let t = ui.t;
     let rows = rows(s);
@@ -924,6 +1055,16 @@ fn docked_head(ui: &mut Ui, s: &State, bw: f32, dy: f32) {
             ui.c.fill_rect(Rect::new(x + 4.0, r.bottom() - 2.0, w - 8.0, 2.0), t.accent);
         }
         x += w;
+    }
+    // Freesound: an icon tab beside the names, left of the options gear.
+    {
+        let r = Rect::new(bw - 46.0, 87.0 + dy, 20.0, 22.0);
+        let hov = ui.hit(r, Action::BrowserTab(FREESOUND_TAB), "Freesound: search free sounds and hear them");
+        let open = s.browser_tab == FREESOUND_TAB;
+        icons::draw(ui.c, Icon::Wave, r.inset(2.0), if open || hov { t.text } else { t.text_dim });
+        if open {
+            ui.c.fill_rect(Rect::new(r.x + 1.0, 83.0 + dy + 26.0, r.w - 2.0, 2.0), t.accent);
+        }
     }
     let tool = |ui: &mut Ui, r: Rect, icon: Icon, action: Action, hint: &'static str, lit: bool| {
         let hov = ui.hit(r, action, hint);

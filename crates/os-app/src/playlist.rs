@@ -3072,6 +3072,13 @@ pub const HEAD_ICON_W: f32 = 30.0;
 /// The instrument a track was given (Insert instrument, or a drop on it): its first pattern clip's pattern is named after
 /// the instrument's channel, or plays notes of one.
 pub fn track_instrument(s: &State, t: u16) -> Option<String> {
+    let label = |c: &os_model::Channel| c.name.clone().unwrap_or_else(|| format!("Channel {}", c.index + 1));
+    track_channel_row(s, t).and_then(|i| s.project.channels.get(i)).map(label)
+}
+
+/// The channel-rack row of the instrument a track was given (the one `track_instrument` names): where the docked
+/// header's volume bar reads and writes (`KnobId::ChanVol`).
+pub fn track_channel_row(s: &State, t: u16) -> Option<usize> {
     let (_, n) = clips(s)
         .iter()
         .filter(|c| c.track == t)
@@ -3080,10 +3087,13 @@ pub fn track_instrument(s: &State, t: u16) -> Option<String> {
             _ => None,
         })
         .min()?;
-    let label = |c: &os_model::Channel| c.name.clone().unwrap_or_else(|| format!("Channel {}", c.index + 1));
-    let named = s.project.pattern(n).and_then(|p| p.name.as_deref()).and_then(|nm| s.project.channels.iter().find(|c| c.name.as_deref() == Some(nm)));
-    let played = s.project.pattern(n).and_then(|p| p.notes.first()).and_then(|note| s.project.channel(note.channel));
-    named.or(played).map(label)
+    let named = s.project.pattern(n).and_then(|p| p.name.as_deref()).and_then(|nm| s.project.channels.iter().position(|c| c.name.as_deref() == Some(nm)));
+    let played = s
+        .project
+        .pattern(n)
+        .and_then(|p| p.notes.first())
+        .and_then(|note| s.project.channels.iter().position(|c| c.index == note.channel));
+    named.or(played)
 }
 
 /// What a docked track holds, for its header: the instrument its first clip plays, or the audio file it holds.

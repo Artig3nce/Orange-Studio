@@ -97,6 +97,7 @@ mod plugins;
 mod ppi;
 mod prefs;
 mod preview_track;
+mod freesound;
 mod project_files;
 mod project_forms;
 mod project_info;

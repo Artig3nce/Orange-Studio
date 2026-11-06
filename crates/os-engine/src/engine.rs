@@ -4155,6 +4155,26 @@ struct PatternPlay {
     origin: i64,
     end: u64,
     starts_until: u64,
+    /// The clip's playlist track (its volume and pan bar apply to the notes).
+    track: u16,
+}
+
+/// The playlist track's volume and pan bar applied to scheduled notes: the velocity scales by volume / 0.8 (the bar's
+/// unity), the pan moves by the bar. A track at volume 0 plays nothing.
+fn apply_track_bar(project: &Project, track: u16, notes: &mut Vec<Sched>, from: usize) {
+    let Some(t) = project.arrangement().and_then(|a| a.tracks.get(usize::from(track))) else { return };
+    if (t.volume - os_model::PlaylistTrack::VOLUME_DEFAULT).abs() < 1e-4 && t.pan.abs() < 1e-4 {
+        return;
+    }
+    let gain = (t.volume / os_model::PlaylistTrack::VOLUME_DEFAULT).clamp(0.0, 1.25);
+    if gain <= 0.0 {
+        notes.truncate(from);
+        return;
+    }
+    for n in &mut notes[from..] {
+        n.velocity = (f32::from(n.velocity) * gain).round().clamp(1.0, 127.0) as u8;
+        n.pan = (f32::from(n.pan) + t.pan.clamp(-1.0, 1.0) * 64.0).round().clamp(0.0, 127.0) as u8;
+    }
 }
 
 /// The pattern clips that play, with their windows. A clip whose start offset is negative (uncut) plays the whole
@@ -4185,7 +4205,7 @@ fn pattern_plays(project: &Project, clips: &[os_model::Clip]) -> Vec<PatternPlay
         let start = u64::from(c.position);
         let end = start + len;
         let takeover = later.iter().take_while(|&&(_, _, m)| m == n).map(|&(_, d, _)| u64::from(d.position)).find(|&p| p > start);
-        out.push(PatternPlay { pattern: n, from, len, origin: i64::from(c.position) - from as i64, end, starts_until: end.min(takeover.unwrap_or(u64::MAX)) });
+        out.push(PatternPlay { pattern: n, from, len, origin: i64::from(c.position) - from as i64, end, starts_until: end.min(takeover.unwrap_or(u64::MAX)), track: c.track });
     }
     out
 }
@@ -4280,6 +4300,7 @@ fn schedule(project: &Project, mode: PlayMode, report: &mut EngineReport) -> (Ve
             let mut end: u64 = 0;
             let truncated = project.play_truncated;
             for play in pattern_plays(project, clips) {
+                let first_note = out.len();
                 for note in pattern_notes(play.pattern).iter().filter(|x| !x.muted()) {
                     let p = u64::from(note.position);
                     let cap = truncated.then_some(play.end);
@@ -4298,6 +4319,7 @@ fn schedule(project: &Project, mode: PlayMode, report: &mut EngineReport) -> (Ve
                         }
                     }
                 }
+                apply_track_bar(project, play.track, &mut out, first_note);
             }
             // spec: audio/audio-clips.md "Automatic crossfades"
             let fades = os_model::crossfade::playing(project, clips, project.tempo.unwrap_or(140.0));
@@ -4318,7 +4340,9 @@ fn schedule(project: &Project, mode: PlayMode, report: &mut EngineReport) -> (Ve
                         // An audio clip plays its channel's sample from the window start (milliseconds), cut at the clip end.
                         Some(ChannelKind::AudioClip | ChannelKind::Sampler) => {
                             let from_s = c.window.map_or(0.0, |w| w.0.max(0.0) / 1000.0);
+                            let first_clip = out.len();
                             out.push(Sched { tick: start, channel: usize::from(ch), key: 60, fine: 120, velocity: 100, pan: 64, mod_x: 128, mod_y: 128, cut: Some(start + len), len, from_s, clip: ClipFx::of(c, fx), slide: false, porta: false });
+                            apply_track_bar(project, c.track, &mut out, first_clip);
                         }
                         Some(ChannelKind::Automation) => {}
                         _ => report.automation_clips_ignored += 1,

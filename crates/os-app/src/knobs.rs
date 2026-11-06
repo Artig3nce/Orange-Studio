@@ -30,6 +30,9 @@ pub enum KnobId {
     /// Channel rack row / plugin window (model).
     ChanVol(usize),
     ChanPan(usize),
+    /// Playlist track `.0`'s volume and pan bars in the docked header (model `PlaylistTrack::volume` / `pan`).
+    TrackVol(u16),
+    TrackPan(u16),
     /// Channel rack main swing, 0..100 % (spec: ui/channel-rack.md §7; playback: flp/events/project-info.md).
     Swing,
     /// Mixer track `.0`'s equaliser: band `.1` (0 low shelf, 1 peaking, 2 high shelf), setting `.2` (0 gain, the
@@ -165,7 +168,7 @@ impl KnobId {
     /// Value restored by a middle click.
     pub fn default_value(self) -> f32 {
         match self {
-            KnobId::MasterVol | KnobId::Send(..) => 0.8,
+            KnobId::MasterVol | KnobId::Send(..) | KnobId::TrackVol(_) => 0.8,
             KnobId::ChanVol(_) => 0.78125,
             KnobId::SlotMix(..) => 1.0,
             KnobId::Swing => 0.0,
@@ -241,6 +244,8 @@ impl State {
             KnobId::Send(a, b) => crate::mixer::send(self, a, b).unwrap_or(0.8) as f32,
             KnobId::ChanVol(i) => self.project.channels.get(i).map_or(0.8, |c| c.volume as f32).clamp(0.0, 1.0),
             KnobId::ChanPan(i) => self.project.channels.get(i).map_or(0.5, |c| 0.5 + c.pan as f32 / 2.0).clamp(0.0, 1.0),
+            KnobId::TrackVol(t) => crate::playlist::track_info(self, t).map_or(os_model::PlaylistTrack::VOLUME_DEFAULT, |x| x.volume).clamp(0.0, 1.0),
+            KnobId::TrackPan(t) => crate::playlist::track_info(self, t).map_or(0.5, |x| 0.5 + x.pan / 2.0).clamp(0.0, 1.0),
             // Main swing is project data, 0..=128 (spec: flp/events/project-info.md, event 11).
             KnobId::Swing => f32::from(self.project.swing.unwrap_or(0).min(128)) / 128.0,
             KnobId::MasterVol => f32::from(self.project.main_volume.unwrap_or(os_model::Project::MAIN_VOLUME_DEFAULT).min(16000)) / 16000.0,
@@ -326,6 +331,16 @@ impl State {
                     self.piano.dirty = true;
                 }
             }
+            KnobId::TrackVol(t) | KnobId::TrackPan(t) => {
+                if let Some(x) = self.project.arrangement_mut().and_then(|a| a.tracks.get_mut(usize::from(t))) {
+                    if matches!(id, KnobId::TrackVol(_)) {
+                        x.volume = v;
+                    } else {
+                        x.pan = (v - 0.5) * 2.0;
+                    }
+                    self.piano.dirty = true;
+                }
+            }
             KnobId::Swing => {
                 self.project.swing = Some((v * 128.0).round() as u8);
                 self.piano.dirty = true;
@@ -401,6 +416,8 @@ impl State {
             KnobId::ChanPan(row) if self.is_clip_row(row) => format!("Minimum: {:.0}%", n * 100.0),
             KnobId::ChanVol(row) if self.is_clip_row(row) => format!("Maximum: {:.0}%", n * 100.0),
             KnobId::ChanPan(_) => format!("Channel panning: {}", pan_text(bipolar)),
+            KnobId::TrackPan(_) => format!("Track panning: {}", pan_text(bipolar)),
+            KnobId::TrackVol(_) => format!("Track volume: {:.0}%", n / 0.8 * 100.0),
             KnobId::MixSep(_) => crate::mixer::sep_text(f64::from(bipolar)),
             KnobId::Send(_, b) => crate::mixer::level_text(&format!("To {}", crate::mixer::name(self, b)), f64::from(n)),
             KnobId::SlotMix(..) => format!("Mix level: {:.0}%", n * 100.0),

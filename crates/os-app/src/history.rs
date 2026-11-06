@@ -595,6 +595,8 @@ fn knob_name(id: KnobId) -> &'static str {
     match id {
         KnobId::ChanVol(_) => "Channel volume",
         KnobId::ChanPan(_) => "Channel panning",
+        KnobId::TrackVol(_) => "Track volume",
+        KnobId::TrackPan(_) => "Track panning",
         KnobId::MasterVol => "Main volume",
         KnobId::MasterPitch => "Main pitch",
         KnobId::MixPan(_) => "Mixer track panning",

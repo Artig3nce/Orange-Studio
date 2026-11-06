@@ -47,6 +47,11 @@ impl App {
                 s.playlist.popup = if open { None } else { Some(Popup { x, y, items: options_menu(s), sub: None, scroll: [0; 2] }) };
             }
             Action::BrowserSearch => s.browser_search_focus = true,
+            Action::FreesoundSearch => {
+                let q = s.browser_search.clone();
+                crate::freesound::search(&mut s.freesound, &q);
+            }
+            Action::FreesoundSeek(id, wave) => self.freesound_seek_press(id, wave),
             Action::BrowserPlugFilter(i) => {
                 s.browser_plug_filter = i;
                 s.browser_plug_cat = None;
@@ -108,9 +113,22 @@ impl App {
                 if let Item::Sample(path) = &row.item {
                     self.preview_sample(path);
                 }
+                if let Item::Freesound(id) = &row.item {
+                    let id = *id;
+                    if crate::freesound::progress(&self.state.freesound, id).is_some() {
+                        // A click on the sound that sounds stops it.
+                        if let Some(path) = self.state.freesound.files.get(&id).cloned() {
+                            self.stop_preview_of(&path.to_string_lossy());
+                        }
+                        self.state.freesound.playing = None;
+                    } else if let Some(path) = crate::freesound::click(&mut self.state.freesound, id) {
+                        self.preview_full(&path.to_string_lossy());
+                        crate::freesound::start(&mut self.state.freesound, id, None);
+                    }
+                }
                 let s = &mut self.state;
                 s.browser_scroll = s.browser_scroll.min(view::max_scroll(s));
-                if !matches!(row.item, Item::None | Item::File(_) | Item::History(_)) {
+                if !matches!(row.item, Item::None | Item::File(_) | Item::History(_) | Item::Freesound(_)) {
                     self.drag = Some(Drag::Browser { item: row.item, label: row.label, m0: self.mouse, started: false });
                 }
             }
@@ -118,6 +136,92 @@ impl App {
         }
         self.invalidate();
         true
+    }
+
+    /// Cuts the preview of `path` off at once (a new preview replaces the one sounding).
+    pub(crate) fn stop_preview_of(&self, path: &str) {
+        let mut p = crate::app::preview_project(path);
+        p.tempo = Some(self.state.tempo);
+        self.transport.preview_for(p, Some(std::time::Duration::from_millis(1)));
+    }
+
+    /// Plays the whole of a preview file (a Freesound sound: its card follows the position and a click stops it).
+    pub(crate) fn preview_full(&self, path: &str) {
+        let mut p = crate::app::preview_project(path);
+        p.tempo = Some(self.state.tempo);
+        crate::preview_track::route(&mut p, &self.state.project, crate::prefs::number(&crate::prefs::BROWSER_PREVIEW_TRACK));
+        self.transport.preview_for(p, None);
+    }
+
+    /// The share of a Freesound card's waveform the mouse is at (0..1).
+    fn freesound_frac(&self, wave: Rect) -> f32 {
+        ((self.mouse.0 - wave.x) / wave.w.max(1.0)).clamp(0.0, 1.0)
+    }
+
+    /// A press on a Freesound card's waveform: its playhead follows the mouse, and the preview starts there when the
+    /// button is let go. A preview not downloaded yet is fetched now, so the seek can play as soon as it is in.
+    pub(crate) fn freesound_seek_press(&mut self, id: u64, wave: Rect) {
+        let frac = self.freesound_frac(wave);
+        // Whatever preview sounded gives way to the playhead: it starts again where it is let go.
+        if let Some(p) = self.state.freesound.playing.take() {
+            if let Some(path) = self.state.freesound.files.get(&p.id).cloned() {
+                self.stop_preview_of(&path.to_string_lossy());
+            }
+        }
+        if !self.state.freesound.files.contains_key(&id) {
+            crate::freesound::click(&mut self.state.freesound, id);
+            self.state.freesound.waiting_from = Some(frac);
+        }
+        self.state.freesound.scrub = Some((id, frac));
+        self.drag = Some(Drag::FreesoundSeek { id, wave });
+        self.invalidate();
+    }
+
+    /// The mouse moved while a Freesound waveform is held: the playhead follows it (the sound waits for the release).
+    pub(crate) fn freesound_scrub(&mut self, id: u64, wave: Rect) {
+        self.state.freesound.scrub = Some((id, self.freesound_frac(wave)));
+        self.invalidate();
+    }
+
+    /// A Freesound waveform let go: the preview starts at the playhead, or there when its download arrives.
+    pub(crate) fn freesound_seek_end(&mut self, id: u64) {
+        let Some((_, frac)) = self.state.freesound.scrub.take() else { return };
+        let (path, duration) = {
+            let fs = &self.state.freesound;
+            (fs.files.get(&id).cloned(), fs.results.iter().find(|x| x.id == id).map_or(0.0, |x| x.duration))
+        };
+        let Some(path) = path else {
+            // Still downloading: `poll` starts it at the playhead when the file is in.
+            self.state.freesound.waiting_from = Some(frac);
+            self.invalidate();
+            return;
+        };
+        let from = crate::freesound::offset(&self.state.freesound, id, frac);
+        self.preview_full_from(&path.to_string_lossy(), from, duration);
+        crate::freesound::start_at(&mut self.state.freesound, id, from);
+        let name = self.state.freesound.results.iter().find(|x| x.id == id).map_or("", |x| x.name.as_str());
+        self.state.freesound.status = format!("Playing: {name}");
+        self.invalidate();
+    }
+
+    /// Plays a preview file from `from` seconds (a Freesound card's playhead was moved there). A one-clip playlist
+    /// starts the sample at its window, which is how the engine skips into an audio file.
+    pub(crate) fn preview_full_from(&self, path: &str, from: f32, duration: f32) {
+        // Without a length there is nothing to trim to: play it whole, as a normal preview does.
+        if duration <= 0.0 {
+            return self.preview_full(path);
+        }
+        let tempo = self.state.tempo;
+        let mut p = crate::app::preview_project(path);
+        let ppq = f64::from(p.ppq.max(1));
+        let secs = f64::from((duration - from).max(0.05));
+        let ticks = (secs * tempo / 60.0 * ppq).ceil().clamp(1.0, f64::from(u32::MAX)) as u32;
+        let a = f64::from(from.max(0.0)) * 1000.0;
+        let clip = os_model::Clip { position: 0, length: ticks, track: 0, source: os_model::ClipSource::Channel(0), muted: false, window: Some((a, a + secs * 1000.0)), raw: os_model::Clip::TEMPLATE };
+        p.arrangements = vec![os_model::Arrangement { clips: vec![clip], ..Default::default() }];
+        p.tempo = Some(tempo);
+        crate::preview_track::route(&mut p, &self.state.project, crate::prefs::number(&crate::prefs::BROWSER_PREVIEW_TRACK));
+        self.transport.preview_song(p);
     }
 
     /// Clicking a sample plays it once (spec §7): cut off after `PREVIEW_LIMIT` unless "Full sample preview" is ticked.
@@ -292,7 +396,11 @@ impl App {
                     s.browser_search_focus = false;
                 }
                 Key::Named(NamedKey::Enter) => {
-                    if let Some(m) = find(s, 1) {
+                    // On the Freesound tab Enter searches Freesound, as its button does.
+                    if s.browser_tab == view::FREESOUND_TAB {
+                        let q = s.browser_search.clone();
+                        crate::freesound::search(&mut s.freesound, &q);
+                    } else if let Some(m) = find(s, 1) {
                         s.message = Some(m);
                     }
                 }
@@ -366,7 +474,7 @@ impl App {
     /// Wheel over the browser list.
     pub(crate) fn browser_wheel(&mut self, dy: f32) {
         let s = &mut self.state;
-        s.browser_scroll = (s.browser_scroll - dy * 3.0 * view::ROW_H).clamp(0.0, view::max_scroll(s));
+        s.browser_scroll = (s.browser_scroll - dy * 3.0 * view::row_h(s)).clamp(0.0, view::max_scroll(s));
         self.invalidate();
     }
 
@@ -547,7 +655,7 @@ impl App {
                     self.state.message = msg;
                 }
             }
-            Item::None | Item::File(_) | Item::History(_) | Item::Preset(_) => {}
+            Item::None | Item::File(_) | Item::History(_) | Item::Preset(_) | Item::Freesound(_) => {}
         }
     }
 
@@ -993,7 +1101,7 @@ pub fn row_menu(s: &crate::app::State, row: &view::Row) -> Vec<PItem> {
             let it = PItem::new("Load into selected channel", Cmd::Preset(crate::presets::PCmd::Load(key, p.into())));
             items.push(if s.hosted_rows.contains(&key) { it } else { it.off() });
         }
-        Item::None | Item::File(_) | Item::Param(..) => {}
+        Item::None | Item::File(_) | Item::Param(..) | Item::Freesound(_) => {}
     }
     // The plugin browser's variants and star.
     if s.browser_tab == view::PLUGIN_TAB {
@@ -1096,12 +1204,13 @@ pub(crate) fn show_history(s: &mut crate::app::State) {
 pub(crate) fn reveal(s: &mut crate::app::State) {
     let rows = view::rows(s);
     let Some(i) = rows.iter().position(|r| Some(&r.key) == s.browser_sel.as_ref()) else { return };
-    let y = i as f32 * view::ROW_H;
+    let rh = view::row_h(s);
+    let y = i as f32 * rh;
     let h = view::list_h(s);
     if y < s.browser_scroll {
         s.browser_scroll = y;
-    } else if y + view::ROW_H > s.browser_scroll + h {
-        s.browser_scroll = y + view::ROW_H - h;
+    } else if y + rh > s.browser_scroll + h {
+        s.browser_scroll = y + rh - h;
     }
     s.browser_scroll = s.browser_scroll.clamp(0.0, view::max_scroll(s));
 }

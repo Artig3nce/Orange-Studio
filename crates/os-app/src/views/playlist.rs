@@ -16,6 +16,7 @@ use super::browser::Item;
 use super::{resize_zones, rgb, window_body, FrameInfo};
 use crate::app::{Action, Seg, State, Ui, Win};
 use crate::icons::{self, Icon};
+use crate::knobs::KnobId;
 use crate::playlist::{self as pl, Mark, Overlay, PGeom, PickKind, PlTool, MARKER_H, TITLE_H, TRACKS};
 
 /// Default pixels per bar (the zoom is `State::playlist_bar_w`).
@@ -328,6 +329,21 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
             icons::draw(ui.c, Icon::Plus, Rect::new(r.x + 10.0, r.cy() - 7.0, 14.0, 14.0), t.text);
             ui.c.text(Font::new(14), r.x + 30.0, r.cy() - 9.0, t.text, "Add track");
         }
+        // Right below it: audio recording without digging through TOOLS (the same input menu as the toolbar's
+        // microphone; a take lands in the playlist as an audio clip).
+        if y + 63.0 < grid.bottom() {
+            let r = Rect::new(head_x + 2.0, y + 35.0, head_w - 4.0, 28.0);
+            let hov = ui.hit(r, Action::OneClick, "Record audio from a microphone, interface or other input");
+            let (top, low) = if hov { (Color::rgb(0x2a2a2a), Color::rgb(0x1a1a1a)) } else { (Color::rgb(0x202020), Color::rgb(0x121212)) };
+            let rad = lk::r_panel(t).min(r.h / 2.0);
+            ui.c.fill_rrect(r, rad, super::MANGO_MIXER_RIM);
+            let face = r.inset(1.0);
+            ui.c.fill_rect_gradient(face, top, low, (rad - 1.0).max(0.0));
+            ui.c.fill_rrect(Rect::new(face.x + 4.0, face.y + 1.0, (face.w - 8.0).max(1.0), 1.0), 0.5, top.mix(Color::rgb(0xffffff), 0.12));
+            ui.c.fill_circle(r.x + 17.0, r.cy(), 5.5, t.record);
+            ui.c.fill_circle(r.x + 17.0, r.cy(), 2.0, t.window_title);
+            ui.c.text(Font::new(14), r.x + 30.0, r.cy() - 9.0, t.text, "Record audio");
+        }
     }
     ui.c.pop_clip();
     resize_zones(ui, s, Win::Playlist, outer);
@@ -462,9 +478,10 @@ fn pattern_chip(ui: &mut Ui, s: &State, strip: Rect) {
     ui.c.fill_polygon(&[(cx - 4.0, cy - 2.0), (cx + 4.0, cy - 2.0), (cx, cy + 3.0)], t.text_dim);
 }
 
-/// The track headers' width: wider in the docked layout, which shows the instrument beside the name.
+/// The track headers' width: wider in the docked layout, which shows the instrument beside the name (220 px leaves
+/// room for "Add instrument" and the mute / solo buttons at every UI scale).
 fn head_w(s: &State) -> f32 {
-    if s.docked_ui { 196.0 } else { 98.0 }
+    if s.docked_ui { 220.0 } else { 98.0 }
 }
 
 fn grid_rect(s: &State, r: Rect, client: Rect) -> Rect {
@@ -1798,9 +1815,9 @@ fn header(ui: &mut Ui, s: &State, g: &PGeom, row: u16, x: f32, w: f32) {
             let nw = hr.right() - nx - right;
             let sub = Font::new(12);
             if !short {
-                ui.c.text_clip(font, nx, (hr.cy() - 17.0).round(), nw, text, &pl::track_name(s, row));
+                ui.c.text_clip(font, nx, (hr.cy() - 18.0).round(), nw, text, &pl::track_name(s, row));
                 let label = inst.unwrap_or_else(|| "Add instrument".to_string());
-                ui.c.text_clip(sub, nx, (hr.cy() + 3.0).round(), nw, text.with_alpha(150), &label);
+                ui.c.text_clip(sub, nx, (hr.cy() + 1.0).round(), nw, text.with_alpha(190), &label);
                 (nx, f32::MIN, 0.0)
             } else {
                 (nx, (hr.cy() - ui.c.line_height(font) / 2.0).round(), nw)
@@ -1845,6 +1862,20 @@ fn header(ui: &mut Ui, s: &State, g: &PGeom, row: u16, x: f32, w: f32) {
             let ink = if lit { Color::rgb(0x1a1200) } else if hov { ui.t.tx(0xffffff) } else { text };
             ui.c.text_center(Font::new(12), r, ink, label);
         }
+    }
+    // Docked: a small pan strip and the volume bar along the card's foot, in the mixer's style (the track knobs
+    // `TrackPan` / `TrackVol`: drag, wheel, right-click menu and undo are the knobs'); the track's notes and audio
+    // clips play at that volume and pan.
+    if docked && !short && h >= 60.0 && !lead {
+        let gap = 8.0;
+        let pan_w = 42.0;
+        let vol_w = (hr.w - 20.0 - pan_w - gap).max(40.0);
+        let cy = y + h - 8.0;
+        let (px, vx) = (hr.x + 10.0, hr.x + 10.0 + pan_w + gap);
+        ui.hit(Rect::new(px, cy - 7.0, pan_w, 14.0), Action::Knob(KnobId::TrackPan(row)), s.knob_text(KnobId::TrackPan(row)));
+        super::mixer::centre_bar(ui, px + pan_w / 2.0, cy, pan_w / 2.0, 6.0, s.knob(KnobId::TrackPan(row)), super::mixer::Bar::Centre);
+        ui.hit(Rect::new(vx, cy - 8.0, vol_w, 16.0), Action::Knob(KnobId::TrackVol(row)), s.knob_text(KnobId::TrackVol(row)));
+        super::mixer::centre_bar(ui, vx + vol_w / 2.0, cy, vol_w / 2.0, 10.0, s.knob(KnobId::TrackVol(row)), super::mixer::Bar::Level);
     }
     let info = pl::track_info(s, row);
     if lead {

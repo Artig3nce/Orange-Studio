@@ -1775,6 +1775,8 @@ fn load_pl_track(events: &[Event], t: &PlTrackLoc, enc: TextEnc) -> PlaylistTrac
         locked: r.get(47).is_some_and(|&b| b != 0),
         // FL's track height (spec: flp/events/playlist.md, bytes 13-16): a share of the playlist's row height.
         height: r.get(13..17).map(|b| f32::from_le_bytes(b.try_into().unwrap())).filter(|h| h.is_finite() && *h > 0.0).map_or(1.0, |h| h.clamp(0.05, 10.0)),
+        volume: PlaylistTrack::VOLUME_DEFAULT,
+        pan: 0.0,
     }
 }
 

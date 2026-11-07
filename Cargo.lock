@@ -519,11 +519,11 @@ checksum = "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649"
 
 [[package]]
 name = "bundle-app"
-version = "1.3.3"
+version = "1.3.4"
 
 [[package]]
 name = "bundle-plugins"
-version = "1.3.3"
+version = "1.3.4"
 
 [[package]]
 name = "bytemuck"
@@ -635,7 +635,7 @@ dependencies = [
 
 [[package]]
 name = "citrus"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "miniz_oxide 0.8.9",
  "nih_plug",
@@ -1302,7 +1302,7 @@ dependencies = [
 
 [[package]]
 name = "flp-dump"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "os-flp",
  "os-model",
@@ -1900,7 +1900,7 @@ checksum = "20870f649af7073d53e38067b2a84312175d56ea15217e1b15bc83506ec50afb"
 
 [[package]]
 name = "lemon-3x-osc"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "nih_plug",
  "os-engine",
@@ -1917,7 +1917,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-acid"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-gen",
  "nih_plug",
@@ -1926,7 +1926,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-autogun"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-gen",
  "nih_plug",
@@ -1935,7 +1935,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-balance"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-fx",
  "nih_plug",
@@ -1944,7 +1944,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-bass"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-gen",
  "nih_plug",
@@ -1953,7 +1953,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-boom"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-gen",
  "nih_plug",
@@ -1962,7 +1962,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-chorus"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-fx",
  "nih_plug",
@@ -1971,7 +1971,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-crusher"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-fx",
  "nih_plug",
@@ -1980,7 +1980,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-delay"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "nih_plug",
  "os-engine",
@@ -1995,7 +1995,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-drum-sampler"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-sampler",
  "nih_plug",
@@ -2013,7 +2013,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-drums"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-gen",
  "nih_plug",
@@ -2022,7 +2022,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-dx"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-gen",
  "nih_plug",
@@ -2031,7 +2031,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-fast-distortion"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-fx",
  "nih_plug",
@@ -2040,7 +2040,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-filter"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-fx",
  "nih_plug",
@@ -2049,7 +2049,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-flanger"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-fx",
  "nih_plug",
@@ -2058,7 +2058,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-formula-controller"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-fx",
  "nih_plug",
@@ -2068,7 +2068,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-keys"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-gen",
  "nih_plug",
@@ -2077,7 +2077,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-kick"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-gen",
  "nih_plug",
@@ -2086,7 +2086,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-limiter"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "nih_plug",
  "os-engine",
@@ -2101,7 +2101,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-mini"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-gen",
  "nih_plug",
@@ -2110,7 +2110,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-parametric-eq-2"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "nih_plug",
  "os-engine",
@@ -2125,7 +2125,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-peak-controller"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-fx",
  "nih_plug",
@@ -2135,7 +2135,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-phaser"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-fx",
  "nih_plug",
@@ -2144,7 +2144,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-pluck"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-gen",
  "nih_plug",
@@ -2153,7 +2153,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-reverb"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "nih_plug",
  "os-engine",
@@ -2168,7 +2168,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-sampler"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "nih_plug",
  "os-dsp",
@@ -2186,7 +2186,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-slicer"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "nih_plug",
  "os-dsp",
@@ -2203,7 +2203,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-slicex"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "nih_plug",
  "os-dsp",
@@ -2221,7 +2221,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-small-fx"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "nih_plug",
  "os-dsp",
@@ -2237,7 +2237,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-small-gen"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "nih_plug",
  "os-hostlink",
@@ -2251,7 +2251,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-soft-clipper"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-fx",
  "nih_plug",
@@ -2260,7 +2260,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-stereo-enhancer"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-fx",
  "nih_plug",
@@ -2269,7 +2269,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-stereo-shaper"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-fx",
  "nih_plug",
@@ -2278,7 +2278,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-transient-processor"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-fx",
  "nih_plug",
@@ -2287,7 +2287,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-twelve"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-fx",
  "nih_plug",
@@ -2296,7 +2296,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-vocoder"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-fx",
  "nih_plug",
@@ -2306,7 +2306,7 @@ dependencies = [
 
 [[package]]
 name = "lemon-wavetable"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "nih_plug",
  "os-hostlink",
@@ -2415,7 +2415,7 @@ dependencies = [
 
 [[package]]
 name = "mango-beat"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "nih_plug",
  "os-hostlink",
@@ -2429,7 +2429,7 @@ dependencies = [
 
 [[package]]
 name = "mango-beepmap"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "nih_plug",
  "os-plugkit",
@@ -2443,7 +2443,7 @@ dependencies = [
 
 [[package]]
 name = "mango-dashboard"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-gen",
  "nih_plug",
@@ -2452,7 +2452,7 @@ dependencies = [
 
 [[package]]
 name = "mango-directwave"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-sampler",
  "nih_plug",
@@ -2471,7 +2471,7 @@ dependencies = [
 
 [[package]]
 name = "mango-flex"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-gen",
  "nih_plug",
@@ -2480,7 +2480,7 @@ dependencies = [
 
 [[package]]
 name = "mango-monk"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-gen",
  "nih_plug",
@@ -2489,7 +2489,7 @@ dependencies = [
 
 [[package]]
 name = "mango-sfxr"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "nih_plug",
  "os-plugkit",
@@ -2502,7 +2502,7 @@ dependencies = [
 
 [[package]]
 name = "mango-slayer"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-gen",
  "nih_plug",
@@ -2511,7 +2511,7 @@ dependencies = [
 
 [[package]]
 name = "mango-soundfont"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "crossbeam-queue",
  "nih_plug",
@@ -2527,7 +2527,7 @@ dependencies = [
 
 [[package]]
 name = "mango-surface"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "lemon-small-gen",
  "nih_plug",
@@ -2761,7 +2761,7 @@ dependencies = [
 
 [[package]]
 name = "notices"
-version = "1.3.3"
+version = "1.3.4"
 
 [[package]]
 name = "num-complex"
@@ -3203,7 +3203,7 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
 name = "orange-master"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "nih_plug",
  "os-plugkit",
@@ -3235,7 +3235,7 @@ dependencies = [
 
 [[package]]
 name = "os-android"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "android-activity",
  "os-app",
@@ -3243,7 +3243,7 @@ dependencies = [
 
 [[package]]
 name = "os-app"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "android-activity",
  "asio-sys",
@@ -3344,7 +3344,7 @@ dependencies = [
 
 [[package]]
 name = "os-clap"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "clap-sys 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lemon-formula-controller",
@@ -3361,14 +3361,14 @@ dependencies = [
 
 [[package]]
 name = "os-dsp"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "signalsmith-stretch",
 ]
 
 [[package]]
 name = "os-engine"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "miniz_oxide 0.8.9",
  "os-dsp",
@@ -3380,7 +3380,7 @@ dependencies = [
 
 [[package]]
 name = "os-flp"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "chrono",
  "os-model",
@@ -3389,7 +3389,7 @@ dependencies = [
 
 [[package]]
 name = "os-host"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "cc",
  "libc",
@@ -3400,18 +3400,18 @@ dependencies = [
 
 [[package]]
 name = "os-hostlink"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "windows-sys 0.61.2",
 ]
 
 [[package]]
 name = "os-model"
-version = "1.3.3"
+version = "1.3.4"
 
 [[package]]
 name = "os-native"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "libloading 0.8.9",
  "os-dsp",
@@ -3423,7 +3423,7 @@ dependencies = [
 
 [[package]]
 name = "os-native-probe"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "os-engine",
  "os-host",
@@ -3433,11 +3433,11 @@ dependencies = [
 
 [[package]]
 name = "os-paths"
-version = "1.3.3"
+version = "1.3.4"
 
 [[package]]
 name = "os-play"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "cpal",
  "os-engine",
@@ -3446,7 +3446,7 @@ dependencies = [
 
 [[package]]
 name = "os-plugkit"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "block2 0.6.2",
  "libc",
@@ -3465,7 +3465,7 @@ dependencies = [
 
 [[package]]
 name = "os-render"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "os-engine",
  "os-flp",
@@ -3474,15 +3474,15 @@ dependencies = [
 
 [[package]]
 name = "os-smf"
-version = "1.3.3"
+version = "1.3.4"
 
 [[package]]
 name = "os-theme"
-version = "1.3.3"
+version = "1.3.4"
 
 [[package]]
 name = "os-ui"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "fontdue",
  "os-theme",
@@ -3494,7 +3494,7 @@ dependencies = [
 
 [[package]]
 name = "os-vst2"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "libloading 0.8.9",
  "os-engine",
@@ -3504,7 +3504,7 @@ dependencies = [
 
 [[package]]
 name = "os-vst3"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "libloading 0.8.9",
  "os-engine",
@@ -3672,7 +3672,7 @@ dependencies = [
 
 [[package]]
 name = "press"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "nih_plug",
  "os-dsp",
@@ -3727,7 +3727,7 @@ dependencies = [
 
 [[package]]
 name = "pulp-filter"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "nih_plug",
  "os-dsp",
@@ -4484,7 +4484,7 @@ dependencies = [
 
 [[package]]
 name = "tesla"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "nih_plug",
  "os-dsp",
@@ -4923,7 +4923,7 @@ dependencies = [
 
 [[package]]
 name = "watermark"
-version = "1.3.3"
+version = "1.3.4"
 
 [[package]]
 name = "wayland-backend"

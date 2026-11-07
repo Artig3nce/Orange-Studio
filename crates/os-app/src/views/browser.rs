@@ -103,7 +103,7 @@ pub enum Item {
     /// A plugin preset file (any `presets::IMPORT_EXTS` type) or factory preset path: dropped, it loads (spec:
     /// plugins/presets.md "Drag and drop").
     Preset(String),
-    /// A Freesound result (its sound id): a click plays its preview. Not draggable.
+    /// A Freesound result (its sound id): click to preview, drag to the playlist to add its preview.
     Freesound(u64),
 }
 
@@ -852,15 +852,15 @@ fn paint_freesound(ui: &mut Ui, s: &State, r: Rect, bw: f32, top: f32) {
     ui.c.fill_rect(head, t.browser_tabs);
     let q = s.browser_search.trim();
     let btn = Rect::new(10.0, head.y + 6.0, bw - 21.0, 24.0);
-    let hov = ui.hit(btn, Action::FreesoundSearch, "Search Freesound for the text in the search field (Enter)");
+    let hov = ui.hit(btn, Action::FreesoundSearch, "Search Freesound, or reload top-rated samples when the search is blank");
     let face = if fs.busy { t.sunken } else if hov { t.accent.shade(0.12) } else { t.accent };
     ui.c.fill_rrect(btn, 5.0, face);
     let ink = if fs.busy { t.text_dim } else { Color::rgb(0x1a1200) };
     icons::draw(ui.c, Icon::Search, Rect::new(btn.x + 7.0, btn.y + 5.0, 14.0, 14.0), ink);
     let f = os_ui::Font::new(14);
-    let label = if fs.busy { "Searching...".to_string() } else if q.is_empty() { "Search Freesound".to_string() } else { format!("Search \"{q}\"") };
+    let label = if fs.busy { if fs.recommended { "Loading top-rated samples...".to_string() } else { "Searching...".to_string() } } else if q.is_empty() { "Top-rated Freesound samples".to_string() } else { format!("Search \"{q}\"") };
     ui.c.text_clip(f, btn.x + 28.0, btn.y + 3.0, btn.w - 34.0, ink, &label);
-    let status = if !fs.status.is_empty() { fs.status.as_str() } else { "Type above, then press Enter" };
+    let status = if !fs.status.is_empty() { fs.status.as_str() } else { "Top-rated samples load when this tab opens" };
     ui.c.text_clip(os_ui::Font::new(12), 12.0, btn.bottom() + 5.0, bw - 24.0, t.text_dim, status);
 
     // The cards.
@@ -878,7 +878,7 @@ fn paint_freesound(ui: &mut Ui, s: &State, r: Rect, bw: f32, top: f32) {
         }
         let Item::Freesound(id) = row.item else { continue };
         let card = Rect::new(8.0, y + 3.0, bw - 17.0, CARD_H - 6.0);
-        let hov = ui.hit(card, Action::BrowserRow(i), row.label.clone());
+        let hov = ui.hit(card, Action::BrowserRow(i), "Click to preview; drag the sample to the playlist");
         let on = sel == Some(row.key.as_str());
         let waiting = fs.waiting == Some(id);
         // A held waveform's playhead follows the mouse; otherwise the sounding preview's line does.
@@ -893,7 +893,7 @@ fn paint_freesound(ui: &mut Ui, s: &State, r: Rect, bw: f32, top: f32) {
         // A sounding sound shows a stop mark: a click on it stops the preview.
         icons::draw(ui.c, if sounding { Icon::Stop } else { Icon::Play }, mark.inset(if sounding { 5.0 } else { 4.0 }), if on || waiting || sounding { Color::rgb(0x1a1200) } else { t.text_dim });
         // The name, and the length at the right.
-        let len = fs.results.iter().find(|x| x.id == id).map_or(String::new(), |x| clock(x.duration));
+        let len = if waiting { "Loading…".to_string() } else { fs.results.iter().find(|x| x.id == id).map_or(String::new(), |x| clock(x.duration)) };
         let small = os_ui::Font::new(12);
         let lw = ui.c.text_width(small, &len);
         ui.c.text_clip(f, mark.right() + 8.0, face.y + 6.0, face.w - 28.0 - lw - 28.0, if on { t.accent } else { t.text }, &row.label);
@@ -903,7 +903,7 @@ fn paint_freesound(ui: &mut Ui, s: &State, r: Rect, bw: f32, top: f32) {
         match fs.peaks.get(&id) {
             Some(bins) => draw_wave(ui, wave, bins, if on { t.accent.with_alpha(150) } else { t.text.with_alpha(110) }, t.accent, head),
             None => {
-                let msg = if fs.loading.contains(&id) { "Loading..." } else { "Click to load" };
+                let msg = if fs.quick_loading.contains(&id) { "Preparing preview..." } else if fs.waveform_loading.contains(&id) { "Loading waveform..." } else if fs.waveform_failed.contains(&id) { "Waveform unavailable" } else if fs.loading.contains(&id) { "Loading sample..." } else { "Loading waveform..." };
                 ui.c.text(small.italic(), wave.x, wave.y + 1.0, t.text_faint, msg);
             }
         }

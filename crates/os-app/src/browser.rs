@@ -15,9 +15,9 @@ use crate::playlist::{Cmd, Mark, PItem, Popup};
 use crate::playlist::{self as pl, PickKind};
 use crate::views::browser::{self as view, Item};
 
-/// Mouse travel before a press on an item becomes a drag (spec §3).
+/// Mouse travel before a press on an item becomes a drag (spec Â§3).
 const DRAG_START: f32 = 4.0;
-/// How long a clicked sample plays (spec §7).
+/// How long a clicked sample plays (spec Â§7).
 const PREVIEW_LIMIT: std::time::Duration = std::time::Duration::from_secs(5);
 
 impl App {
@@ -33,6 +33,9 @@ impl App {
                 self.browser_click = None;
                 s.browser_tab = i;
                 s.browser_scroll = 0.0;
+                if i == view::FREESOUND_TAB && s.freesound.results.is_empty() && !s.freesound.busy {
+                    crate::freesound::search(&mut s.freesound, &s.browser_search);
+                }
             }
             Action::BrowserCollapse => {
                 let tab = format!("{}:", s.browser_tab);
@@ -117,18 +120,27 @@ impl App {
                     let id = *id;
                     if crate::freesound::progress(&self.state.freesound, id).is_some() {
                         // A click on the sound that sounds stops it.
-                        if let Some(path) = self.state.freesound.files.get(&id).cloned() {
+                        if let Some(path) = self.state.freesound.files.get(&id).or_else(|| self.state.freesound.quick_files.get(&id)).cloned() {
                             self.stop_preview_of(&path.to_string_lossy());
                         }
                         self.state.freesound.playing = None;
-                    } else if let Some(path) = crate::freesound::click(&mut self.state.freesound, id) {
-                        self.preview_full(&path.to_string_lossy());
-                        crate::freesound::start(&mut self.state.freesound, id, None);
+                    } else {
+                        if let Some(p) = self.state.freesound.playing.take() {
+                            if let Some(path) = self.state.freesound.files.get(&p.id).or_else(|| self.state.freesound.quick_files.get(&p.id)).cloned() {
+                                self.stop_preview_of(&path.to_string_lossy());
+                            }
+                        }
+                        if let Some(path) = crate::freesound::click(&mut self.state.freesound, id) {
+                            let peak = self.state.freesound.levels.get(&id).copied().unwrap_or(0.0);
+                            self.preview_freesound(&path.to_string_lossy(), peak);
+                            let limit = self.state.freesound.quick_files.contains_key(&id).then(|| self.state.freesound.quick_lengths.get(&id).copied()).flatten();
+                            crate::freesound::start(&mut self.state.freesound, id, limit);
+                        }
                     }
                 }
                 let s = &mut self.state;
                 s.browser_scroll = s.browser_scroll.min(view::max_scroll(s));
-                if !matches!(row.item, Item::None | Item::File(_) | Item::History(_) | Item::Freesound(_)) {
+                if !matches!(row.item, Item::None | Item::File(_) | Item::History(_)) {
                     self.drag = Some(Drag::Browser { item: row.item, label: row.label, m0: self.mouse, started: false });
                 }
             }
@@ -153,6 +165,31 @@ impl App {
         self.transport.preview_for(p, None);
     }
 
+    /// Plays a Freesound sample at a sensible listening level without modifying its cached audio file.
+    pub(crate) fn preview_freesound(&self, path: &str, peak: f32) {
+        let mut p = crate::app::freesound_preview_project(path, peak);
+        p.tempo = Some(self.state.tempo);
+        crate::preview_track::route(&mut p, &self.state.project, crate::prefs::number(&crate::prefs::BROWSER_PREVIEW_TRACK));
+        self.transport.preview_for(p, None);
+    }
+
+    pub(crate) fn preview_freesound_from(&self, path: &str, from: f32, duration: f32, peak: f32) {
+        if duration <= 0.0 {
+            return self.preview_freesound(path, peak);
+        }
+        let tempo = self.state.tempo;
+        let mut p = crate::app::freesound_preview_project(path, peak);
+        let ppq = f64::from(p.ppq.max(1));
+        let secs = f64::from((duration - from).max(0.05));
+        let ticks = (secs * tempo / 60.0 * ppq).ceil().clamp(1.0, f64::from(u32::MAX)) as u32;
+        let a = f64::from(from.max(0.0)) * 1000.0;
+        let clip = os_model::Clip { position: 0, length: ticks, track: 0, source: os_model::ClipSource::Channel(0), muted: false, window: Some((a, a + secs * 1000.0)), raw: os_model::Clip::TEMPLATE };
+        p.arrangements = vec![os_model::Arrangement { clips: vec![clip], ..Default::default() }];
+        p.tempo = Some(tempo);
+        crate::preview_track::route(&mut p, &self.state.project, crate::prefs::number(&crate::prefs::BROWSER_PREVIEW_TRACK));
+        self.transport.preview_song(p);
+    }
+
     /// The share of a Freesound card's waveform the mouse is at (0..1).
     fn freesound_frac(&self, wave: Rect) -> f32 {
         ((self.mouse.0 - wave.x) / wave.w.max(1.0)).clamp(0.0, 1.0)
@@ -164,12 +201,12 @@ impl App {
         let frac = self.freesound_frac(wave);
         // Whatever preview sounded gives way to the playhead: it starts again where it is let go.
         if let Some(p) = self.state.freesound.playing.take() {
-            if let Some(path) = self.state.freesound.files.get(&p.id).cloned() {
+            if let Some(path) = self.state.freesound.files.get(&p.id).or_else(|| self.state.freesound.quick_files.get(&p.id)).cloned() {
                 self.stop_preview_of(&path.to_string_lossy());
             }
         }
         if !self.state.freesound.files.contains_key(&id) {
-            crate::freesound::click(&mut self.state.freesound, id);
+            crate::freesound::click_for_seek(&mut self.state.freesound, id);
             self.state.freesound.waiting_from = Some(frac);
         }
         self.state.freesound.scrub = Some((id, frac));
@@ -197,7 +234,8 @@ impl App {
             return;
         };
         let from = crate::freesound::offset(&self.state.freesound, id, frac);
-        self.preview_full_from(&path.to_string_lossy(), from, duration);
+        let peak = self.state.freesound.levels.get(&id).copied().unwrap_or(0.0);
+        self.preview_freesound_from(&path.to_string_lossy(), from, duration, peak);
         crate::freesound::start_at(&mut self.state.freesound, id, from);
         let name = self.state.freesound.results.iter().find(|x| x.id == id).map_or("", |x| x.name.as_str());
         self.state.freesound.status = format!("Playing: {name}");
@@ -224,7 +262,7 @@ impl App {
         self.transport.preview_song(p);
     }
 
-    /// Clicking a sample plays it once (spec §7): cut off after `PREVIEW_LIMIT` unless "Full sample preview" is ticked.
+    /// Clicking a sample plays it once (spec Â§7): cut off after `PREVIEW_LIMIT` unless "Full sample preview" is ticked.
     pub(crate) fn preview_sample(&self, path: &str) {
         let mut p = crate::app::preview_project(path);
         p.tempo = Some(self.state.tempo);
@@ -233,7 +271,7 @@ impl App {
         self.transport.preview_for(p, limit);
     }
 
-    /// A browser options-menu command (spec §4); returns a message.
+    /// A browser options-menu command (spec Â§4); returns a message.
     pub(crate) fn browser_cmd(&mut self, c: BCmd) -> Option<String> {
         self.invalidate();
         let s = &mut self.state;
@@ -261,7 +299,7 @@ impl App {
                 s.browser_scroll = 0.0;
             }
             BCmd::Reread => reread(s),
-            // A background scan (spec: ui/plugin-manager.md §4); plugins in use stay where they are.
+            // A background scan (spec: ui/plugin-manager.md Â§4); plugins in use stay where they are.
             BCmd::Rescan => self.start_scan(crate::plugin_db::Mode::Changed),
             BCmd::Row(c) => return self.browser_row_cmd(c),
         }
@@ -274,7 +312,7 @@ impl App {
         self.state.show_browser = true;
         let s = &mut self.state;
         match j {
-            // §1: the Current project tab with that section alone open, and selected. The search is cleared so that it
+            // Â§1: the Current project tab with that section alone open, and selected. The search is cleared so that it
             // shows (as Browse parameters does).
             Jump::Section(name) => {
                 let Some(key) = view::section_key(name) else { return };
@@ -291,18 +329,18 @@ impl App {
                 select(s, &key);
                 reveal(s);
             }
-            // §1-2: the tab as it was left, its open nodes and selection kept.
+            // Â§1-2: the tab as it was left, its open nodes and selection kept.
             Jump::PluginDb => {
                 if s.browser_tab != view::PLUGIN_TAB {
                     s.browser_tab = view::PLUGIN_TAB;
                     s.browser_scroll = 0.0;
                 }
             }
-            // §3: exactly as a click in the search field.
+            // Â§3: exactly as a click in the search field.
             Jump::Find => {
                 self.browser_act(&Action::BrowserSearch);
             }
-            // §4-5: Patterns opened, the current pattern's row selected when listed (else the section's).
+            // Â§4-5: Patterns opened, the current pattern's row selected when listed (else the section's).
             Jump::Patterns => {
                 let Some(key) = view::section_key("Patterns") else { return };
                 if s.browser_tab != view::PROJECT_TAB {
@@ -332,7 +370,7 @@ impl App {
         self.state.browser_search_focus || (view::opt(&self.state, view::OPT_TYPE) && self.over_browser())
     }
 
-    /// Browser keys (spec §4, §5); returns whether the key was used.
+    /// Browser keys (spec Â§4, Â§5); returns whether the key was used.
     pub(crate) fn browser_key(&mut self, key: &winit::keyboard::Key, ctrl: bool, alt: bool) -> bool {
         use winit::keyboard::{Key, NamedKey};
         let shift = self.shift;
@@ -363,7 +401,7 @@ impl App {
             }
             return true;
         }
-        // The arrow keys, as FL's browser has them (spec §7): Down / Up walk the visible rows, wrapping, and the
+        // The arrow keys, as FL's browser has them (spec Â§7): Down / Up walk the visible rows, wrapping, and the
         // sample a move lands on is heard at once; Right replays the focused sample from its start, opens a closed
         // folder or steps into its first row; Left closes an opened folder or selects the parent. From the search
         // field Up / Down still walk the rows (the results); Left / Right stay with the field. The older Shift and
@@ -429,7 +467,7 @@ impl App {
         false
     }
 
-    /// A press on the browser's splitter: drags it; a double click gives the browser its default width (spec §9).
+    /// A press on the browser's splitter: drags it; a double click gives the browser its default width (spec Â§9).
     fn browser_split_press(&mut self) {
         let now = std::time::Instant::now();
         let s = &mut self.state;
@@ -456,7 +494,7 @@ impl App {
         }
     }
 
-    /// A hovered row's scrolling label (spec §9): repainted whenever its offset moves; the scroll ends with the hover.
+    /// A hovered row's scrolling label (spec Â§9): repainted whenever its offset moves; the scroll ends with the hover.
     pub(crate) fn marquee_tick(&mut self, now: std::time::Instant) {
         let hovered = self.state.show_browser && matches!(self.hover, Some(Action::BrowserRow(_)));
         let m = self.state.browser_marquee.get_mut();
@@ -535,7 +573,7 @@ fn zone_rect(s: &crate::app::State, grid: Option<Rect>, x: f32, y: f32) -> Optio
 const NO_RACK_ADD: &str = "Instruments are added from a track's header in the playlist, not the Channel rack";
 
 impl App {
-    /// Release: drop the dragged item on whatever is under the mouse (spec §3).
+    /// Release: drop the dragged item on whatever is under the mouse (spec Â§3).
     pub(crate) fn browser_drop(&mut self, item: Item, started: bool) {
         self.state.browser_drag = None;
         self.invalidate();
@@ -556,7 +594,7 @@ impl App {
         }
         let (x, y) = self.mouse;
         let win = self.top_hit(x, y).and_then(|h| h.win);
-        // A drop on a track header (issue #2): the track it names, and where on it the instrument lands — the song
+        // A drop on a track header (issue #2): the track it names, and where on it the instrument lands â€” the song
         // position, snapped like a drop on the rows (a header has no place of its own).
         let head = self.top_hit(x, y).and_then(|h| match h.action { Action::PlHeader(t) => Some(t), _ => None });
         let grid = self.pl_grid().filter(|g| g.contains(x, y) && win == Some(Win::Playlist));
@@ -618,9 +656,32 @@ impl App {
                     }
                 }
             }
-            // On the playlist — a track row or its header (issue #2) — the instrument lands there: the channel as
+            Item::Freesound(id) => {
+                if let Some((track, tick)) = spot {
+                    let name = s.freesound.results.iter().find(|sound| sound.id == id).map_or_else(|| format!("Freesound {id}"), |sound| sound.name.clone());
+                    if let Some(path) = s.freesound.files.get(&id).cloned() {
+                        s.message = Some(match pl::add_audio_clip_named(s, &path.to_string_lossy(), track, tick, Some(&name)) {
+                            Some(_) => format!("Added Freesound preview: {name}"),
+                            None => format!("Could not read Freesound preview: {name}"),
+                        });
+                    } else {
+                        let path = s.freesound.quick_files.get(&id).cloned().or_else(|| crate::freesound::placeholder_audio().ok());
+                        let clip = path.as_ref().and_then(|p| pl::add_audio_clip_named(s, &p.to_string_lossy(), track, tick, Some(&name)));
+                        let channel = match s.playlist.source { Some(ClipSource::Channel(ch)) => Some(ch), _ => None };
+                        let old_length = clip.and_then(|i| pl::clips(s).get(i).map(|c| c.length)).unwrap_or(0);
+                        let placeholder = channel.filter(|_| clip.is_some()).map(|ch| (ch, old_length));
+                        let _ = crate::freesound::drop_sample(&mut s.freesound, id, track, tick, placeholder);
+                        s.message = Some(if clip.is_some() {
+                            format!("Added {name}; finishing the audio download in the background")
+                        } else {
+                            format!("Downloading Freesound preview: {name}; the clip will appear when ready")
+                        });
+                    }
+                }
+            }
+            // On the playlist â€” a track row or its header (issue #2) â€” the instrument lands there: the channel as
             // the F8 menu adds it, plus a clip of a new pattern named after it on that track, at the drop (on a
-            // header, at the song position). On the rack: a new channel at the bottom (spec: ui/plugin-menu.md §5).
+            // header, at the song position). On the rack: a new channel at the bottom (spec: ui/plugin-menu.md Â§5).
             Item::Generator(i) => {
                 if let Some((track, tick)) = spot.or(on_header) {
                     if let Some(m) = crate::plugin_menu::add_generator_on_track(self, i, track, tick) {
@@ -635,7 +696,7 @@ impl App {
                 }
             }
             // An effect dropped on the mixer goes into the slot under the mouse, else the current track's first free
-            // slot (spec §3).
+            // slot (spec Â§3).
             Item::Effect(i) => {
                 // Dropped on the Devices tab: the selected track's first free slot, as the "+" card gives.
                 let on_devices = self.state.panel == Win::PluginTab && !self.state.panel_collapsed && self.state.panel_area().contains(x, y);
@@ -655,11 +716,11 @@ impl App {
                     self.state.message = msg;
                 }
             }
-            Item::None | Item::File(_) | Item::History(_) | Item::Preset(_) | Item::Freesound(_) => {}
+            Item::None | Item::File(_) | Item::History(_) | Item::Preset(_) => {}
         }
     }
 
-    /// A folder dropped on the window becomes an All-tab root, opened and selected (spec §6).
+    /// A folder dropped on the window becomes an All-tab root, opened and selected (spec Â§6).
     pub(crate) fn add_browser_folder(&mut self, path: std::path::PathBuf) {
         let s = &mut self.state;
         if !s.browser_folders.contains(&path) {
@@ -676,7 +737,7 @@ impl App {
         self.invalidate();
     }
 
-    /// Right click on row `i` (spec §8): selects it and opens its menu at the mouse; returns whether there was a row.
+    /// Right click on row `i` (spec Â§8): selects it and opens its menu at the mouse; returns whether there was a row.
     pub(crate) fn browser_row_menu(&mut self, i: usize, x: f32, y: f32) -> bool {
         let s = &mut self.state;
         let Some(row) = view::rows(s).into_iter().nth(i) else { return false };
@@ -686,8 +747,8 @@ impl App {
         true
     }
 
-    /// Middle click on row `i` (spec §7): selects it, and a sample goes into the selected channel as the row menu's
-    /// "Send to selected channel" sends it (§8). Returns whether there was a row.
+    /// Middle click on row `i` (spec Â§7): selects it, and a sample goes into the selected channel as the row menu's
+    /// "Send to selected channel" sends it (Â§8). Returns whether there was a row.
     pub(crate) fn browser_row_middle(&mut self, i: usize) -> bool {
         let s = &mut self.state;
         let Some(row) = view::rows(s).into_iter().nth(i) else { return false };
@@ -699,7 +760,7 @@ impl App {
         true
     }
 
-    /// A row menu command on the selected row (spec §8); returns a message.
+    /// A row menu command on the selected row (spec Â§8); returns a message.
     fn browser_row_cmd(&mut self, c: RowCmd) -> Option<String> {
         let s = &mut self.state;
         let row = view::rows(s).into_iter().find(|r| s.browser_sel.as_ref() == Some(&r.key))?;
@@ -742,7 +803,7 @@ impl App {
             RowCmd::NewChannel => self.sample_to_channel(sample?, None),
             RowCmd::OpenFolder => open_folder(&row.path?),
             RowCmd::ShowInFolder => crate::theme_library::show_in_folder(&row.path?),
-            // File ▸ Browser extra search folders, the root's Browser name selected for typing.
+            // File â–¸ Browser extra search folders, the root's Browser name selected for typing.
             RowCmd::Rename => {
                 let i = s.browser_folders.iter().position(|f| Some(f) == row.path.as_ref())?;
                 self.open_settings(crate::views::settings::FILE);
@@ -754,7 +815,7 @@ impl App {
     }
 }
 
-/// A dropped folder root out of the browser (spec §6, §8), with its Browser name and its open nodes.
+/// A dropped folder root out of the browser (spec Â§6, Â§8), with its Browser name and its open nodes.
 fn remove_root(s: &mut crate::app::State, path: &std::path::Path) -> String {
     let key = view::disk_key(path);
     s.browser_folders.retain(|f| f != path);
@@ -792,7 +853,7 @@ fn parse_width(text: &str) -> f32 {
     w.filter(|w| w.is_finite()).map_or(crate::views::BROWSER_W, |w| w.max(crate::views::BROWSER_W))
 }
 
-/// The browser's width kept from the last run (spec §9; tests: the default).
+/// The browser's width kept from the last run (spec Â§9; tests: the default).
 pub(crate) fn load_width() -> f32 {
     width_file().and_then(|p| std::fs::read_to_string(p).ok()).map_or(crate::views::BROWSER_W, |t| parse_width(&t))
 }
@@ -806,7 +867,7 @@ pub(crate) fn save_width(w: f32) {
     let _ = std::fs::write(p, format!("width={w}\n"));
 }
 
-/// `browser_folders.txt` in the user folder (`os_paths::user_dir`): one dropped folder per line (spec §6), its Browser
+/// `browser_folders.txt` in the user folder (`os_paths::user_dir`): one dropped folder per line (spec Â§6), its Browser
 /// name after a tab when it has one (`crate::search_folders::file_text`).
 fn folders_file() -> Option<std::path::PathBuf> {
     if cfg!(test) {
@@ -894,13 +955,13 @@ pub(crate) fn save_folders(s: &crate::app::State) {
 /// The menu bar's ways into the browser (spec: ui/browser-commands.md).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Jump {
-    /// VIEW's Browser section: this section of the Current project tree (§1).
+    /// VIEW's Browser section: this section of the Current project tree (Â§1).
     Section(&'static str),
-    /// VIEW > Plugin database (Shift+F8), ADD > Browse plugin database: the Plugin database tab (§1, §2).
+    /// VIEW > Plugin database (Shift+F8), ADD > Browse plugin database: the Plugin database tab (Â§1, Â§2).
     PluginDb,
-    /// TOOLS > Browser find... (Ctrl+F): the keyboard goes to the search field (§3).
+    /// TOOLS > Browser find... (Ctrl+F): the keyboard goes to the search field (Â§3).
     Find,
-    /// PATTERNS > Open in project browser (Shift+Ctrl+P): the Patterns section, the other sections left as they are (§4).
+    /// PATTERNS > Open in project browser (Shift+Ctrl+P): the Patterns section, the other sections left as they are (Â§4).
     Patterns,
 }
 
@@ -995,7 +1056,7 @@ mod project_tests {
     }
 }
 
-/// Options-menu commands (spec §4).
+/// Options-menu commands (spec Â§4).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BCmd {
     /// Find previous (-1) / next (1).
@@ -1008,11 +1069,11 @@ pub enum BCmd {
     Collapse,
     Reread,
     Rescan,
-    /// A row menu command (spec §8), on the selected row (the right click selected it).
+    /// A row menu command (spec Â§8), on the selected row (the right click selected it).
     Row(RowCmd),
 }
 
-/// What a row menu entry does (spec §8).
+/// What a row menu entry does (spec Â§8).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RowCmd {
     /// Open / close the node.
@@ -1023,14 +1084,14 @@ pub enum RowCmd {
     Pattern(crate::patterns::Cmd),
     /// The channel's window (its plugin's, Lemon Sampler's, or the channel settings).
     ChannelWindow,
-    /// A sample played (§7), loaded into the selected channel, or into a new Lemon Sampler channel.
+    /// A sample played (Â§7), loaded into the selected channel, or into a new Lemon Sampler channel.
     Preview,
     Send,
     NewChannel,
     /// A disk folder opened in the system's file manager; a disk file shown there, selected in its folder.
     OpenFolder,
     ShowInFolder,
-    /// A dropped folder root: its Browser name typed in File ▸ Browser extra search folders; out of the browser.
+    /// A dropped folder root: its Browser name typed in File â–¸ Browser extra search folders; out of the browser.
     Rename,
     Remove,
 }
@@ -1043,7 +1104,7 @@ const FILE_MANAGER: [&str; 2] = ["Open in Finder", "Show in Finder"];
 #[cfg(all(unix, not(target_os = "macos")))]
 const FILE_MANAGER: [&str; 2] = ["Open in file manager", "Show in file manager"];
 
-/// A row's menu (spec §8): Open / Close for a node, what the row's kind offers, the file manager for a disk entry, then
+/// A row's menu (spec Â§8): Open / Close for a node, what the row's kind offers, the file manager for a disk entry, then
 /// the structure commands every row has.
 pub fn row_menu(s: &crate::app::State, row: &view::Row) -> Vec<PItem> {
     use crate::patterns::Cmd as P;
@@ -1122,7 +1183,7 @@ pub fn row_menu(s: &crate::app::State, row: &view::Row) -> Vec<PItem> {
     items
 }
 
-/// The browser options menu, from the FL screenshot (spec §4).
+/// The browser options menu, from the FL screenshot (spec Â§4).
 pub fn options_menu(s: &crate::app::State) -> Vec<PItem> {
     let b = |label: &'static str, c: BCmd| PItem::new(label, Cmd::Browser(c));
     let t = |label: &'static str, k: &'static str| b(label, BCmd::Toggle(k)).mark(Mark::Check(view::opt(s, k)));
@@ -1167,13 +1228,13 @@ pub fn options_menu(s: &crate::app::State) -> Vec<PItem> {
     ]
 }
 
-/// Reread structure (spec §4): folders are read from disk again; open nodes and the selection stay.
+/// Reread structure (spec Â§4): folders are read from disk again; open nodes and the selection stay.
 fn reread(s: &mut crate::app::State) {
     s.browser_dirs.borrow_mut().clear();
     s.browser_scroll = s.browser_scroll.min(view::max_scroll(s));
 }
 
-/// Select a row and record it in the navigation history (spec §4).
+/// Select a row and record it in the navigation history (spec Â§4).
 pub(crate) fn select(s: &mut crate::app::State, key: &str) {
     s.browser_sel = Some(key.to_string());
     if s.browser_hist.get(s.browser_hist_pos).map(String::as_str) != Some(key) {
@@ -1184,7 +1245,7 @@ pub(crate) fn select(s: &mut crate::app::State, key: &str) {
     }
 }
 
-/// Ctrl+Z with "Show undo history in the browser when undoing changes": the browser shows Current project ▸ History,
+/// Ctrl+Z with "Show undo history in the browser when undoing changes": the browser shows Current project â–¸ History,
 /// opened, where the project now is selected (spec: ui/settings-choices.md "Undo history: the four checks
 /// (2026-10-16)"). The All tab shows it too; the others switch to the project's.
 pub(crate) fn show_history(s: &mut crate::app::State) {
@@ -1271,7 +1332,7 @@ fn send_sample(s: &mut crate::app::State, path: &str, label: &str) -> Option<Str
 }
 
 /// Arrow Down / Up over the browser: the selection moves a visible row, wrapping from the last to the first and back
-/// (FL's browser). The row landed on is returned when it is a sample, so the move itself plays it (§7, the sample
+/// (FL's browser). The row landed on is returned when it is a sample, so the move itself plays it (Â§7, the sample
 /// heard as soon as it is focused); every other kind of row is only selected.
 fn move_sel(s: &mut crate::app::State, dir: isize) -> Option<String> {
     let rows = view::rows(s);
@@ -1330,7 +1391,7 @@ fn out_sel(s: &mut crate::app::State) {
 mod tests {
     use super::*;
 
-    /// `browser.txt` (spec: ui/browser.md §9): the dragged width, never below the default; anything else is the default.
+    /// `browser.txt` (spec: ui/browser.md Â§9): the dragged width, never below the default; anything else is the default.
     #[test]
     fn kept_width() {
         assert_eq!(parse_width("width=359\n"), 359.0);

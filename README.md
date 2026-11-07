@@ -31,7 +31,7 @@
 
 <br>
 
-<img alt="Orange Studio with a populated project: the playlist above and the Devices tab below, three plugins side by side as cards" src="docs/assets/screenshot-main.png" width="900">
+<img alt="Orange Studio playlist with eight tracks and the Devices panel showing Orange Parametric EQ and Orange Soft Clipper" src="docs/assets/screenshot-devices-1.3.3.png" width="1200">
 
 </div>
 

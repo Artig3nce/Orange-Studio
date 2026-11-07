@@ -4766,15 +4766,31 @@ impl App {
     pub fn tick(&mut self) -> bool {
         self.plugin_tick();
         // The Freesound section's background work: results, downloaded previews, and a click's pending play.
-        let (fs_changed, fs_play) = crate::freesound::poll(&mut self.state.freesound);
-        if let Some((id, path, from)) = fs_play {
+        let (fs_changed, fs_play, fs_drops) = crate::freesound::poll(&mut self.state.freesound);
+        if let Some((id, path, from, peak, limit)) = fs_play {
             let duration = self.state.freesound.results.iter().find(|x| x.id == id).map_or(0.0, |x| x.duration);
             if from > 0.0 {
-                self.preview_full_from(&path.to_string_lossy(), from, duration);
+                self.preview_freesound_from(&path.to_string_lossy(), from, duration, peak);
             } else {
-                self.preview_full(&path.to_string_lossy());
+                self.preview_freesound(&path.to_string_lossy(), peak);
             }
-            crate::freesound::start_at(&mut self.state.freesound, id, from);
+            if let Some(seconds) = limit {
+                crate::freesound::start(&mut self.state.freesound, id, Some(seconds));
+            } else {
+                crate::freesound::start_at(&mut self.state.freesound, id, from);
+            }
+        }
+        for dropped in fs_drops {
+            let name = self.state.freesound.results.iter().find(|sound| sound.id == dropped.id).map_or_else(|| format!("Freesound {}", dropped.id), |sound| sound.name.clone());
+            let updated = dropped.placeholder.is_some_and(|(channel, old_len)| crate::playlist::finish_audio_clip_drop(&mut self.state, channel, old_len, &dropped.path.to_string_lossy(), dropped.seconds));
+            if updated {
+                self.state.message = Some(format!("Finished loading Freesound sample: {name}"));
+            } else {
+                self.state.message = Some(match crate::playlist::add_audio_clip_named(&mut self.state, &dropped.path.to_string_lossy(), dropped.track, dropped.tick, Some(&name)) {
+                    Some(_) => format!("Added Freesound preview: {name}"),
+                    None => format!("Could not read Freesound preview: {name}"),
+                });
+            }
         }
         let fs_sounding = crate::freesound::tick(&mut self.state.freesound);
         if fs_changed || fs_sounding {
@@ -10668,6 +10684,17 @@ pub(crate) fn preview_project(path: &str) -> Project {
     p
 }
 
+/// A Freesound preview's small on-card peak value is used to normalize playback without changing the downloaded file.
+pub(crate) fn freesound_preview_project(path: &str, peak: f32) -> Project {
+    let mut p = preview_project(path);
+    if peak.is_finite() && peak > 1e-6 {
+        let gain = (0.85 / f64::from(peak)).clamp(0.05, 32.0);
+        // Invert the shared channel volume curve so the quiet Freesound preview reaches a sensible listening level.
+        p.channels[0].volume = (10.0 * gain + 1.0).ln() / 11.0f64.ln();
+    }
+    p
+}
+
 /// The rolling sampler's interactions (issue #82): the strip's selection, its zoom and pan, the drag out to the
 /// playlist, and the settings' side of the tape (`crate::rolling`).
 impl App {
@@ -15783,8 +15810,8 @@ mod tests {
         app.state.browser_tab = FREESOUND_TAB;
         let fs = &mut app.state.freesound;
         fs.results = vec![
-            Sound { id: 1, name: "Kick one".into(), duration: 0.5, preview: "x".into() },
-            Sound { id: 2, name: "Pad".into(), duration: 65.0, preview: "y".into() },
+            Sound { id: 1, name: "Kick one".into(), duration: 0.5, preview: "x".into(), waveform: String::new() },
+            Sound { id: 2, name: "Pad".into(), duration: 65.0, preview: "y".into(), waveform: String::new() },
         ];
         fs.peaks.insert(1, vec![0.2, 1.0, 0.5]);
         frame(&mut app, &mut c, None);

@@ -10,7 +10,7 @@
 // window and preset menus, their requests) is built but unused. Those builds still report real dead code.
 #![cfg_attr(not(plugin_windows), allow(dead_code))]
 // Windows: a GUI program, so no console window opens beside it (a crash line goes to `panic-log.txt`, see `main_body`).
-#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+#![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod app;
 mod audio_cfg;

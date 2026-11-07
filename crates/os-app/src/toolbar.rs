@@ -331,7 +331,7 @@ impl Layout {
     pub fn load() -> Layout {
         // FL's own toolbar with FL's layout (its window buttons at the top right on Windows and Linux, at the top left on
         // macOS); the docked one only with the docked layout. Tests measure the panels at their homes (Caption left).
-        let fl = if cfg!(test) || cfg!(target_os = "macos") { PRESETS[CAPTION_LEFT].layout() } else { Layout::classic() };
+        let fl = if cfg!(test) || cfg!(target_os = "macos") { PRESETS[CAPTION_LEFT].layout() } else { PRESETS[MENU_FIRST].layout() };
         let first = if cfg!(test) || !crate::app::docked_requested() { fl } else { Layout::docked() };
         match crate::settings_file::get(KEY).and_then(|v| Layout::parse(&v)) {
             // The docked layout's own toolbar, kept from before FL's layout came back: it has no window buttons, no pattern
@@ -497,6 +497,9 @@ pub const PRESETS: [Preset; 9] = [
 
 /// `PRESETS`' "Caption left": every panel at its home.
 pub const CAPTION_LEFT: usize = 8;
+/// `PRESETS`' "Menu first": the menu at the top left, the hint panel on the second row with the window buttons, as FL has them on
+/// Windows and Linux.
+pub const MENU_FIRST: usize = 2;
 
 /// Where the user's presets are: the user folder's `Toolbar presets` (in tests the thread's folder, `app::theme_dir`).
 pub fn user_dir() -> Option<PathBuf> {

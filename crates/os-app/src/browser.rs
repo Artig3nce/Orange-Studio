@@ -1400,7 +1400,8 @@ mod tests {
     /// `browser.txt` (spec: ui/browser.md Â§9): the dragged width, never below the default; anything else is the default.
     #[test]
     fn kept_width() {
-        assert_eq!(parse_width("width=359\n"), 359.0);
+        assert_eq!(parse_width("width=450\n"), 450.0);
+        assert_eq!(parse_width("width=359\n"), crate::views::BROWSER_W, "narrower than the least is the least");
         assert_eq!(parse_width("width=120"), crate::views::BROWSER_W);
         assert_eq!(parse_width("width=wide\n"), crate::views::BROWSER_W);
         assert_eq!(parse_width(""), crate::views::BROWSER_W);

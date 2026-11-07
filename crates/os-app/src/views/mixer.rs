@@ -1040,12 +1040,13 @@ fn led(ui: &mut Ui, track: Option<&os_model::MixerTrack>, n: u16, hit: Rect, x: 
 
 fn pan_knob(ui: &mut Ui, s: &State, n: u16, x: f32, y: f32, r: f32, halo: f32) {
     let pan = KnobId::MixPan(n);
-    let hit = if super::lemon(ui) { Rect::new(x - halo, y - 8.0, 2.0 * halo, 16.0) } else { Rect::new(x - (halo - 1.0), y - (halo - 1.0), 2.0 * (halo - 1.0), 2.0 * (halo - 1.0)) };
+    let bars = bar_controls(ui, s);
+    let hit = if bars { Rect::new(x - halo, y - 8.0, 2.0 * halo, 16.0) } else { Rect::new(x - (halo - 1.0), y - (halo - 1.0), 2.0 * (halo - 1.0), 2.0 * (halo - 1.0)) };
     ui.hit(hit, Action::Knob(pan), s.knob_text(pan));
-    if super::lemon(ui) {
+    if bars {
         centre_bar(ui, x, y, halo, if halo >= 12.0 { 10.0 } else { 8.0 }, s.knob(pan), Bar::Centre);
     } else {
-        mixer_knob(ui, x, y, r, halo, s.knob(pan), Some(true));
+        fl_knob(ui, x, y, r, halo, s.knob(pan), Some(true));
     }
 }
 
@@ -1112,12 +1113,13 @@ fn swap(ui: &mut Ui, track: Option<&os_model::MixerTrack>, n: u16, sx: f32, y: f
 
 fn sep_knob(ui: &mut Ui, s: &State, n: u16, x: f32, y: f32, r: f32, halo: f32) {
     let sep = KnobId::MixSep(n);
-    let hit = if super::lemon(ui) { Rect::new(x - halo, y - 8.0, 2.0 * halo, 16.0) } else { Rect::new(x - halo + 0.5, y - halo + 0.5, 2.0 * halo - 1.0, 2.0 * halo - 1.0) };
+    let bars = bar_controls(ui, s);
+    let hit = if bars { Rect::new(x - halo, y - 8.0, 2.0 * halo, 16.0) } else { Rect::new(x - halo + 0.5, y - halo + 0.5, 2.0 * halo - 1.0, 2.0 * halo - 1.0) };
     ui.hit(hit, Action::Knob(sep), s.knob_text(sep));
-    if super::lemon(ui) {
+    if bars {
         centre_bar(ui, x, y, halo, if halo >= 12.0 { 10.0 } else { 8.0 }, s.knob(sep), Bar::Mono);
     } else {
-        mixer_knob(ui, x, y, r, halo, s.knob(sep), Some(true));
+        fl_knob(ui, x, y, r, halo, s.knob(sep), Some(true));
     }
 }
 
@@ -1249,6 +1251,21 @@ fn send_knob(ui: &mut Ui, s: &State, n: u16, kx: f32, ky: f32, level: f64, k: f3
         let sweep = (level as f32).min(1.0) * 1.5 * PI;
         ui.c.arc(kx, ky, 12.5 * k, 0.75 * PI, sweep, 2.0, ui.t.accent);
     }
+}
+
+/// Whether the pan and separation controls are the Orange skin's bars: in the docked layout only. FL's layout has FL's round
+/// knobs, in the theme's colours.
+fn bar_controls(ui: &Ui, s: &State) -> bool {
+    super::lemon(ui) && s.docked_ui
+}
+
+/// FL's round knob whatever the skin (the Orange skin draws its own knobs flat): the Citrus shapes in the theme's colours.
+fn fl_knob(ui: &mut Ui, cx: f32, cy: f32, r: f32, halo: f32, value: f32, arc: Option<bool>) {
+    let hov = ui.hovering(Rect::new(cx - halo, cy - halo, 2.0 * halo, 2.0 * halo));
+    let look = os_ui::kit::KnobLook::Mixer { halo, arc: arc.is_some() };
+    let mut fl = ui.t.clone();
+    fl.style = os_theme::Style::CITRUS;
+    os_ui::kit::knob(ui.c, &fl, cx, cy, r, value, arc.unwrap_or(false), look, os_ui::kit::State::hover(hov));
 }
 
 /// The dark round mixer knob: a shaded ball inside a darker halo.

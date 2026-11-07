@@ -9509,7 +9509,10 @@ impl App {
                 s.set_knob(id, if s.knob(id) >= 0.5 { 0.0 } else { 1.0 });
                 self.hint = Cow::Owned(s.knob_text(id));
             }
-            Action::Knob(id @ (crate::knobs::KnobId::MixPan(_) | crate::knobs::KnobId::MixSep(_) | crate::knobs::KnobId::ChanPan(_) | crate::knobs::KnobId::ChanVol(_) | crate::knobs::KnobId::TrackVol(_) | crate::knobs::KnobId::TrackPan(_) | crate::knobs::KnobId::SlotMix(..) | crate::knobs::KnobId::MasterVol | crate::knobs::KnobId::MasterPitch)) if os_ui::kit::lemon::on(&self.theme.colors) => {
+            Action::Knob(id @ (crate::knobs::KnobId::MixPan(_) | crate::knobs::KnobId::MixSep(_) | crate::knobs::KnobId::ChanPan(_) | crate::knobs::KnobId::ChanVol(_) | crate::knobs::KnobId::TrackVol(_) | crate::knobs::KnobId::TrackPan(_) | crate::knobs::KnobId::SlotMix(..) | crate::knobs::KnobId::MasterVol | crate::knobs::KnobId::MasterPitch))
+                // A bar is dragged along; the mixer's round pan and separation knobs (FL's layout) are dragged up and down, as in FL.
+                if os_ui::kit::lemon::on(&self.theme.colors) && (s.docked_ui || !matches!(id, crate::knobs::KnobId::MixPan(_) | crate::knobs::KnobId::MixSep(_))) =>
+            {
                 let bar = self.hits.iter().rev().find(|h| h.action == Action::Knob(id)).map(|h| h.rect);
                 if let Some(r) = bar {
                     crate::history::knob(&mut self.state, id, false);
@@ -22467,11 +22470,13 @@ mod tests {
         c.pixmap.save_png(dir.join("mx_slot_menu.png")).unwrap();
     }
 
-    /// Orange skin: the pan bar follows the mouse across it (left end hard left, right end hard right, the middle centre).
+    /// Orange skin, docked layout: the pan bar follows the mouse across it (left end hard left, right end hard right, the middle
+    /// centre).
     #[test]
     fn mixer_pan_bar_follows_the_mouse() {
         let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
         let mut app = App::new(None);
+        app.state.docked_ui = true;
         app.set_design(Design::Lemon, false);
         app.state.project = test_project();
         app.state.z = vec![Win::Mixer];
@@ -22486,6 +22491,30 @@ mod tests {
         assert_eq!(app.state.knob(id), 1.0, "hard right");
         app.mouse_move(r.cx() + 0.5, r.cy() + 30.0);
         assert_eq!(app.state.knob(id), 0.5, "back to the centre");
+        app.mouse_up();
+    }
+
+    /// FL's layout: the mixer's pan knob is round and is dragged up and down, as in FL, not along like the bar; a small
+    /// movement moves the value a little (no jump to where the mouse is on the knob).
+    #[test]
+    fn the_mixer_pan_knob_drags_up_and_down() {
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.set_design(Design::Lemon, false);
+        app.state.project = test_project();
+        app.state.z = vec![Win::Mixer];
+        frame(&mut app, &mut c, None);
+        let id = crate::knobs::KnobId::MixPan(2);
+        let r = hit_rect(&app, &Action::Knob(id));
+        assert!((r.w - r.h).abs() < 1.0, "a round knob's square area: {r:?}");
+        let before = app.state.knob(id);
+        app.mouse_move(r.x + 1.0, r.cy());
+        app.mouse_down();
+        assert_eq!(app.state.knob(id), before, "pressing on the knob's edge does not move it");
+        app.mouse_move(r.x + 1.0, r.cy() - 20.0);
+        assert!(app.state.knob(id) > before, "dragging up turns it up: {} -> {}", before, app.state.knob(id));
+        app.mouse_move(r.x + 1.0, r.cy() + 40.0);
+        assert!(app.state.knob(id) < before, "dragging down turns it down");
         app.mouse_up();
     }
 

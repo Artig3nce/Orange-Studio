@@ -1462,6 +1462,9 @@ mod tests {
         assert!(!a.typing_on());
         assert!(a.state.piano.typed.is_empty(), "switching off releases held notes");
         assert!(!a.typing_key(KeyCode::KeyZ, true, false, false), "letters are shortcuts again");
+        // The switch is a program setting shared by every test: put it back on.
+        a.toggle_typing();
+        assert!(a.typing_on());
     }
 
     /// Mixer and channel knobs, the fader and mute mark the project for the playing engine.

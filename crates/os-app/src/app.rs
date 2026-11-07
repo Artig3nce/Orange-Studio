@@ -118,6 +118,9 @@ const PANEL_MIN_H: f32 = 230.0 + PANEL_TABS_H;
 /// One height for all the tabs, as Ableton's detail view has (the key kept from when the Devices tab had its own).
 const PANEL_KEY: &str = "panel_height_devices";
 const PANEL_COLLAPSED_KEY: &str = "panel_collapsed";
+/// Settings key of the window layout: "docked" opens the docked panels; anything else (the default) is FL's own, the
+/// playlist, channel rack and mixer as movable windows.
+const LAYOUT_KEY: &str = "layout";
 
 /// Resize edge bits for `Action::WinResize`.
 pub const EDGE_L: u8 = 1;
@@ -388,6 +391,8 @@ pub enum Action {
     PlPatternMenu,
     /// A docked track header's solo button (its mute button is `PlLed`).
     PlSolo(u16),
+    /// A playlist track's mixer-target button.
+    PlRoute(u16),
     PlLed(u16),
     /// A playlist track header's "..." handle: drag to size the track, click to shrink it or bring it back.
     PlTrackSize(u16),
@@ -1724,10 +1729,10 @@ impl App {
                 path: None,
                 // A start shows the playlist, the mixer along the bottom and the channel rack on top, as in FL.
                 // The docked layout opens on the Mixer's tab.
-                z: if cfg!(test) { vec![Win::Playlist, Win::Mixer, Win::ChannelRack] } else { vec![Win::Playlist, Win::Mixer] },
+                z: if docked_requested() { vec![Win::Playlist, Win::Mixer] } else { vec![Win::Playlist, Win::Mixer, Win::ChannelRack] },
                 no_focus: false,
                 show_browser: true,
-                docked_ui: !cfg!(test),
+                docked_ui: docked_requested(),
                 panel: Win::Mixer,
                 panel_h: crate::settings_file::get(PANEL_KEY).and_then(|v| v.parse().ok()).unwrap_or(PANEL_H),
                 panel_auto: crate::settings_file::get(PANEL_KEY).is_none(),
@@ -2050,6 +2055,7 @@ impl App {
                 self.transport.rolling().clear();
                 s.roll = Default::default();
                 crate::playlist::load_view(s);
+                crate::playlist::ensure_lane_mixer_outputs(s);
                 s.piano.dirty = true; // live notes use the new project
                 piano::center_keys(s, self.piano_grid.map_or(700.0, |g| g.h));
                 self.mark_saved();
@@ -9050,6 +9056,13 @@ impl App {
                 let at = self.top_hit(self.mouse.0, self.mouse.1).map_or(self.mouse, |h| (h.rect.x, h.rect.y));
                 pl::press_header(self, t, right, at);
             }
+            Action::PlRoute(t) if !right => {
+                let (x, y) = self.mouse;
+                self.state.playlist.track = t;
+                self.state.playlist.popup = Some(pl::track_route_menu(&self.state, t, x, y));
+                self.invalidate();
+            }
+            Action::PlRoute(_) => {}
             Action::PlAddTrack if !right => {
                 let n = pl::visible_tracks(&self.state);
                 self.state.playlist.shown_tracks = n + 1;
@@ -9729,6 +9742,7 @@ impl App {
             | Action::PlAddTrack
             | Action::PlPatternMenu
             | Action::PlSolo(_)
+            | Action::PlRoute(_)
             | Action::PlLed(_)
             | Action::PlTrackSize(_)
             | Action::PlGroupArrow(_)
@@ -11009,6 +11023,11 @@ fn load_cable_cfg() -> crate::cable::Tuning {
         t.load(&text);
     }
     t
+}
+
+/// Whether the docked panel layout is on: only when `layout` says "docked" in the settings file (tests never dock).
+pub(crate) fn docked_requested() -> bool {
+    !cfg!(test) && crate::settings_file::get(LAYOUT_KEY).is_some_and(|v| v.trim() == "docked")
 }
 
 /// General settings ▸ Animations from `animations.txt` in the user folder: on unless it says "Off". Tests always
@@ -15795,8 +15814,8 @@ mod tests {
         assert!(du < 5 && v == 0, "while playing: {du} dropouts; {v} voices after Stop");
     }
 
-    /// The browser's Freesound tab: the search button, a card per result stacked `CARD_H` apart, and an empty search
-    /// that starts nothing and says what to do.
+    /// The browser's Freesound tab: the search button and a card per result stacked `CARD_H` apart, and the look of a
+    /// sounding card. (The search itself goes to the network; `freesound::tests` covers its answer.)
     #[test]
     fn browser_freesound_tab() {
         use crate::freesound::Sound;
@@ -15821,9 +15840,6 @@ mod tests {
         assert!(matches!(rows(&app.state)[1].item, Item::Freesound(2)));
         let card = hit_rect(&app, &Action::BrowserRow(0));
         assert_eq!(hit_rect(&app, &Action::BrowserRow(1)).y - card.y, CARD_H, "the cards are stacked");
-        app.act(Action::FreesoundSearch);
-        assert!(!app.state.freesound.busy, "an empty search starts nothing");
-        assert!(app.state.freesound.status.contains("Type"), "{}", app.state.freesound.status);
         // A sounding sound: its card shows the stop mark and a line that moves across the waveform.
         let shot = |c: &Canvas| {
             let mut v = vec![0u32; 1920 * 1080];
@@ -15907,7 +15923,8 @@ mod tests {
         // The favorites tab is not available yet: greyed out (no tab hit), its page empty; wheel never scrolls past
         // the content. There is no online content tab.
         assert!(!app.hits.iter().any(|h| h.action == Action::BrowserTab(3)));
-        assert!(app.hits.iter().any(|h| h.action == Action::Placeholder("Favorites")));
+        // FL's Favorites slot is the Freesound tab here.
+        assert!(app.hits.iter().any(|h| h.action == Action::BrowserTab(crate::views::browser::FREESOUND_TAB)));
         assert!(!app.hits.iter().any(|h| h.action == Action::Placeholder("Online content")));
         app.act(Action::BrowserTab(3));
         assert!(rows(&app.state).is_empty());
@@ -17028,7 +17045,7 @@ mod tests {
         app.state.z.retain(|w| *w != Win::Mixer);
         frame(&mut app, &mut c, None);
         let split = hit_rect(&app, &Action::BrowserSplitter);
-        assert_eq!((split.x, split.right()), (201.0, 209.0), "the measured splitter");
+        assert_eq!((split.x, split.right()), (362.0, 370.0), "the measured splitter");
         let drag = |app: &mut App, c: &mut Canvas, dx: f32| {
             let s = hit_rect(app, &Action::BrowserSplitter);
             app.mouse_move(s.cx(), s.cy());
@@ -17039,12 +17056,12 @@ mod tests {
             frame(app, c, None);
         };
         drag(&mut app, &mut c, 150.0);
-        assert_eq!(app.state.browser_w, 359.0);
-        assert_eq!(app.state.work_rect().x, 359.0);
-        assert_eq!(hit_rect(&app, &Action::BrowserSplitter).x, 351.0);
-        assert_eq!(hit_rect(&app, &Action::BrowserRow(0)).right(), 351.0, "rows span the wider list");
+        assert_eq!(app.state.browser_w, 520.0);
+        assert_eq!(app.state.work_rect().x, 520.0);
+        assert_eq!(hit_rect(&app, &Action::BrowserSplitter).x, 512.0);
+        assert_eq!(hit_rect(&app, &Action::BrowserRow(0)).right(), 512.0, "rows span the wider list");
         drag(&mut app, &mut c, -500.0);
-        assert_eq!(app.state.browser_w, 209.0, "not narrower than the default");
+        assert_eq!(app.state.browser_w, 370.0, "not narrower than the default");
         drag(&mut app, &mut c, 2000.0);
         assert_eq!(app.state.browser_w, 960.0, "at most half the window");
         let s = hit_rect(&app, &Action::BrowserSplitter);
@@ -17053,7 +17070,7 @@ mod tests {
             app.mouse_down();
             app.mouse_up();
         }
-        assert_eq!(app.state.browser_w, 209.0, "a double click: the default width");
+        assert_eq!(app.state.browser_w, 370.0, "a double click: the default width");
     }
 
     /// A hovered row whose label does not fit scrolls it (spec: ui/browser.md §9): still at first, then moving while the
@@ -20883,9 +20900,10 @@ mod tests {
         let multiband = shot(&mut app, &mut c);
         assert_eq!(multiband.len(), off.len());
         assert!(orange(&multiband) > orange(&off) + 200, "orange-red: {} before, {} after", orange(&off), orange(&multiband));
-        // The same shape: only the waveform's own pixels (a band through the middle, at this level) change colour.
+        // The same shape: only the waveform's own pixels change colour. A quiet clip's waveform is drawn boosted to a 0.75 peak
+        // (v1.3.4), so this sine fills the small clip; its edge and background stay as they were.
         let changed = off.iter().zip(&multiband).filter(|(a, b)| a != b).count();
-        assert!(changed > 200 && changed < off.len() / 2, "{changed} of {} pixels", off.len());
+        assert!(changed > 200 && changed < off.len(), "{changed} of {} pixels", off.len());
         set_choice(&COLORFUL_WAVEFORMS, 1);
         let map = shot(&mut app, &mut c);
         assert_ne!(map, multiband, "Color map has colours of its own");

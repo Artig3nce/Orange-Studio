@@ -176,6 +176,20 @@ pub fn max_insert_of(mixer: &[MixerTrack]) -> u16 {
     (mixer.len().saturating_sub(2) as u16).max(1)
 }
 
+/// A newly selected channel destination should reach the audible master unless the insert already has an explicit
+/// route (for example, to a subgroup or sidechain destination).
+pub(crate) fn ensure_master_route(s: &mut State, n: u16) {
+    if n == 0 {
+        return;
+    }
+    if let Some(m) = track_mut(s, n)
+        && m.routes.is_empty()
+    {
+        m.routes.push(0);
+        changed(s);
+    }
+}
+
 /// Inserts shown: stored tracks minus the master and the last (hidden) one (§1).
 pub fn inserts(s: &State) -> u16 {
     s.project.mixer.len().saturating_sub(2) as u16

@@ -351,6 +351,11 @@ pub fn add_generator_on_track(app: &mut App, index: usize, track: u16, tick: u32
     crate::playlist::snapshot_with(s, crate::history::ADD_TO_TRACK, snap);
     // The channel, as add_generator makes it at the bottom of the rack.
     let ch = if sampler { crate::app::add_channel(&mut s.project) } else { crate::app::add_plugin_channel(&mut s.project, &d.name) };
+    let mixer_target = crate::playlist::mixer_target_for_track(s, track);
+    crate::mixer::ensure_master_route(s, mixer_target);
+    if let Some(channel) = s.project.channels.get_mut(ch) {
+        channel.mixer_track = mixer_target;
+    }
     if sampler {
         s.pending_open = Some(ch);
     } else {

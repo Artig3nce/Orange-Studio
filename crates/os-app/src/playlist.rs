@@ -394,6 +394,8 @@ pub enum Cmd {
     TrackDelete(u16),
     TrackColor(u16, Option<Rgb>),
     TrackMuteClips(u16, bool),
+    /// Route the channels used by this playlist track to a mixer insert.
+    TrackRoute(u16, u16),
     /// "Create automation clip" on a control: target, name, current value 0..1.
     CreateAutomation(u32, String, f64),
     /// "Edit automation" on a control: target, name, current value 0..1, a plugin parameter's range (`crate::events`).
@@ -725,6 +727,8 @@ pub struct PlaylistState {
     pub sel: Vec<usize>,
     /// Selected track (Ctrl+Up / Down, header click).
     pub track: u16,
+    /// Mixer destination selected for playlist tracks that do not yet have routed channel sources.
+    pub mixer_targets: HashMap<u16, u16>,
     /// Song position (ticks): song playback starts here.
     pub pos: u32,
     /// Time selection (ticks).
@@ -793,6 +797,7 @@ impl Default for PlaylistState {
             pick_rows: [PICK_ROW; 3],
             sel: Vec::new(),
             track: 0,
+            mixer_targets: HashMap::new(),
             pos: 0,
             range: None,
             range_drag: None,
@@ -2471,10 +2476,72 @@ pub fn add_audio_clip(s: &mut State, path: &str, track: u16, tick: u32) -> Optio
     add_audio_clip_named(s, path, track, tick, None)
 }
 
+/// Place an existing audio channel as a new, independently routed sample on `track`.
+pub fn add_audio_source(s: &mut State, source_row: usize, track: u16, tick: u32) -> Option<usize> {
+    let mut channel = s.project.channels.get(source_row)?.clone();
+    if channel.kind != ChannelKind::AudioClip {
+        return None;
+    }
+    let source_index = channel.index;
+    let row = s.project.channels.len();
+    let before = crate::history::Snap::Rack(Box::new(crate::history::RackSide::now(s, row)));
+    snapshot_with(s, "Place unique audio clip", before);
+    let base = channel.name.clone().unwrap_or_else(|| "Audio".into());
+    let label = format!("{base} (Track {})", track + 1);
+    channel.name = Some(unique_channel_name(s, if base.contains(&format!("(Track {})", track + 1)) { &base } else { &label }));
+    channel.index = s.project.channels.iter().map(|c| c.index + 1).max().unwrap_or(0);
+    channel.mixer_track = mixer_target_for_track(s, track);
+    crate::mixer::ensure_master_route(s, channel.mixer_track);
+    let index = channel.index;
+    s.project.channels.push(channel);
+    for group in &mut s.rack.groups {
+        if group.members.contains(&source_row) {
+            group.members.insert(row);
+        }
+    }
+    s.playlist.lock_clip = s.playlist.lock_clip.filter(|clip| clip.source == ClipSource::Channel(source_index)).map(|mut clip| {
+        clip.source = ClipSource::Channel(index);
+        clip.track = track;
+        clip.position = tick;
+        clip.muted = false;
+        clip.set_id(0);
+        clip.set_group(0);
+        clip
+    });
+    s.playlist.source = Some(ClipSource::Channel(index));
+    s.playlist.picker = PickKind::Audio;
+    let clip = place(s, track, tick);
+    s.playlist.sel = vec![clip];
+    Some(clip)
+}
+
 /// Add an audio clip with an optional display name (used for downloaded Freesound previews).
 pub fn add_audio_clip_named(s: &mut State, path: &str, track: u16, tick: u32, display_name: Option<&str>) -> Option<usize> {
     s.playlist.wave(path)?;
     add_audio_clip_as_named(s, path, track, tick, "Playlist edit", display_name)
+}
+
+/// Mixer insert used by newly-created sources on playlist lane `track` (lane 1 → insert 1).
+/// Playlist tracks are zero-based internally; mixer insert 0 is the master.
+pub fn mixer_target_for_track(s: &State, track: u16) -> u16 {
+    s.playlist.mixer_targets.get(&track).copied().unwrap_or_else(|| track.saturating_add(1)).min(crate::mixer::max_insert(&s.project))
+}
+
+/// Repair silent auto-mapped inserts when opening a project: a matching lane/insert with no outgoing mixer routes
+/// would otherwise send its audio nowhere.
+pub fn ensure_lane_mixer_outputs(s: &mut State) {
+    let mut targets = std::collections::BTreeSet::new();
+    if let Some(arrangement) = s.project.arrangement() {
+        for track in arrangement.clips.iter().map(|clip| clip.track).collect::<std::collections::BTreeSet<_>>() {
+            let target = track.saturating_add(1).min(crate::mixer::max_insert(&s.project));
+            if track_channel_rows(s, track).iter().any(|&row| s.project.channels.get(row).is_some_and(|channel| channel.mixer_track == target)) {
+                targets.insert(target);
+            }
+        }
+    }
+    for target in targets {
+        crate::mixer::ensure_master_route(s, target);
+    }
 }
 
 /// Finish an asynchronous Freesound drop by swapping the placeholder channel to the downloaded audio and expanding
@@ -2510,7 +2577,8 @@ fn add_audio_clip_as_named(s: &mut State, path: &str, track: u16, tick: u32, nam
     snapshot_with(s, name, before);
     let index = s.project.channels.iter().map(|c| c.index + 1).max().unwrap_or(0);
     let name = display_name.map(str::to_owned).unwrap_or_else(|| std::path::Path::new(path).file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "Audio".into()));
-    let mixer_track = (s.project.channels.iter().map(|c| c.mixer_track).max().unwrap_or(0) + 1).min(crate::mixer::max_insert(&s.project));
+    let mixer_track = mixer_target_for_track(s, track);
+    crate::mixer::ensure_master_route(s, mixer_track);
     s.project.channels.push(Channel {
         index,
         kind: ChannelKind::AudioClip,
@@ -3145,6 +3213,125 @@ pub fn track_content(s: &State, t: u16) -> Option<(PickKind, String)> {
     }
 }
 
+/// Channel rows played by the clips on playlist track `t`: audio clips use their own channel, while pattern clips use
+/// the channels named by their notes. This is the same mixer target users see in the channel rack.
+pub fn track_channel_rows(s: &State, t: u16) -> Vec<usize> {
+    let mut rows = std::collections::BTreeSet::new();
+    for clip in clips(s).iter().filter(|c| c.track == t) {
+        match clip.source {
+            ClipSource::Pattern(number) => {
+                if let Some(pattern) = s.project.pattern(number) {
+                    for note in &pattern.notes {
+                        if let Some(row) = s.project.channels.iter().position(|ch| ch.index == note.channel) {
+                            rows.insert(row);
+                        }
+                    }
+                }
+            }
+            ClipSource::Channel(channel) => {
+                if let Some(row) = s.project.channels.iter().position(|ch| ch.index == channel && ch.kind == ChannelKind::AudioClip) {
+                    rows.insert(row);
+                }
+            }
+        }
+    }
+    rows.into_iter().collect()
+}
+
+/// Short mixer target shown on a playlist track's header (`M` = Master; an ellipsis means mixed targets).
+pub fn track_mixer_label(s: &State, t: u16) -> String {
+    let rows = track_channel_rows(s, t);
+    let Some(first) = rows.first().copied() else {
+        let target = mixer_target_for_track(s, t);
+        return if target == 0 { "M".into() } else { target.to_string() };
+    };
+    let Some(target) = s.project.channels.get(first).map(|ch| ch.mixer_track) else { return "M".into() };
+    if rows.iter().all(|&r| s.project.channels.get(r).is_some_and(|ch| ch.mixer_track == target)) {
+        if target == 0 { "M".into() } else { target.to_string() }
+    } else {
+        "…".into()
+    }
+}
+
+/// Mixer destinations for this playlist track's channel sources.
+pub fn track_route_menu(s: &State, t: u16, x: f32, y: f32) -> Popup {
+    let items = track_route_items(s, t);
+    Popup { x, y, items, sub: None, scroll: [0; 2] }
+}
+
+fn track_route_items(s: &State, t: u16) -> Vec<PItem> {
+    let rows = track_channel_rows(s, t);
+    let current = rows.first().and_then(|&r| s.project.channels.get(r)).map(|ch| ch.mixer_track);
+    let common = current.filter(|&target| rows.iter().all(|&r| s.project.channels.get(r).is_some_and(|ch| ch.mixer_track == target)))
+        .or_else(|| rows.is_empty().then(|| mixer_target_for_track(s, t)));
+    let mut items = vec![PItem::head("Route playlist track to mixer")];
+    for target in 0..=crate::mixer::inserts(s) {
+        let label = crate::mixer::name(s, target);
+        items.push(PItem::new(label, Cmd::TrackRoute(t, target)).mark(Mark::Radio(common == Some(target))));
+    }
+    items
+}
+
+fn route_track_to_mixer(s: &mut State, t: u16, target: u16) -> Option<String> {
+    if target > crate::mixer::inserts(s) {
+        return None;
+    }
+    let rows = track_channel_rows(s, t);
+    if rows.is_empty() {
+        s.playlist.mixer_targets.insert(t, target);
+        return Some(format!("New sources on Track {} will route to {}", t + 1, crate::mixer::name(s, target)));
+    }
+    let shared_audio: Vec<(usize, u16)> = rows.iter().filter_map(|&row| {
+        let channel = s.project.channels.get(row)?;
+        (channel.kind == ChannelKind::AudioClip
+            && clips(s).iter().any(|clip| clip.track != t && clip.source == ClipSource::Channel(channel.index)))
+            .then_some((row, channel.index))
+    }).collect();
+    arr_mut(s);
+    let mut snapshots = vec![crate::history::Snap::Playlist(Box::new(capture(s)))];
+    snapshots.extend(rows.iter().map(|&row| crate::history::Snap::Rack(Box::new(crate::history::RackSide::now(s, row)))));
+    let tail_start = s.project.channels.len();
+    snapshots.push(crate::history::Snap::Tail(Box::new(crate::history::Tail::now(s, tail_start))));
+    crate::history::record(s, "Route playlist track to mixer", crate::history::Snap::Several(snapshots));
+
+    // Split samples reused on multiple lanes so each playlist track can have its own mixer destination.
+    for (source_row, source_index) in &shared_audio {
+        let mut channel = s.project.channels[*source_row].clone();
+        let base = channel.name.clone().unwrap_or_else(|| "Audio".into());
+        channel.name = Some(unique_channel_name(s, &format!("{base} (Track {})", t + 1)));
+        channel.index = s.project.channels.iter().map(|c| c.index + 1).max().unwrap_or(0);
+        channel.mixer_track = target;
+        let new_index = channel.index;
+        let new_row = s.project.channels.len();
+        s.project.channels.push(channel);
+        for group in &mut s.rack.groups {
+            if group.members.contains(source_row) {
+                group.members.insert(new_row);
+            }
+        }
+        if let Some(arrangement) = s.project.arrangement_mut() {
+            for clip in arrangement.clips.iter_mut().filter(|clip| clip.track == t && clip.source == ClipSource::Channel(*source_index)) {
+                clip.source = ClipSource::Channel(new_index);
+            }
+        }
+    }
+    for &row in &rows {
+        if !shared_audio.iter().any(|(source_row, _)| *source_row == row) {
+            s.project.channels[row].mixer_track = target;
+        }
+    }
+    crate::mixer::ensure_master_route(s, target);
+    s.selected_mixer = target;
+    s.mixer.sel.clear();
+    s.piano.dirty = true;
+    Some(format!(
+        "Routed Track {} to {}{}",
+        t + 1,
+        crate::mixer::name(s, target),
+        if shared_audio.is_empty() { String::new() } else { format!("; split {} shared sample{} for independent routing", shared_audio.len(), if shared_audio.len() == 1 { "" } else { "s" }) }
+    ))
+}
+
 /// The instrument list for track `t` as a menu of its own (a click on a docked header's tile): the pick adds the
 /// channel and a clip of a new pattern on the track.
 pub fn instrument_menu(s: &State, t: u16, x: f32, y: f32, tick: u32) -> Popup {
@@ -3196,6 +3383,7 @@ pub fn track_menu(s: &State, t: u16, x: f32, y: f32, tick: u32) -> Popup {
         // The instruments straight onto the track (issue #2): the pick adds the channel and a clip of a new
         // pattern here, at the song position.
         PItem::sub("Insert instrument", crate::plugin_menu::items_on_track(s, t, tick, true)),
+        PItem::sub("Route to mixer", track_route_items(s, t)),
         PItem::sep(),
         PItem::new("Mute", Cmd::TrackMute(t)).mark(Mark::Check(!on)),
         PItem::new("Solo", Cmd::TrackSolo(t)).mark(Mark::Check(s.playlist.solo.as_ref().is_some_and(|x| x.0 == t))),
@@ -3746,10 +3934,21 @@ pub fn press_grid(app: &mut App, grid: Rect, right: bool) {
             }
             None => {
                 // FL's name for placing the current source's clip (spec: ui/settings-choices.md "Undo history").
-                snapshot_as(s, "Playlist fill paint clip");
+                let audio_row = match source(s) {
+                    ClipSource::Channel(ch) => s.project.channels.iter().position(|channel| channel.index == ch && channel.kind == ChannelKind::AudioClip),
+                    ClipSource::Pattern(_) => None,
+                };
                 s.playlist.sel.clear();
                 let start = snap_place(s, &g, tick, alt);
-                let i = place(s, track, start);
+                let i = if let Some(row) = audio_row {
+                    add_audio_source(s, row, track, start).unwrap_or_else(|| {
+                        snapshot_as(s, "Playlist fill paint clip");
+                        place(s, track, start)
+                    })
+                } else {
+                    snapshot_as(s, "Playlist fill paint clip");
+                    place(s, track, start)
+                };
                 let c = clips(s)[i];
                 if tool == PlTool::Paint {
                     app.drag = Some(Drag::Pl(PlDrag::Paint { track, start, len: c.length.max(1) }));
@@ -5456,6 +5655,7 @@ pub fn run(app: &mut App, cmd: Cmd) -> Option<String> {
             s.piano.dirty = true;
             None
         }
+        Cmd::TrackRoute(t, target) => route_track_to_mixer(s, t, target),
         Cmd::CreateAutomation(tgt, name, v) => {
             create_automation(s, tgt, &name, v);
             s.raise(crate::app::Win::Playlist);

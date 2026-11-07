@@ -29,4 +29,5 @@ out.txt
 *.exe
 Artigence*
 /src
+dist/
 

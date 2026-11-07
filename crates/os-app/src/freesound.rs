@@ -641,9 +641,16 @@ mod tests {
 
     #[test]
     fn parses_a_search_answer() {
-        let json = br#"{"count":2,"results":[{"id":5,"name":"Kick 1","duration":0.5,"previews":{"preview-lq-mp3":"https://x/5.mp3","preview-hq-mp3":"https://x/5h.mp3"},"images":{"waveform_m":"https://x/5.png"}},{"id":6,"name":"no preview"}]}"#;
+        let json = br#"{"count":2,"results":[{"id":5,"name":"Kick 1","duration":0.5,"previews":{"preview-lq-mp3":"https://x/5.mp3","preview-hq-mp3":"https://x/5h.mp3"},"images":{"waveform_m":"https://x/5.png"}},{"id":7,"name":"lq only","duration":1.0,"previews":{"preview-lq-mp3":"https://x/7.mp3"}},{"id":6,"name":"no preview"}]}"#;
         let got = parse(json).unwrap();
-        assert_eq!(got, vec![Sound { id: 5, name: "Kick 1".into(), duration: 0.5, preview: "https://x/5.mp3".into(), waveform: "https://x/5.png".into() }]);
+        // The higher-quality preview is the one played; the lower one stands in when a sound has no other.
+        assert_eq!(
+            got,
+            vec![
+                Sound { id: 5, name: "Kick 1".into(), duration: 0.5, preview: "https://x/5h.mp3".into(), waveform: "https://x/5.png".into() },
+                Sound { id: 7, name: "lq only".into(), duration: 1.0, preview: "https://x/7.mp3".into(), waveform: String::new() },
+            ]
+        );
     }
 
     #[test]

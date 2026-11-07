@@ -469,9 +469,11 @@ mod tests {
         let channels = app.state.project.channels.len();
         let mut files = Vec::new();
         for take in 1..=3 {
+            // Another test that plays opens a real device, which replaces the fake one (`device::last`): set it again per take.
+            test_asio(2, 2);
             app.transport.pretend_at(0.0, true);
             app.one_click_tick();
-            assert!(app.audio_rec.is_some() && app.state.rec.audio && capture().on(), "take {take} started");
+            assert!(app.audio_rec.is_some() && app.state.rec.audio && capture().on(), "take {take} started: {:?}; input {}", app.state.message, app.track_input().is_some());
             capture().push(4800, |ch, f| if ch == 0 { f as f32 / 4800.0 } else { 0.5 });
             app.one_click_tick();
             app.transport.stop();

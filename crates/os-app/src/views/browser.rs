@@ -637,7 +637,7 @@ pub fn list_top(s: &State) -> f32 {
         FREESOUND_TAB => FS_HEAD_H,
         _ => 0.0,
     };
-    lift + chips + if !s.docked_ui && opt(s, OPT_TOP) { LIST_Y + SEARCH_ROW } else { LIST_Y }
+    lift + chips + if !s.docked_ui && s.browser_tab != FREESOUND_TAB && opt(s, OPT_TOP) { LIST_Y + SEARCH_ROW } else { LIST_Y }
 }
 
 /// Where the browser ends: the window's bottom, or in the docked layout the top of the bottom panel.
@@ -719,27 +719,22 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect) {
         ui.c.text(os_ui::Font::new(14), 52.0, 85.0 + dy, t.text_dim, "Browser");
         // Tabs (spec ui/browser.md §1): FL's five without Online content, sharing the strip.
         ui.c.fill_rect(Rect::span(0.0, bw - 1.0, 106.0 + dy, 141.0 + dy), t.browser_tabs);
-        const TIPS: [&str; 4] = ["All", "Current project", "Plugin database", "Favorites"];
-        for (i, icon) in [Icon::Wave, Icon::Page, Icon::Speaker, Icon::Star].into_iter().enumerate() {
-            let cx = 25.0 + 50.0 * i as f32;
-            let rr = Rect::new(cx - 18.0, 108.0 + dy, 36.0, 30.0);
-            // Favorites: not available yet, greyed out.
-            let hov = if i >= OFF_TABS {
-                ui.off(rr, TIPS[i]);
-                false
-            } else {
-                ui.hit(rr, Action::BrowserTab(i), TIPS[i])
-            };
-            if i == s.browser_tab {
+        // FL's Favorites slot is used for a named Freesound tab.
+        let tabs = [(0, "All"), (PROJECT_TAB, "Project"), (PLUGIN_TAB, "Plugins"), (FREESOUND_TAB, "Freesound")];
+        let tw = (bw - 16.0) / tabs.len() as f32;
+        for (i, (tab, label)) in tabs.into_iter().enumerate() {
+            let rr = Rect::new(8.0 + tw * i as f32, 108.0 + dy, tw, 30.0);
+            let hov = ui.hit(rr, Action::BrowserTab(tab), label);
+            if tab == s.browser_tab {
                 ui.c.stroke_rrect(rr, 4.0, 1.5, t.browser_tab_outline);
             }
-            let c = if i >= OFF_TABS { t.text_faint } else if hov || i == s.browser_tab { t.glyph } else { t.glyph.shade(-0.1) };
-            icons::draw(ui.c, icon, Rect::new(cx - 9.0, 114.0 + dy, 18.0, 18.0), c);
+            let c = if hov || tab == s.browser_tab { t.glyph } else { t.text_dim };
+            ui.c.text_center(os_ui::Font::condensed(12, 7).bold(), rr, c, label);
         }
     }
     // List.
     let top = list_top(s);
-    let search_on_top = !s.docked_ui && opt(s, OPT_TOP);
+    let search_on_top = !s.docked_ui && s.browser_tab != FREESOUND_TAB && opt(s, OPT_TOP);
     if search_on_top {
         ui.c.fill_rect(Rect::new(0.0, LIST_Y + dy, bw, SEARCH_ROW), t.browser_footer);
         search_box(ui, s, Rect::new(13.0, LIST_Y + dy + 4.0, bw - 38.0, 20.0));
@@ -778,15 +773,20 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect) {
         ui.c.text_center(os_ui::Font::condensed(11, 6).bold(), tags, ui.t.tx(0xc0c8cc), "TAGS");
         ui.veil(tags, t.browser_footer);
         let field = Rect::new(57.0, fy + 4.0, bw - 82.0, 20.0);
-        if !search_on_top {
+        if s.browser_tab == FREESOUND_TAB {
+            ui.c.fill_rrect(field, 3.0, t.sunken);
+            ui.c.text_center(os_ui::Font::condensed(11, 6), field, t.text_faint, "Search Freesound above");
+        } else if !search_on_top {
             search_box(ui, s, field);
         } else {
             ui.c.fill_rrect(field, 3.0, t.sunken);
         }
         icons::draw(ui.c, Icon::Folder, Rect::new(field.right() - 18.0, fy + 7.0, 14.0, 14.0), t.text_faint);
-        let glass = Rect::new(bw - 23.0, fy + 3.0, 21.0, 21.0);
-        let hov = ui.hit(glass, Action::BrowserSearch, "Search the browser (Enter = find next, Esc = clear)");
-        icons::draw(ui.c, Icon::Search, Rect::new(glass.x + 2.0, fy + 5.0, 17.0, 17.0), if hov { t.browser_search.shade(0.2) } else { t.browser_search });
+        if s.browser_tab != FREESOUND_TAB {
+            let glass = Rect::new(bw - 23.0, fy + 3.0, 21.0, 21.0);
+            let hov = ui.hit(glass, Action::BrowserSearch, "Search the browser (Enter = find next, Esc = clear)");
+            icons::draw(ui.c, Icon::Search, Rect::new(glass.x + 2.0, fy + 5.0, 17.0, 17.0), if hov { t.browser_search.shade(0.2) } else { t.browser_search });
+        }
     }
     // Splitter: drags the browser's width (§9).
     ui.c.fill_rect(Rect::new(bw, r.y, 6.0, r.h), t.splitter);
@@ -798,7 +798,7 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect) {
 /// The Freesound tab (docked layout): a search button and status above result cards.
 pub const FREESOUND_TAB: usize = 4;
 /// Height of the Freesound tab's header, and of one result card.
-pub const FS_HEAD_H: f32 = 52.0;
+pub const FS_HEAD_H: f32 = 58.0;
 pub const CARD_H: f32 = 60.0;
 
 /// Height of one row of the list shown: a result card on the Freesound tab, else a tree row.
@@ -842,26 +842,32 @@ fn draw_wave(ui: &mut Ui, r: Rect, bins: &[f32], col: os_ui::Color, played: os_u
     }
 }
 
-/// The Freesound tab: the search button (the browser's search text is the query) and the status over the cards, each
+/// The Freesound tab: its query field, search button and status over the cards, each
 /// with the sound's name, its length, a play mark and its waveform. A click on a card plays the sound.
 fn paint_freesound(ui: &mut Ui, s: &State, r: Rect, bw: f32, top: f32) {
     let t = ui.t;
     let fs = &s.freesound;
-    // The header: the search button and the status line.
+    // Freesound has a clearly visible query field and its own search button.
     let head = Rect::span(0.0, bw - 1.0, top - FS_HEAD_H, top);
     ui.c.fill_rect(head, t.browser_tabs);
     let q = s.browser_search.trim();
-    let btn = Rect::new(10.0, head.y + 6.0, bw - 21.0, 24.0);
-    let hov = ui.hit(btn, Action::FreesoundSearch, "Search Freesound, or reload top-rated samples when the search is blank");
+    let btn = Rect::new(bw - 94.0, head.y + 5.0, 84.0, 24.0);
+    let field = Rect::new(10.0, head.y + 5.0, (bw - 110.0).max(32.0), 24.0);
+    search_box(ui, s, field);
+    if q.is_empty() {
+        // Keep the prompt visible while focused so the empty input still reads as a Freesound query field.
+        ui.c.text_clip(os_ui::Font::new(14), field.x + 10.0, field.y + 3.0, field.w - 16.0, t.text_faint, "Search Freesound...");
+    }
+    let hov = ui.hit(btn, Action::FreesoundSearch, "Search Freesound, or load top-rated samples when the query is blank");
     let face = if fs.busy { t.sunken } else if hov { t.accent.shade(0.12) } else { t.accent };
     ui.c.fill_rrect(btn, 5.0, face);
     let ink = if fs.busy { t.text_dim } else { Color::rgb(0x1a1200) };
     icons::draw(ui.c, Icon::Search, Rect::new(btn.x + 7.0, btn.y + 5.0, 14.0, 14.0), ink);
     let f = os_ui::Font::new(14);
-    let label = if fs.busy { if fs.recommended { "Loading top-rated samples...".to_string() } else { "Searching...".to_string() } } else if q.is_empty() { "Top-rated Freesound samples".to_string() } else { format!("Search \"{q}\"") };
-    ui.c.text_clip(f, btn.x + 28.0, btn.y + 3.0, btn.w - 34.0, ink, &label);
-    let status = if !fs.status.is_empty() { fs.status.as_str() } else { "Top-rated samples load when this tab opens" };
-    ui.c.text_clip(os_ui::Font::new(12), 12.0, btn.bottom() + 5.0, bw - 24.0, t.text_dim, status);
+    let label = if fs.busy { "Wait..." } else if q.is_empty() { "Top rated" } else { "Search" };
+    ui.c.text_clip(f, btn.x + 26.0, btn.y + 3.0, btn.w - 30.0, ink, label);
+    let status = if !fs.status.is_empty() { fs.status.as_str() } else { "Enter a query and press Enter or Search" };
+    ui.c.text_clip(os_ui::Font::new(12), 12.0, field.bottom() + 4.0, bw - 24.0, t.text_dim, status);
 
     // The cards.
     let rows = rows(s);
@@ -1030,9 +1036,6 @@ fn middle_cut(ui: &mut Ui, f: os_ui::Font, text: &str, w: f32) -> String {
     String::new()
 }
 
-/// Tabs from this one on (favorites) are not available yet (spec §1).
-const OFF_TABS: usize = 3;
-
 /// Where the options menu opens (just below the title bar's ▸, spec §4).
 pub fn menu_at(s: &State) -> (f32, f32) {
     (1.0, if s.docked_ui { 111.0 } else { 105.0 } + super::work_y(s) - super::WORK_Y)
@@ -1056,14 +1059,14 @@ fn docked_head(ui: &mut Ui, s: &State, bw: f32, dy: f32) {
         }
         x += w;
     }
-    // Freesound: an icon tab beside the names, left of the options gear.
+    // Freesound is named explicitly so the sound search is distinct from the browser's general search field.
     {
-        let r = Rect::new(bw - 46.0, 87.0 + dy, 20.0, 22.0);
+        let r = Rect::new(bw - 111.0, 87.0 + dy, 80.0, 22.0);
         let hov = ui.hit(r, Action::BrowserTab(FREESOUND_TAB), "Freesound: search free sounds and hear them");
         let open = s.browser_tab == FREESOUND_TAB;
-        icons::draw(ui.c, Icon::Wave, r.inset(2.0), if open || hov { t.text } else { t.text_dim });
+        ui.c.text_center(super::fnt(14.0), r, if open || hov { t.text } else { t.text_dim }, "Freesound");
         if open {
-            ui.c.fill_rect(Rect::new(r.x + 1.0, 83.0 + dy + 26.0, r.w - 2.0, 2.0), t.accent);
+            ui.c.fill_rect(Rect::new(r.x + 4.0, 83.0 + dy + 26.0, r.w - 8.0, 2.0), t.accent);
         }
     }
     let tool = |ui: &mut Ui, r: Rect, icon: Icon, action: Action, hint: &'static str, lit: bool| {
@@ -1076,18 +1079,25 @@ fn docked_head(ui: &mut Ui, s: &State, bw: f32, dy: f32) {
     let y = 116.0 + dy;
     tool(ui, Rect::new(bw - 44.0, y + 1.0, 18.0, 18.0), Icon::CollapseAll, Action::BrowserCollapse, "Collapse structure (Ctrl+Up)", false);
     tool(ui, Rect::new(bw - 24.0, y + 1.0, 18.0, 18.0), Icon::Refresh, Action::BrowserReread, "Reread structure (Ctrl+R)", false);
+    if s.browser_tab != FREESOUND_TAB {
     let field = Rect::span(10.0, bw - 50.0, y, y + 20.0);
-    search_box(ui, s, field);
-    if s.browser_search.is_empty() && !s.browser_search_focus {
-        ui.c.text(os_ui::Font::new(14), field.x + 5.0, field.y + 1.0, t.text_faint, "Search");
+    if s.browser_tab == FREESOUND_TAB {
+        ui.c.text(os_ui::Font::new(12), field.x + 5.0, field.y + 3.0, t.text_dim, "Search Freesound in the field below");
+    } else {
+        search_box(ui, s, field);
+        if s.browser_search.is_empty() && !s.browser_search_focus {
+            ui.c.text(os_ui::Font::new(14), field.x + 5.0, field.y + 1.0, t.text_faint, "Search");
+        }
+        icons::draw(ui.c, Icon::Search, Rect::new(field.right() - 18.0, field.y + 3.0, 14.0, 14.0), t.text_dim);
+        }
     }
-    icons::draw(ui.c, Icon::Search, Rect::new(field.right() - 18.0, field.y + 3.0, 14.0, 14.0), t.text_dim);
 }
 
 /// The search field (spec §5): typed text, a caret while focused; click focuses.
 fn search_box(ui: &mut Ui, s: &State, r: Rect) {
     let t = ui.t;
-    ui.hit(r, Action::BrowserSearch, "Search the browser (Enter = find next, Esc = clear)");
+    let hint = if s.browser_tab == FREESOUND_TAB { "Search Freesound (Enter = search, Esc = clear)" } else { "Search the browser (Enter = find next, Esc = clear)" };
+    ui.hit(r, Action::BrowserSearch, hint);
     ui.c.fill_rrect(r, 3.0, t.sunken);
     if s.browser_search_focus {
         ui.c.stroke_rrect(r, 3.0, 1.0, t.browser_search);

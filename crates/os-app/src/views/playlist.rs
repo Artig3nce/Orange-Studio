@@ -190,6 +190,10 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
     let over = Rect::new(grid_x, grid_y - if has_markers { MARKER_H } else { 0.0 } - 41.0, grid_w, hbar);
     debug_assert_eq!(over, overview_rect(s, grid));
     super::scrollbar(ui, over, false, sx, grid_w, bars * bar_w, crate::app::Scroll::PlaylistX);
+    overview(ui, s, over, bars * bar_t);
+    // Keep the viewport handle above the miniature waveform: the overview used to wash it out,
+    // especially with the compact scrollbar setting. A solid accent thumb is easy to find and drag.
+    playlist_overview_thumb(ui, over, sx, grid_w, bars * bar_w);
     // High visibility: two lighter edges at the top and bottom of the track, around the thumb (spec:
     // ui/settings-choices.md "Display: PPI ruler, Force refreshes, Thick lines, High visibility").
     if crate::high_visibility::on() && over.h >= 6.0 {
@@ -199,7 +203,6 @@ pub fn paint(ui: &mut Ui, s: &State, r: Rect, f: &FrameInfo) {
             ui.c.fill_rect(Rect::new(over.x, over.bottom() - 1.0 - k, over.w, 1.0), t.s(hex));
         }
     }
-    overview(ui, s, over, bars * bar_t);
     let ruler = ruler_rect(s, grid);
     ruler_paint(ui, s, &g, ruler, f);
     ui.c.fill_rect(Rect::new(grid_x + grid_w + 4.0, client.y + 1.0, vbar, client.h), t.scrollbar);
@@ -366,6 +369,25 @@ pub fn ruler_rect(s: &State, grid: Rect) -> Rect {
 /// "Miscellaneous").
 fn bar_sizes() -> (f32, f32) {
     if super::small_scrollbars() { (9.0, 10.0) } else { (18.0, 18.0) }
+}
+
+/// The playlist's horizontal viewport handle, drawn above the clip miniature so its contrast stays consistent.
+fn playlist_overview_thumb(ui: &mut Ui, track: Rect, pos: f32, view: f32, total: f32) {
+    let (off, len) = os_ui::kit::thumb(track.w, pos, view, total);
+    let thumb = Rect::new(track.x + off, track.y + 1.0, len, (track.h - 2.0).max(1.0));
+    // The dark rim is inside the handle: a partial repaint after a scroll repaints exactly the handle's rect, so nothing may
+    // be drawn outside it.
+    let radius = (thumb.h / 2.0).min(thumb.w / 2.0);
+    ui.c.fill_rrect(thumb, radius, ui.t.s(0x111315));
+    let face = thumb.inset(1.0);
+    ui.c.fill_rrect(face, (radius - 1.0).max(0.0), ui.t.accent);
+    if thumb.h >= 7.0 && thumb.w >= 12.0 {
+        ui.c.fill_rrect(
+            Rect::new(thumb.x + 3.0, thumb.y + 1.0, (thumb.w - 6.0).max(1.0), 1.0),
+            0.5,
+            ui.t.s(0xffffff).with_alpha(90),
+        );
+    }
 }
 
 /// The grid the playlist would paint now: None while it is collapsed to its title bar.
@@ -1808,7 +1830,7 @@ fn header(ui: &mut Ui, s: &State, g: &PGeom, row: u16, x: f32, w: f32) {
         let font = Font::new(16);
         let (name_x, name_y, name_w) = if docked {
             // An instrument tile (click: pick one for the track), then the name over the instrument's name.
-            let right = (if lead { 48.0 } else if ui.hovering(hr) { 15.0 } else { 6.0 }) + if short { 0.0 } else { 70.0 };
+            let right = (if lead { 48.0 } else if ui.hovering(hr) { 15.0 } else { 6.0 }) + if short { 0.0 } else { 98.0 };
             let tile = Rect::new(hr.x + pl::HEAD_ICON_X, hr.cy() - 14.0, pl::HEAD_ICON_W, 28.0);
             let content = pl::track_content(s, row);
             let audio = content.as_ref().is_some_and(|c| c.0 == PickKind::Audio);
@@ -1871,6 +1893,15 @@ fn header(ui: &mut Ui, s: &State, g: &PGeom, row: u16, x: f32, w: f32) {
             ui.c.fill_rrect(r, 5.0, face);
             let ink = if lit { Color::rgb(0x1a1200) } else if hov { ui.t.tx(0xffffff) } else { text };
             ui.c.text_center(Font::new(12), r, ink, label);
+        }
+        if !lead {
+            let target = pl::track_mixer_label(s, row);
+            let route = Rect::new(sb.x - 27.0, sb.y, 24.0, 18.0);
+            let hov = ui.hit(route, Action::PlRoute(row), "Mixer target: click to route this playlist track");
+            let face = if hov { t.accent } else { Color::rgb(0x25201a) };
+            ui.c.fill_rrect(route, 5.0, face);
+            let ink = if hov { lk::ink_on_lit(t) } else { t.accent };
+            ui.c.text_center(Font::new(11), route, ink, &target);
         }
     }
     // Docked: a small pan strip and the volume bar along the card's foot, in the mixer's style (the track knobs

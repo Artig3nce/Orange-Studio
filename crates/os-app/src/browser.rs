@@ -31,6 +31,7 @@ impl App {
         match *a {
             Action::BrowserTab(i) => {
                 self.browser_click = None;
+                s.browser_search_focus = false;
                 s.browser_tab = i;
                 s.browser_scroll = 0.0;
                 if i == view::FREESOUND_TAB && s.freesound.results.is_empty() && !s.freesound.busy {
@@ -627,10 +628,15 @@ impl App {
                 let Some(ch) = s.project.channels.get(c) else { return };
                 let (kind, index) = (ch.kind, ch.index);
                 if let Some((track, tick)) = spot {
-                    if matches!(kind, ChannelKind::AudioClip | ChannelKind::Automation) {
+                    if kind == ChannelKind::AudioClip {
+                        s.message = Some(match pl::add_audio_source(s, c, track, tick) {
+                            Some(_) => format!("Placed an independent sample on Track {}", track + 1),
+                            None => "Could not place this audio clip".into(),
+                        });
+                    } else if kind == ChannelKind::Automation {
                         pl::snapshot(s);
                         s.playlist.source = Some(ClipSource::Channel(index));
-                        s.playlist.picker = if kind == ChannelKind::AudioClip { PickKind::Audio } else { PickKind::Automation };
+                        s.playlist.picker = PickKind::Automation;
                         let i = pl::place(s, track, tick);
                         s.playlist.sel = vec![i];
                     } else {

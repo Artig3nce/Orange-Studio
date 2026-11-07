@@ -329,8 +329,17 @@ impl Layout {
     /// The layout kept in `settings.txt`; the classic one when there is none or it cannot be read. Tests start with
     /// "Caption left", every panel at its home, where they measure the panels.
     pub fn load() -> Layout {
-        let first = if cfg!(test) { PRESETS[CAPTION_LEFT].layout() } else { Layout::docked() };
-        crate::settings_file::get(KEY).and_then(|v| Layout::parse(&v)).unwrap_or(first)
+        // FL's own toolbar with FL's layout (its window buttons at the top right on Windows and Linux, at the top left on
+        // macOS); the docked one only with the docked layout. Tests measure the panels at their homes (Caption left).
+        let fl = if cfg!(test) || cfg!(target_os = "macos") { PRESETS[CAPTION_LEFT].layout() } else { Layout::classic() };
+        let first = if cfg!(test) || !crate::app::docked_requested() { fl } else { Layout::docked() };
+        match crate::settings_file::get(KEY).and_then(|v| Layout::parse(&v)) {
+            // The docked layout's own toolbar, kept from before FL's layout came back: it has no window buttons, no pattern
+            // selector and no microphone, so FL's takes its place. Any other saved toolbar is the user's and stays.
+            Some(l) if l == Layout::docked() && first != Layout::docked() => first,
+            Some(l) => l,
+            None => first,
+        }
     }
 
     /// Keeps the layout for the next start.

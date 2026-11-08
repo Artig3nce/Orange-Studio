@@ -1665,7 +1665,7 @@ pub fn key(app: &mut App, key: &winit::keyboard::Key, ctrl: bool, alt: bool) -> 
 
 /// New peaks from the audio thread: meters rise, fall and hold by elapsed time (`meters::step`). True while any meter
 /// is still moving.
-pub fn feed_meters(s: &mut State, peaks: &[[f32; 2]]) -> bool {
+pub fn feed_meters(s: &mut State, peaks: &[[f32; 2]], bands: &[[f32; 3]]) -> bool {
     let now = std::time::Instant::now();
     // Long gaps (the app was idle) count as one frame, so a meter does not vanish in a single step.
     let dt = s.mixer.meter_at.map_or(1.0 / 60.0, |t| now.duration_since(t).as_secs_f32().min(0.1));
@@ -1677,7 +1677,8 @@ pub fn feed_meters(s: &mut State, peaks: &[[f32; 2]]) -> bool {
     let mut moving = false;
     for (i, v) in m.iter_mut().enumerate() {
         let p = peaks.get(i).copied().unwrap_or([0.0; 2]);
-        moving |= crate::meters::step(v, p, dt, &s.mixer.meter_cfg);
+        let b = bands.get(i).copied().unwrap_or([0.0; 3]);
+        moving |= crate::meters::step_with_bands(v, p, b, dt, &s.mixer.meter_cfg);
     }
     if !moving {
         s.mixer.meter_at = None;

@@ -967,6 +967,32 @@ fn head_panel(ui: &mut Ui, r: Rect, own: Option<Color>) {
 }
 
 /// Meter slot with its tick marks and the track's peak meter; the selected strip's gets a frame.
+/// A track's recent signal as a colour map in `r`: one row per slice of the last seconds (`meters::HISTORY`), the newest at the top
+/// and older ones scrolling down; a row takes its colour from the slice's spectral centre on the theme's Waves gradient
+/// (what Colorful waveforms' Color map gives a stretch of an audio clip) and is lit by its level, so silence stays dark.
+fn colour_map(ui: &mut Ui, s: &State, n: u16, r: Rect) {
+    let Some(m) = s.mixer.meters.get(usize::from(n)) else { return };
+    if m.history.is_empty() || r.h < 1.0 {
+        return;
+    }
+    let waves = os_theme::waves::Waves::new(os_theme::waves::Mode::ColorMap, &ui.t.waves);
+    let base = ui.t.s(0x232729);
+    let rows = r.h.floor().max(1.0) as usize;
+    let last = m.history.len() - 1;
+    ui.c.push_clip(r);
+    for y in 0..rows {
+        let slice = &m.history[(y * (meters::HISTORY - 1) / rows).min(last)];
+        // 0 at -60 dB, 1 at 0 dB.
+        let lit = ((20.0 * slice.amp.max(1e-6).log10() + 60.0) / 60.0).clamp(0.0, 1.0);
+        if lit > 0.01 {
+            if let Some(c) = waves.colour(Some(slice.centroid), None) {
+                ui.c.fill_rect(Rect::new(r.x, r.y + y as f32, r.w, 1.0), base.mix(c, lit.powf(0.6)));
+            }
+        }
+    }
+    ui.c.pop_clip();
+}
+
 fn strip_meter(ui: &mut Ui, s: &State, n: u16, meter: Rect, ticks: &[f32]) {
     let t = ui.t;
     let lemon = super::lemon(ui);
@@ -978,22 +1004,12 @@ fn strip_meter(ui: &mut Ui, s: &State, n: u16, meter: Rect, ticks: &[f32]) {
         ui.c.fill_rrect(meter, 2.0, ui.t.s(0x191d1e));
         ui.c.fill_rect(Rect::new(meter.x + 2.0, meter.y + 2.0, iw - 1.0, meter.h - 4.0), ui.t.s(0x232729));
     }
-    for &y in ticks {
-        ui.c.fill_rect(Rect::new(meter.x + 3.0, y, meter.w - 7.0, 1.0), ui.t.s(0x111315));
-    }
-    // Per-track peak meter (spec: ui/mixer.md §9): two bars on the same scale as the "C" column.
+    let _ = ticks;
+    // The track's signal as a scrolling colour map (spec: ui/mixer.md §9; the Colour map of Colorful waveforms, `os_theme::waves`).
     ui.live(Live::Meter, meter);
-    if let Some(m) = s.mixer.meters.get(usize::from(n)) {
-        let cfg = &s.mixer.meter_cfg;
-        let (top, bot) = (meter.y + 2.0, meter.bottom() - 2.0);
-        let floor = cfg.v[meters::k::FLOOR_DB];
-        let alt = crate::prefs::check(&crate::prefs::ALTERNATE_METER_SCALE);
-        let ys = |db: f32| bot - meters::frac(db, floor, alt) * (bot - top);
-        let bw = iw / 2.0;
-        for i in 0..2 {
-            meter_bar(ui, meter.x + 2.0 + bw * i as f32, bw, bot, m.db[i], m.hold[i], cfg, &ys);
-        }
-    }
+    colour_map(ui, s, n, Rect::new(meter.x + 2.0, meter.y + 2.0, iw, meter.h - 4.0));
+    // A thin outline in the theme's own colour.
+    ui.c.stroke_rrect(meter, if lemon { lk::r_small(t).min(meter.w / 2.0) } else { 2.0 }, 1.0, t.glyph_dim.with_alpha(170));
     if s.selected_mixer == n {
         ui.c.stroke_rrect(Rect::new(meter.x - 1.0, meter.y - 2.0, meter.w + 2.0, meter.h + 4.0), if lemon { lk::r_btn(t) } else { 1.0 }, 2.0, t.accent);
     }

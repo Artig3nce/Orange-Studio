@@ -4880,8 +4880,8 @@ impl App {
             self.damage_rect(views::tapper::pad_rect(&self.state));
         }
         // Mixer meters (spec: ui/mixer.md §9): fall back after playback stops.
-        let peaks = self.transport.take_track_peaks();
-        if crate::mixer::feed_meters(&mut self.state, &peaks) && self.state.shown(Win::Mixer) {
+        let (peaks, bands) = self.transport.take_track_peaks_and_bands();
+        if crate::mixer::feed_meters(&mut self.state, &peaks, &bands) && self.state.shown(Win::Mixer) {
             self.damage_live(Live::Meter);
         }
         // Audio clips follow their channel's stretch, pitch and the tempo (ui/playlist.md §9c). The lengths are worked
@@ -22457,7 +22457,7 @@ mod tests {
         app.state.mixer.meters = (0..18)
             .map(|i| {
                 let db = [crate::meters::to_db(0.12 * i as f32), crate::meters::to_db(0.1 * i as f32)];
-                crate::meters::Meter { db, hold: db.map(|d| if d > crate::meters::SILENT { d + 3.0 } else { d }), held: [0.0; 2] }
+                crate::meters::Meter { db, hold: db.map(|d| if d > crate::meters::SILENT { d + 3.0 } else { d }), held: [0.0; 2], history: Default::default() }
             })
             .collect();
         frame(&mut app, &mut c, None);

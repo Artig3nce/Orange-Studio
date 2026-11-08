@@ -966,33 +966,39 @@ fn head_panel(ui: &mut Ui, r: Rect, own: Option<Color>) {
     ui.c.fill_rect(Rect::new(r.x, r.y, r.w, 12.0_f32.min(r.h)), panel);
 }
 
-/// Meter slot with its tick marks and the track's peak meter; the selected strip's gets a frame.
-/// A track's recent signal as a colour map in `r`: one row per slice of the last seconds (`meters::HISTORY`), the newest at the top
-/// and older ones scrolling down; a row takes its colour from the slice's spectral centre on the theme's Waves gradient
-/// (what Colorful waveforms' Color map gives a stretch of an audio clip) and is lit by its level, so silence stays dark.
-fn colour_map(ui: &mut Ui, s: &State, n: u16, r: Rect) {
+/// A track's recent signal as a waveform in `r`, running down: one row per slice of the last seconds (`meters::HISTORY`), the
+/// newest at the top and older ones scrolling down. A row is as wide as the level of its slice on either side of the centre
+/// line, as an audio clip's waveform is as tall, and a row of the meter takes the loudest of the slices that fall on it, so a
+/// brief peak is not lost. Its colour is the clip's, by General ▸ Display ▸ Colorful waveforms: Color map (the slice's spectral
+/// centre on the theme's Waves gradient), Multiband (its low, mid and high energy mixed), or Off (the theme's accent).
+fn waveform_meter(ui: &mut Ui, s: &State, n: u16, r: Rect) {
     let Some(m) = s.mixer.meters.get(usize::from(n)) else { return };
     if m.history.is_empty() || r.h < 1.0 {
         return;
     }
-    let waves = os_theme::waves::Waves::new(os_theme::waves::Mode::ColorMap, &ui.t.waves);
-    let base = ui.t.s(0x232729);
+    let waves = crate::waves::current(ui.t);
+    let (plain, centre) = (ui.t.accent, ui.t.glyph_dim.with_alpha(70));
+    let (cx, half) = (r.x + r.w / 2.0, r.w / 2.0);
     let rows = r.h.floor().max(1.0) as usize;
-    let last = m.history.len() - 1;
     ui.c.push_clip(r);
+    ui.c.fill_rect(Rect::new(cx - 0.5, r.y, 1.0, r.h), centre);
     for y in 0..rows {
-        let slice = &m.history[(y * (meters::HISTORY - 1) / rows).min(last)];
-        // 0 at -60 dB, 1 at 0 dB.
-        let lit = ((20.0 * slice.amp.max(1e-6).log10() + 60.0) / 60.0).clamp(0.0, 1.0);
-        if lit > 0.01 {
-            if let Some(c) = waves.colour(Some(slice.centroid), None) {
-                ui.c.fill_rect(Rect::new(r.x, r.y + y as f32, r.w, 1.0), base.mix(c, lit.powf(0.6)));
-            }
+        let a = y * meters::HISTORY / rows;
+        let b = ((y + 1) * meters::HISTORY / rows).max(a + 1).min(m.history.len());
+        let Some(slice) = (a..b).map(|i| &m.history[i]).max_by(|p, q| p.amp.total_cmp(&q.amp)) else { continue };
+        // The clip waveform's gain (its peaks are drawn 1.7 times), a little lifted so quiet parts show.
+        let w = (slice.amp * 1.7).clamp(0.0, 1.0).powf(0.8) * half;
+        if w < 0.3 {
+            continue;
         }
+        let c = waves.colour(Some(slice.centroid), Some(slice.bands)).unwrap_or(plain);
+        ui.c.fill_rect(Rect::new(cx - w, r.y + y as f32, 2.0 * w, 1.0), c);
     }
     ui.c.pop_clip();
 }
 
+/// Meter slot: the track's signal as a waveform beside the fader, framed in the theme's colour; the selected strip's gets a
+/// brighter frame.
 fn strip_meter(ui: &mut Ui, s: &State, n: u16, meter: Rect, ticks: &[f32]) {
     let t = ui.t;
     let lemon = super::lemon(ui);
@@ -1005,9 +1011,9 @@ fn strip_meter(ui: &mut Ui, s: &State, n: u16, meter: Rect, ticks: &[f32]) {
         ui.c.fill_rect(Rect::new(meter.x + 2.0, meter.y + 2.0, iw - 1.0, meter.h - 4.0), ui.t.s(0x232729));
     }
     let _ = ticks;
-    // The track's signal as a scrolling colour map (spec: ui/mixer.md §9; the Colour map of Colorful waveforms, `os_theme::waves`).
+    // The track's signal as a scrolling waveform (spec: ui/mixer.md §9), coloured as Colorful waveforms colours a clip (`crate::waves`).
     ui.live(Live::Meter, meter);
-    colour_map(ui, s, n, Rect::new(meter.x + 2.0, meter.y + 2.0, iw, meter.h - 4.0));
+    waveform_meter(ui, s, n, Rect::new(meter.x + 2.0, meter.y + 2.0, iw, meter.h - 4.0));
     // A thin outline in the theme's own colour.
     ui.c.stroke_rrect(meter, if lemon { lk::r_small(t).min(meter.w / 2.0) } else { 2.0 }, 1.0, t.glyph_dim.with_alpha(170));
     if s.selected_mixer == n {

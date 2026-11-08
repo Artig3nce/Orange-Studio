@@ -22494,6 +22494,33 @@ mod tests {
         app.mouse_up();
     }
 
+    /// The mixer's meter is a waveform: a louder signal draws wider than a quiet one, and silence draws nothing (the setting
+    /// Colorful waveforms only picks the colour, so the test leaves it alone).
+    #[test]
+    fn the_mixer_meter_is_a_waveform_as_wide_as_the_level() {
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.set_design(Design::Lemon, false);
+        app.state.project = test_project();
+        app.state.z = vec![Win::Mixer];
+        app.state.mixer.layout = crate::mixer::EXTRA_LARGE;
+        let shot = |app: &mut App, c: &mut Canvas, amp: f32| {
+            let slice = crate::meters::WaveSlice { amp, centroid: 1000.0, bands: [amp; 3] };
+            app.state.mixer.meters = (0..18).map(|_| crate::meters::Meter { history: (0..crate::meters::HISTORY).map(|_| slice).collect(), ..Default::default() }).collect();
+            frame(app, c, None);
+            let mut v = vec![0u32; 1920 * 1080];
+            c.copy_to_xrgb(&mut v);
+            v
+        };
+        let none = shot(&mut app, &mut c, 0.0);
+        let quiet = shot(&mut app, &mut c, 0.12);
+        let loud = shot(&mut app, &mut c, 0.9);
+        let drawn = |a: &[u32], b: &[u32]| a.iter().zip(b).filter(|(x, y)| x != y).count();
+        let (q, l) = (drawn(&none, &quiet), drawn(&none, &loud));
+        assert!(q > 0, "a quiet signal shows");
+        assert!(l > q * 2, "a loud signal is wider: {q} against {l} pixels");
+    }
+
     /// FL's layout: the mixer's pan knob is round and is dragged up and down, as in FL, not along like the bar; a small
     /// movement moves the value a little (no jump to where the mouse is on the knob).
     #[test]

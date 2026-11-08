@@ -342,7 +342,7 @@ fn title_tools(ui: &mut Ui, s: &State, r: Rect) {
     chevron(ui, r.x + 11.0, y, true, if hov { ui.t.tx(0xffffff) } else { ui.t.tx(0xc4ccd0) });
     // The docked layout keeps only the options arrow; the strips' own "+" still adds tracks.
     if !s.docked_ui {
-        floating_tools(ui, r, y);
+        floating_tools(ui, s, r, y);
     }
     let px = if super::lemon(ui) { 16.0 } else { 0.0 };
 
@@ -360,17 +360,20 @@ fn title_tools(ui: &mut Ui, s: &State, r: Rect) {
 }
 
 /// The floating mixer's title buttons.
-fn floating_tools(ui: &mut Ui, r: Rect, y: f32) {
+fn floating_tools(ui: &mut Ui, s: &State, r: Rect, y: f32) {
     // View buttons (multi-touch, waveforms, extra properties, track inspector): not available yet, greyed out (drawn
     // in their colours faded into the title bar, like `Ui::veil`; a veil would show over the bar's gradient). Lemon
     // centres them and the "+" 24 px apart: its inspector sits 10 px further right, the "+" and the combo 16 px.
     let bg = ui.t.window_title;
     let dim = |c: Color| c.mix(bg, f32::from(crate::app::OFF_VEIL) / 255.0);
-    for (icon, dx, name) in [(Icon::Touch, 37.0, "Multi-touch control"), (Icon::Plug, 61.0, "View waveforms")] {
-        let b = Rect::new(r.x + dx - 9.0, y - 9.0, 18.0, 18.0);
-        ui.off(b, name);
-        icons::draw(ui.c, icon, b.inset(1.0), dim(ui.t.tx(0xc4ccd0)));
-    }
+    let b = Rect::new(r.x + 37.0 - 9.0, y - 9.0, 18.0, 18.0);
+    ui.off(b, "Multi-touch control");
+    icons::draw(ui.c, Icon::Touch, b.inset(1.0), dim(ui.t.tx(0xc4ccd0)));
+    // View waveforms: lit (in the theme's accent) while the strips' meters draw waveforms.
+    let b = Rect::new(r.x + 61.0 - 9.0, y - 9.0, 18.0, 18.0);
+    let hov = ui.hit(b, Action::Mix(MHit::ViewWaves), if s.mixer.waves { "View waveforms: on (click for level bars)" } else { "View waveforms: off (click to show waveforms)" });
+    let c = if s.mixer.waves { ui.t.accent } else if hov { ui.t.tx(0xffffff) } else { ui.t.tx(0xc4ccd0) };
+    icons::draw(ui.c, Icon::Plug, b.inset(1.0), c);
     let (ix, px) = if super::lemon(ui) { (10.0, 16.0) } else { (0.0, 0.0) };
     ui.off(Rect::new(r.x + 76.0, y - 9.0, 16.0, 18.0), "Extra volume / stereo properties");
     ui.off(Rect::new(r.x + 92.0 + ix, y - 9.0, 15.0, 18.0), "Track inspector");
@@ -1013,7 +1016,21 @@ fn strip_meter(ui: &mut Ui, s: &State, n: u16, meter: Rect, ticks: &[f32]) {
     let _ = ticks;
     // The track's signal as a scrolling waveform (spec: ui/mixer.md §9), coloured as Colorful waveforms colours a clip (`crate::waves`).
     ui.live(Live::Meter, meter);
-    waveform_meter(ui, s, n, Rect::new(meter.x + 2.0, meter.y + 2.0, iw, meter.h - 4.0));
+    let inner = Rect::new(meter.x + 2.0, meter.y + 2.0, iw, meter.h - 4.0);
+    if s.mixer.waves {
+        waveform_meter(ui, s, n, inner);
+    } else if let Some(m) = s.mixer.meters.get(usize::from(n)) {
+        // "View waveforms" off: the plain left / right level bars.
+        let cfg = &s.mixer.meter_cfg;
+        let floor = cfg.v[meters::k::FLOOR_DB].min(-1.0);
+        let ys = |db: f32| inner.bottom() - ((db - floor) / -floor).clamp(0.0, 1.0) * inner.h;
+        let bw = (inner.w / 2.0).floor().max(1.0);
+        ui.c.push_clip(inner);
+        for i in 0..2 {
+            meter_bar(ui, inner.x + bw * i as f32, bw, inner.bottom(), m.db[i], m.hold[i], cfg, &ys);
+        }
+        ui.c.pop_clip();
+    }
     // A thin outline in the theme's own colour.
     ui.c.stroke_rrect(meter, if lemon { lk::r_small(t).min(meter.w / 2.0) } else { 2.0 }, 1.0, t.glyph_dim.with_alpha(170));
     if s.selected_mixer == n {

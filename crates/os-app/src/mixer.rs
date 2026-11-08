@@ -36,6 +36,8 @@ pub enum MHit {
     AddAfter,
     Options,
     Layout,
+    /// Title bar's "View waveforms": the strips' meters as waveforms or as level bars.
+    ViewWaves,
     /// Effect slot `n` of the current track: name, ▸ arrow, LED.
     SlotName(u8),
     SlotArrow(u8),
@@ -158,12 +160,14 @@ pub struct MixerUi {
     pub solo: Option<(Vec<u16>, Vec<(u16, bool)>)>,
     /// The track and effect slot the wheel last moved, and where the mouse was then (`slot_wheel`).
     pub wheel_grab: Option<(u16, u8, (f32, f32))>,
+    /// "View waveforms" (the title bar's button): the strips' meters draw the signal as a waveform, or (off) as level bars.
+    pub waves: bool,
 }
 
 impl Default for MixerUi {
     fn default() -> Self {
         MixerUi { sel: Vec::new(), layout: if cfg!(test) { WIDE } else { saved_layout() }, slot_names: HashMap::new(), pending: Vec::new(), quiet: Default::default(), meters: Vec::new(),
-            meter_cfg: Default::default(), meter_at: None, solo: None, wheel_grab: None }
+            meter_cfg: Default::default(), meter_at: None, solo: None, wheel_grab: None, waves: true }
     }
 }
 
@@ -414,6 +418,10 @@ pub fn hit(app: &mut App, h: MHit) -> Option<String> {
         MHit::Options => {
             s.playlist.popup = Some(options_menu(s, at.0, at.1 + 10.0));
             None
+        }
+        MHit::ViewWaves => {
+            s.mixer.waves = !s.mixer.waves;
+            Some(if s.mixer.waves { "Mixer meters: waveforms".into() } else { "Mixer meters: levels".into() })
         }
         MHit::Layout => {
             s.playlist.popup = Some(layout_menu(s, at.0, at.1 + 10.0));

@@ -6673,7 +6673,7 @@ impl App {
             Action::Mix(MHit::SlotName(i)) => crate::mixer::slot_name(&self.state, self.state.selected_mixer, *i).is_some(),
             Action::Mix(h) => matches!(
                 h,
-                MHit::Led(_) | MHit::Polarity(_) | MHit::Swap(_) | MHit::Route(_) | MHit::Unroute(_) | MHit::Add | MHit::AddAfter | MHit::SlotLed(_)
+                MHit::Led(_) | MHit::Polarity(_) | MHit::Swap(_) | MHit::Route(_) | MHit::Unroute(_) | MHit::Add | MHit::AddAfter | MHit::ViewWaves | MHit::SlotLed(_)
             ),
             Action::Dlg(h) => matches!(
                 h,
@@ -22519,6 +22519,27 @@ mod tests {
         let (q, l) = (drawn(&none, &quiet), drawn(&none, &loud));
         assert!(q > 0, "a quiet signal shows");
         assert!(l > q * 2, "a loud signal is wider: {q} against {l} pixels");
+    }
+
+    /// The title bar's "View waveforms" button switches the strips' meters between the waveform and the level bars.
+    #[test]
+    fn view_waveforms_button_switches_the_meters() {
+        let Ok(mut c) = Canvas::new(1920, 1080, 1.0) else { return };
+        let mut app = App::new(None);
+        app.set_design(Design::Lemon, false);
+        app.state.project = test_project();
+        app.state.z = vec![Win::Mixer];
+        app.state.mixer.layout = crate::mixer::EXTRA_LARGE;
+        let slice = crate::meters::WaveSlice { amp: 0.6, centroid: 1000.0, bands: [0.6; 3] };
+        app.state.mixer.meters = (0..18).map(|_| crate::meters::Meter { history: (0..crate::meters::HISTORY).map(|_| slice).collect(), ..Default::default() }).collect();
+        frame(&mut app, &mut c, None);
+        let on = app.hits.iter().any(|h| h.action == Action::Mix(crate::mixer::MHit::ViewWaves));
+        assert!(on, "the button is there");
+        assert!(app.state.mixer.waves);
+        crate::mixer::hit(&mut app, crate::mixer::MHit::ViewWaves);
+        assert!(!app.state.mixer.waves, "one click turns the waveforms off");
+        crate::mixer::hit(&mut app, crate::mixer::MHit::ViewWaves);
+        assert!(app.state.mixer.waves);
     }
 
     /// FL's layout: the mixer's pan knob is round and is dragged up and down, as in FL, not along like the bar; a small
